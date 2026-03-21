@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum ClientType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum RequestStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RequestPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum OfferStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(EMPLOYEE)
+  isBlocked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requests  Request[]       @relation("AssignedRequests")
+  comments  Comment[]
+  changeLogs ChangeLog[]
+  offers    CommercialOffer[]
+}
+
+model Client {
+  id        String     @id @default(cuid())
+  type      ClientType @default(INDIVIDUAL)
+  name      String
+  phone     String?
+  email     String?
+  inn       String?
+  address   String?
+  comment   String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  requests  Request[]
+}
+
+model Request {
+  id          String          @id @default(cuid())
+  number      Int             @unique @default(autoincrement())
+  title       String
+  description String?
+  status      RequestStatus   @default(NEW)
+  priority    RequestPriority @default(MEDIUM)
+  amount      Float?
+  services    String[]        @default([])
+  files       String[]        @default([])
+
+  clientId   String
+  client     Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  assigneeId String?
+  assignee   User?   @relation("AssignedRequests", fields: [assigneeId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  comments   Comment[]
+  changeLogs ChangeLog[]
+  offers     CommercialOffer[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  text      String
+  requestId String
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model ChangeLog {
+  id        String   @id @default(cuid())
+  field     String
+  oldValue  String?
+  newValue  String?
+  requestId String
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model CommercialOffer {
+  id          String      @id @default(cuid())
+  number      Int         @unique @default(autoincrement())
+  status      OfferStatus @default(DRAFT)
+  discount    Float       @default(0)
+  total       Float       @default(0)
+  notes       String?
+  validUntil  DateTime?
+
+  requestId   String?
+  request     Request? @relation(fields: [requestId], references: [id])
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  items     OfferItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model OfferItem {
+  id          String @id @default(cuid())
+  service     String
+  description String?
+  quantity    Float  @default(1)
+  unit        String @default("шт")
+  price       Float
+  total       Float
+
+  offerId String
+  offer   CommercialOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+}
+
+model ServiceCatalog {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  unit        String   @default("шт")
+  price       Float?
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}

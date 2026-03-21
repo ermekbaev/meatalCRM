@@ -1,0 +1,131 @@
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { formatDate } from "./utils";
+
+export async function generateOfferPDF(offer: any) {
+  const subtotal = offer.items.reduce((s: number, i: any) => s + i.total, 0);
+  const discountAmount = subtotal - offer.total;
+
+  const container = document.createElement("div");
+  container.style.cssText = [
+    "position:fixed",
+    "top:-9999px",
+    "left:-9999px",
+    "width:794px",
+    "background:white",
+    "font-family:Arial,Helvetica,sans-serif",
+    "padding:48px",
+    "color:#1a2332",
+    "font-size:13px",
+    "line-height:1.5",
+  ].join(";");
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #334155;padding-bottom:20px;margin-bottom:24px;">
+      <div>
+        <h1 style="font-size:22px;font-weight:700;margin:0 0 6px 0;color:#0f172a;">
+          Коммерческое предложение №${offer.number}
+        </h1>
+        ${offer.request?.client ? `<p style="margin:3px 0;color:#475569;">Клиент: <strong>${offer.request.client.name}</strong></p>` : ""}
+        ${offer.request?.client?.phone ? `<p style="margin:3px 0;color:#64748b;">Телефон: ${offer.request.client.phone}</p>` : ""}
+        ${offer.request?.client?.email ? `<p style="margin:3px 0;color:#64748b;">Email: ${offer.request.client.email}</p>` : ""}
+      </div>
+      <div style="text-align:right;color:#64748b;">
+        <p style="margin:3px 0;">Дата: <strong>${formatDate(offer.createdAt)}</strong></p>
+        ${offer.validUntil ? `<p style="margin:3px 0;">Действует до: <strong>${formatDate(offer.validUntil)}</strong></p>` : ""}
+        ${offer.createdBy?.name ? `<p style="margin:3px 0;">Менеджер: ${offer.createdBy.name}</p>` : ""}
+      </div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+      <thead>
+        <tr style="background:#334155;color:white;">
+          <th style="padding:9px 8px;text-align:left;width:28px;font-weight:600;">№</th>
+          <th style="padding:9px 8px;text-align:left;font-weight:600;">Услуга</th>
+          <th style="padding:9px 8px;text-align:left;font-weight:600;">Описание</th>
+          <th style="padding:9px 8px;text-align:right;width:60px;font-weight:600;">Кол-во</th>
+          <th style="padding:9px 8px;text-align:center;width:40px;font-weight:600;">Ед.</th>
+          <th style="padding:9px 8px;text-align:right;width:85px;font-weight:600;">Цена</th>
+          <th style="padding:9px 8px;text-align:right;width:95px;font-weight:600;">Сумма</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${offer.items.map((item: any, idx: number) => `
+          <tr style="border-bottom:1px solid #e2e8f0;background:${idx % 2 === 0 ? "white" : "#f8fafc"};">
+            <td style="padding:8px;color:#94a3b8;">${idx + 1}</td>
+            <td style="padding:8px;font-weight:500;">${item.service}</td>
+            <td style="padding:8px;color:#64748b;">${item.description ?? "—"}</td>
+            <td style="padding:8px;text-align:right;">${item.quantity}</td>
+            <td style="padding:8px;text-align:center;color:#64748b;">${item.unit}</td>
+            <td style="padding:8px;text-align:right;">${item.price.toLocaleString("ru")} ₽</td>
+            <td style="padding:8px;text-align:right;font-weight:600;">${item.total.toLocaleString("ru")} ₽</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+
+    <div style="display:flex;justify-content:flex-end;">
+      <div style="width:230px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#64748b;">
+          <span>Подытог</span>
+          <span>${subtotal.toLocaleString("ru")} ₽</span>
+        </div>
+        ${offer.discount > 0 ? `
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#16a34a;">
+          <span>Скидка ${offer.discount}%</span>
+          <span>−${discountAmount.toLocaleString("ru")} ₽</span>
+        </div>` : ""}
+        <div style="display:flex;justify-content:space-between;border-top:2px solid #334155;padding-top:8px;margin-top:4px;font-size:16px;font-weight:700;">
+          <span>Итого</span>
+          <span>${offer.total.toLocaleString("ru")} ₽</span>
+        </div>
+      </div>
+    </div>
+
+    ${offer.notes ? `
+    <div style="margin-top:28px;padding:14px;background:#f8fafc;border-left:3px solid #334155;border-radius:4px;">
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin:0 0 6px 0;">Примечания</p>
+      <p style="margin:0;color:#475569;">${offer.notes}</p>
+    </div>` : ""}
+  `;
+
+  document.body.appendChild(container);
+
+  try {
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+    });
+
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW;
+    const imgH = (canvas.height * pageW) / canvas.width;
+
+    if (imgH <= pageH) {
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, imgW, imgH);
+    } else {
+      // Split across pages
+      const pxPerPage = (canvas.width * pageH) / pageW;
+      let offsetPx = 0;
+      while (offsetPx < canvas.height) {
+        const sliceH = Math.min(pxPerPage, canvas.height - offsetPx);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceH;
+        sliceCanvas.getContext("2d")!.drawImage(canvas, 0, -offsetPx);
+        const sliceMm = (sliceH * pageW) / canvas.width;
+        if (offsetPx > 0) pdf.addPage();
+        pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", 0, 0, imgW, sliceMm);
+        offsetPx += pxPerPage;
+      }
+    }
+
+    pdf.save(`KP-${offer.number}.pdf`);
+  } finally {
+    document.body.removeChild(container);
+  }
+}
