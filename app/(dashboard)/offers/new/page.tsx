@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS } from "@/lib/utils";
-import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2, Building2 } from "lucide-react";
 import Link from "next/link";
 
 export default function NewOfferPage() {
@@ -21,6 +21,7 @@ export default function NewOfferPage() {
 
   const [requests, setRequests] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<any[]>([]);
+  const [clientInfo, setClientInfo] = useState<any>(null);
 
   const { register, handleSubmit, setValue, watch, control, formState: { isSubmitting } } = useForm({
     defaultValues: {
@@ -47,6 +48,27 @@ export default function NewOfferPage() {
 
   const items = watch("items");
   const discount = watch("discount");
+  const selectedRequest = watch("requestId");
+  const selectedStatus = watch("status");
+
+  // Подтягиваем данные контрагента при выборе заявки
+  useEffect(() => {
+    if (!selectedRequest) { setClientInfo(null); return; }
+    fetch(`/api/requests/${selectedRequest}`)
+      .then((r) => r.json())
+      .then((req) => setClientInfo(req.client ?? null))
+      .catch(() => setClientInfo(null));
+  }, [selectedRequest]);
+
+  // При начальной загрузке, если requestId передан из URL
+  useEffect(() => {
+    if (requestId) {
+      fetch(`/api/requests/${requestId}`)
+        .then((r) => r.json())
+        .then((req) => setClientInfo(req.client ?? null))
+        .catch(() => {});
+    }
+  }, [requestId]);
 
   const subtotal = items.reduce((sum: number, item: any) => {
     return sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
@@ -78,12 +100,13 @@ export default function NewOfferPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      alert("Ошибка при создании КП. Попробуйте ещё раз.");
+      return;
+    }
     const created = await res.json();
     router.push(`/offers/${created.id}`);
   }
-
-  const selectedStatus = watch("status");
-  const selectedRequest = watch("requestId");
 
   return (
     <div>
@@ -97,7 +120,7 @@ export default function NewOfferPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           <div className="lg:col-span-3 space-y-6">
-            {/* Items */}
+            {/* Позиции */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Перечень услуг</CardTitle>
@@ -151,9 +174,7 @@ export default function NewOfferPage() {
                         <TableCell>
                           <Input
                             {...register(`items.${index}.quantity`)}
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            type="number" min="0" step="0.01"
                             onChange={(e) => { setValue(`items.${index}.quantity`, parseFloat(e.target.value) || 0); updateItemTotal(index); }}
                           />
                         </TableCell>
@@ -163,9 +184,7 @@ export default function NewOfferPage() {
                         <TableCell>
                           <Input
                             {...register(`items.${index}.price`)}
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            type="number" min="0" step="0.01"
                             onChange={(e) => { setValue(`items.${index}.price`, parseFloat(e.target.value) || 0); updateItemTotal(index); }}
                           />
                         </TableCell>
@@ -182,7 +201,7 @@ export default function NewOfferPage() {
                   </TableBody>
                 </Table>
 
-                <div className="flex justify-end p-4 border-t border-gray-100 space-y-1">
+                <div className="flex justify-end p-4 border-t border-gray-100">
                   <div className="text-right space-y-1">
                     <p className="text-sm text-gray-500">Подытог: {subtotal.toLocaleString("ru")} ₽</p>
                     {parseFloat(String(discount)) > 0 && (
@@ -203,7 +222,7 @@ export default function NewOfferPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <Card>
               <CardHeader><CardTitle className="text-base">Параметры КП</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -218,6 +237,29 @@ export default function NewOfferPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Блок данных контрагента */}
+                {clientInfo && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      <Building2 className="h-3.5 w-3.5" />
+                      Контрагент
+                    </div>
+                    <p className="text-sm font-medium text-slate-800 leading-tight">{clientInfo.name}</p>
+                    {clientInfo.inn && (
+                      <div className="grid grid-cols-2 gap-x-3 text-xs text-slate-500">
+                        <span>ИНН: <span className="font-mono text-slate-700">{clientInfo.inn}</span></span>
+                        {clientInfo.kpp && <span>КПП: <span className="font-mono text-slate-700">{clientInfo.kpp}</span></span>}
+                      </div>
+                    )}
+                    {clientInfo.legalAddress && (
+                      <p className="text-xs text-slate-500 leading-tight">
+                        Адрес: <span className="text-slate-700">{clientInfo.legalAddress}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label>Статус</Label>
                   <Select value={selectedStatus} onValueChange={(v) => setValue("status", v)}>

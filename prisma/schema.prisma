@@ -45,29 +45,46 @@ model User {
   password  String
   name      String
   role      UserRole @default(EMPLOYEE)
-  isBlocked Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isBlocked      Boolean  @default(false)
+  telegramChatId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  requests  Request[]       @relation("AssignedRequests")
-  comments  Comment[]
-  changeLogs ChangeLog[]
-  offers    CommercialOffer[]
+  requests      Request[]       @relation("AssignedRequests")
+  comments      Comment[]
+  changeLogs    ChangeLog[]
+  offers        CommercialOffer[]
+  assignedTasks Task[]          @relation("AssignedTasks")
+  createdTasks  Task[]          @relation("CreatedTasks")
+  taskComments  TaskComment[]
+  uploadedFiles RequestFile[]
 }
 
 model Client {
-  id        String     @id @default(cuid())
-  type      ClientType @default(INDIVIDUAL)
-  name      String
-  phone     String?
-  email     String?
-  inn       String?
-  address   String?
-  comment   String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  type           ClientType @default(INDIVIDUAL)
+  name           String
+  shortName      String?
+  legalAddress   String?
+  postalAddress  String?
+  phone          String?
+  email          String?
+  inn            String?
+  kpp            String?
+  ogrn           String?
+  bankName       String?
+  bankAccount    String?
+  bankCorAccount String?
+  bankBik        String?
+  director       String?
+  website        String?
+  source         String?
+  comment        String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   requests  Request[]
+  tasks     Task[]
 }
 
 model Request {
@@ -79,7 +96,6 @@ model Request {
   priority    RequestPriority @default(MEDIUM)
   amount      Float?
   services    String[]        @default([])
-  files       String[]        @default([])
 
   clientId   String
   client     Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -93,6 +109,34 @@ model Request {
   comments   Comment[]
   changeLogs ChangeLog[]
   offers     CommercialOffer[]
+  items      RequestItem[]
+  files      RequestFile[]
+}
+
+model RequestFile {
+  id           String   @id @default(cuid())
+  filename     String
+  originalName String
+  size         Int
+  mimeType     String?
+  requestId    String
+  request      Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model RequestItem {
+  id       String  @id @default(cuid())
+  name     String
+  quantity Float   @default(1)
+  unit     String  @default("шт")
+  price    Float   @default(0)
+  discount Float   @default(0)
+  total    Float   @default(0)
+
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 model Comment {
@@ -149,8 +193,49 @@ model OfferItem {
   offer   CommercialOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 }
 
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model Task {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus  @default(TODO)
+  priority    RequestPriority @default(MEDIUM)
+  dueDate     DateTime?
+
+  assigneeId  String?
+  assignee    User?   @relation("AssignedTasks", fields: [assigneeId], references: [id])
+
+  createdById String
+  createdBy   User    @relation("CreatedTasks", fields: [createdById], references: [id])
+
+  clientId    String?
+  client      Client? @relation(fields: [clientId], references: [id])
+
+  comments    TaskComment[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  text      String
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
 model ServiceCatalog {
   id          String   @id @default(cuid())
+  type        String   @default("service")
   name        String
   description String?
   unit        String   @default("шт")
@@ -158,4 +243,24 @@ model ServiceCatalog {
   category    String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+model CompanySettings {
+  id             String  @id @default("singleton")
+  name           String  @default("")
+  shortName      String?
+  inn            String?
+  kpp            String?
+  ogrn           String?
+  legalAddress   String?
+  postalAddress  String?
+  phone          String?
+  email          String?
+  website        String?
+  bankName       String?
+  bankAccount    String?
+  bankCorAccount String?
+  bankBik        String?
+  director       String?
+  updatedAt      DateTime @updatedAt
 }

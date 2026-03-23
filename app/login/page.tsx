@@ -2,10 +2,8 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Factory, Loader2, Eye, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Eye, EyeOff, User, Lock, LogIn, Loader2 } from "lucide-react";
+import { ParticlesBackground } from "@/components/ParticlesBackground";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,78 +27,65 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res?.error) {
-      setError("Неверный email или пароль");
+      setError("Неверный логин или пароль");
     } else {
       router.push("/dashboard");
     }
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f1f3f5]">
-      {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-slate-800 p-12">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-600 shadow-lg shadow-slate-900/30">
-            <Factory className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-[15px] font-semibold text-white">МеталлCRM</span>
-        </div>
+    <div className="fixed inset-0 flex items-center justify-center overflow-hidden">
+      {/* Градиентный фон */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-800 to-slate-900" />
 
-        <div>
-          <h2 className="text-3xl font-bold text-white leading-snug">
-            Управляйте заявками<br />
-            <span className="text-slate-300">эффективно</span>
-          </h2>
-          <p className="mt-4 text-[14px] text-white/40 leading-relaxed max-w-sm">
-            CRM-система для металлообрабатывающего производства. Заявки, контрагенты, коммерческие предложения — всё в одном месте.
-          </p>
+      {/* Частицы */}
+      <ParticlesBackground />
 
-          <div className="mt-10 grid grid-cols-3 gap-4">
-            {[
-              { label: "Заявки", desc: "Полный контроль" },
-              { label: "КП", desc: "PDF за секунды" },
-              { label: "Аналитика", desc: "Всегда в курсе" },
-            ].map((f) => (
-              <div key={f.label} className="rounded-xl border border-white/8 bg-white/4 p-4">
-                <p className="text-[13px] font-semibold text-white">{f.label}</p>
-                <p className="text-[11px] text-white/40 mt-0.5">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="text-[11px] text-white/20">© 2025 МеталлCRM</p>
-      </div>
-
-      {/* Right panel */}
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="w-full max-w-sm">
-          <div className="mb-8">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-700 shadow-sm lg:hidden">
-              <Factory className="h-5 w-5 text-white" />
+      {/* Карточка */}
+      <div className="relative z-10 w-full max-w-md mx-4">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Шапка */}
+          <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-8 py-6 text-center">
+            <h1 className="text-2xl font-bold text-white tracking-wide">МеталлCRM</h1>
+            <p className="text-blue-100 text-sm mt-1">Металлообрабатывающая компания</p>
+            <div className="mt-4 inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-2">
+              <LogIn className="w-4 h-4 text-white" />
+              <span className="text-white text-sm font-medium">Вход в систему</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Вход в систему</h1>
-            <p className="mt-1 text-[13px] text-gray-400">Введите ваши учётные данные</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Форма */}
+          <form onSubmit={handleSubmit} className="px-8 py-6 space-y-5">
+            {/* Логин */}
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@metalcrm.ru"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Пароль</Label>
+              <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <User className="w-4 h-4 text-slate-600" />
+                Email
+              </label>
               <div className="relative">
-                <Input
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm outline-none"
+                  placeholder="admin@metalcrm.ru"
+                  autoComplete="email"
+                  required
+                />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              </div>
+            </div>
+
+            {/* Пароль */}
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <Lock className="w-4 h-4 text-slate-600" />
+                Пароль
+              </label>
+              <div className="relative">
+                <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
@@ -110,38 +95,54 @@ export default function LoginPage() {
                     const pasted = e.clipboardData.getData("text").replace(/\s/g, "");
                     setPassword(pasted);
                   }}
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm outline-none"
                   placeholder="••••••••"
-                  required
                   autoComplete="current-password"
-                  className="pr-10"
+                  required
                 />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
+                  disabled={loading}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
+            {/* Ошибка */}
             {error && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] text-rose-600">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
                 {error}
               </div>
             )}
 
-            <Button type="submit" className="w-full h-10 text-[13px] bg-slate-700 hover:bg-slate-800" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Войти
-            </Button>
+            {/* Кнопка */}
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-medium py-2.5 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-slate-900/30 hover:shadow-xl hover:shadow-slate-900/40 hover:-translate-y-0.5 active:translate-y-0"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Вход...</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-5 h-5" />
+                  <span>Войти</span>
+                </>
+              )}
+            </button>
           </form>
-
-          <p className="mt-6 rounded-lg bg-gray-100 px-4 py-2.5 text-center text-[11px] text-gray-400">
-            admin@metalcrm.ru · admin123
-          </p>
         </div>
+
+        <p className="text-center text-white/40 text-xs mt-4">© 2025 МеталлCRM</p>
       </div>
     </div>
   );

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendTelegram } from "@/lib/telegram";
+import { PRIORITY_LABELS, REQUEST_STATUS_LABELS } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -43,11 +45,32 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const data = await req.json();
+  const { items, ...data } = await req.json();
+
   const request = await prisma.request.create({
-    data,
-    include: { client: true, assignee: true },
+    data: {
+      ...data,
+      items: items?.length
+        ? { create: items.map((item: any) => ({
+            name: item.name,
+            quantity: parseFloat(item.quantity) || 1,
+            unit: item.unit || "шт",
+            price: parseFloat(item.price) || 0,
+            discount: parseFloat(item.discount) || 0,
+            total: parseFloat(item.total) || 0,
+          })) }
+        : undefined,
+    },
+    include: { client: true, assignee: true, items: true },
   });
+
+  await sendTelegram(
+    `📋 <b>Новая заявка #${request.number}</b>\n` +
+    `📌 ${request.title}\n` +
+    `🏢 Клиент: ${request.client?.name ?? "—"}\n` +
+    `⚡ Приоритет: ${PRIORITY_LABELS[request.priority]}\n` +
+    `👤 Ответственный: ${request.assignee?.name ?? "Не назначен"}`
+  );
 
   return NextResponse.json(request, { status: 201 });
 }

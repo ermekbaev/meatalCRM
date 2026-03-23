@@ -78,3 +78,17 @@ export const CLIENT_TYPE_LABELS: Record<string, string> = {
   INDIVIDUAL: "Физ. лицо",
   COMPANY: "Юр. лицо",
 };
+
+export const TASK_STATUS_LABELS: Record<string, string> = {
+  TODO:        "К выполнению",
+  IN_PROGRESS: "В работе",
+  DONE:        "Выполнено",
+  CANCELLED:   "Отменено",
+};
+
+export const TASK_STATUS_COLORS: Record<string, string> = {
+  TODO:        "bg-slate-100  text-slate-600  ring-1 ring-slate-200",
+  IN_PROGRESS: "bg-amber-50   text-amber-700  ring-1 ring-amber-200",
+  DONE:        "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  CANCELLED:   "bg-red-50     text-red-600    ring-1 ring-red-200",
+};

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS, OFFER_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
-import { ArrowLeft, FileDown, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, FileDown, Loader2, Building2 } from "lucide-react";
 import Link from "next/link";
 import { generateOfferPDF } from "@/lib/pdf";
 
@@ -81,7 +81,7 @@ export default function OfferDetailPage() {
           <div className="lg:col-span-3 space-y-6">
             {/* Header block */}
             <Card>
-              <CardContent className="p-6">
+              <CardContent className="p-6 space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">Коммерческое предложение #{offer.number}</h2>
@@ -104,6 +104,26 @@ export default function OfferDetailPage() {
                     {OFFER_STATUS_LABELS[offer.status]}
                   </span>
                 </div>
+
+                {/* Реквизиты контрагента */}
+                {offer.request?.client && (offer.request.client.inn || offer.request.client.kpp || offer.request.client.legalAddress) && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      <Building2 className="h-3.5 w-3.5" />
+                      Реквизиты контрагента
+                    </div>
+                    <p className="text-sm font-medium text-slate-800">{offer.request.client.name}</p>
+                    {(offer.request.client.inn || offer.request.client.kpp) && (
+                      <div className="flex gap-6 text-xs text-slate-500">
+                        {offer.request.client.inn && <span>ИНН: <span className="font-mono text-slate-700">{offer.request.client.inn}</span></span>}
+                        {offer.request.client.kpp && <span>КПП: <span className="font-mono text-slate-700">{offer.request.client.kpp}</span></span>}
+                      </div>
+                    )}
+                    {offer.request.client.legalAddress && (
+                      <p className="text-xs text-slate-500">Юр. адрес: <span className="text-slate-700">{offer.request.client.legalAddress}</span></p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

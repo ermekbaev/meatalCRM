@@ -34,16 +34,40 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = (session.user as any).id;
-  const { items, ...data } = await req.json();
+  const body = await req.json();
+  const { items, ...data } = body;
 
-  const offer = await prisma.commercialOffer.create({
-    data: {
-      ...data,
-      createdById: userId,
-      items: { create: items },
-    },
-    include: { items: true, request: { include: { client: true } }, createdBy: true },
-  });
+  // Очищаем данные перед отправкой в Prisma
+  const cleanData: any = {
+    status: data.status ?? "DRAFT",
+    discount: parseFloat(String(data.discount)) || 0,
+    total: parseFloat(String(data.total)) || 0,
+    notes: data.notes || null,
+    requestId: data.requestId || null,
+    validUntil: data.validUntil ? new Date(data.validUntil) : null,
+    createdById: userId,
+  };
 
-  return NextResponse.json(offer, { status: 201 });
+  const cleanItems = (items ?? []).map((item: any) => ({
+    service: item.service ?? "",
+    description: item.description || null,
+    quantity: parseFloat(String(item.quantity)) || 1,
+    unit: item.unit ?? "шт",
+    price: parseFloat(String(item.price)) || 0,
+    total: parseFloat(String(item.total)) || 0,
+  }));
+
+  try {
+    const offer = await prisma.commercialOffer.create({
+      data: {
+        ...cleanData,
+        items: { create: cleanItems },
+      },
+      include: { items: true, request: { include: { client: true } }, createdBy: true },
+    });
+    return NextResponse.json(offer, { status: 201 });
+  } catch (e: any) {
+    console.error("POST /api/offers error:", e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
 }

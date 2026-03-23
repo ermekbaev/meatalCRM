@@ -1,5 +1,6 @@
 "use client";
-import { Search } from "lucide-react";
+import { Search, Menu } from "lucide-react";
+import { useSidebar } from "./DashboardShell";
 
 interface HeaderProps {
   title: string;
@@ -8,11 +9,21 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, actions }: HeaderProps) {
+  const { toggle } = useSidebar();
+
   return (
-    <header className="sticky top-0 z-40 flex h-15 items-center justify-between border-b border-slate-200 bg-white px-6">
-      <div>
-        <h1 className="text-[15px] font-semibold text-slate-800 leading-tight">{title}</h1>
-        {subtitle && <p className="text-[12px] text-slate-400 mt-0.5">{subtitle}</p>}
+    <header className="sticky top-0 z-40 flex h-15 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={toggle}
+          className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div>
+          <h1 className="text-[15px] font-semibold text-slate-800 leading-tight">{title}</h1>
+          {subtitle && <p className="text-[12px] text-slate-400 mt-0.5">{subtitle}</p>}
+        </div>
       </div>
       <div className="flex items-center gap-3">
         {actions}

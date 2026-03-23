@@ -3,21 +3,24 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
-  LayoutDashboard, ClipboardList, Users,
-  FileText, LogOut, Factory, BookOpen, ChevronRight,
+  LayoutDashboard, ClipboardList, Users, CheckSquare,
+  FileText, LogOut, Factory, BookOpen, ChevronRight, Calculator,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard",       icon: LayoutDashboard },
-  { href: "/requests",  label: "Заявки",           icon: ClipboardList },
-  { href: "/clients",   label: "Контрагенты",      icon: Users },
-  { href: "/offers",    label: "КП",               icon: FileText },
+  { href: "/dashboard",  label: "Dashboard",   icon: LayoutDashboard },
+  { href: "/requests",   label: "Заявки",       icon: ClipboardList },
+  { href: "/tasks",      label: "Задачи",        icon: CheckSquare },
+  { href: "/clients",    label: "Контрагенты",  icon: Users },
+  { href: "/offers",     label: "КП",            icon: FileText },
+  { href: "/calculator", label: "Калькулятор",  icon: Calculator },
 ];
 
 const settingsItems = [
   { href: "/settings/users",   label: "Пользователи",    icon: Users },
   { href: "/settings/catalog", label: "Справочник услуг", icon: BookOpen },
+  { href: "/settings/company", label: "Реквизиты",        icon: Factory },
 ];
 
 export function Sidebar() {
@@ -26,7 +29,7 @@ export function Sidebar() {
   const isAdmin = (session?.user as any)?.role === "ADMIN";
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 flex w-60 flex-col bg-slate-50 border-r border-slate-200">
+    <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-slate-50 border-r border-slate-200">
       {/* Logo */}
       <div className="flex h-15 items-center gap-3 px-5 border-b border-slate-200">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700 shadow-sm">

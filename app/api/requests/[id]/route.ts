@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendTelegram } from "@/lib/telegram";
+import { REQUEST_STATUS_LABELS } from "@/lib/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -13,6 +15,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     include: {
       client: true,
       assignee: true,
+      items: { orderBy: { id: "asc" } },
       comments: {
         orderBy: { createdAt: "asc" },
         include: { user: { select: { id: true, name: true } } },
@@ -57,6 +60,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         await prisma.changeLog.create({
           data: { requestId: id, userId, field, oldValue: oldVal, newValue: newVal },
         });
+        if (field === "status") {
+          await sendTelegram(
+            `🔄 <b>Статус заявки #${updated.number} изменён</b>\n` +
+            `📌 ${updated.title}\n` +
+            `${REQUEST_STATUS_LABELS[oldVal as any] ?? oldVal} → <b>${REQUEST_STATUS_LABELS[newVal as any] ?? newVal}</b>`
+          );
+        }
       }
     }
   }

@@ -21,7 +21,7 @@ export async function GET(_: NextRequest) {
   }
 
   const users = await prisma.user.findMany({
-    select: { id: true, email: true, name: true, role: true, isBlocked: true, createdAt: true },
+    select: { id: true, email: true, name: true, role: true, isBlocked: true, telegramChatId: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -35,12 +35,12 @@ export async function POST(req: NextRequest) {
   const role = (session.user as any).role;
   if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { email, password, name, role: userRole } = await req.json();
+  const { email, password, name, role: userRole, telegramChatId } = await req.json();
   const hashed = await hash(password, 12);
 
   const user = await prisma.user.create({
-    data: { email, password: hashed, name, role: userRole },
-    select: { id: true, email: true, name: true, role: true, isBlocked: true, createdAt: true },
+    data: { email, password: hashed, name, role: userRole, telegramChatId: telegramChatId || null },
+    select: { id: true, email: true, name: true, role: true, isBlocked: true, telegramChatId: true, createdAt: true },
   });
 
   return NextResponse.json(user, { status: 201 });

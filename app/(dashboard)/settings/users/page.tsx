@@ -40,20 +40,21 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setEditUser(null);
-    reset({ name: "", email: "", password: "", role: "EMPLOYEE" });
+    reset({ name: "", email: "", password: "", role: "EMPLOYEE", telegramChatId: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (user: any) => {
     setEditUser(user);
-    reset({ name: user.name, email: user.email, password: "", role: user.role });
+    reset({ name: user.name, email: user.email, password: "", role: user.role, telegramChatId: user.telegramChatId ?? "" });
     setDialogOpen(true);
   };
 
   const onSubmit = async (data: any) => {
     const url = editUser ? `/api/users/${editUser.id}` : "/api/users";
     const method = editUser ? "PUT" : "POST";
-    const body = editUser && !data.password ? { name: data.name, email: data.email, role: data.role } : data;
+    const payload = { ...data, telegramChatId: data.telegramChatId || null };
+    const body = editUser && !data.password ? { name: data.name, email: data.email, role: data.role, telegramChatId: payload.telegramChatId } : payload;
     await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setDialogOpen(false);
     fetchUsers();
@@ -192,6 +193,11 @@ export default function UsersPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Telegram Chat ID</Label>
+              <Input {...register("telegramChatId")} placeholder="Получите в @userinfobot" />
+              <p className="text-xs text-gray-400">Напишите боту @userinfobot — он пришлёт ваш ID</p>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Отмена</Button>
