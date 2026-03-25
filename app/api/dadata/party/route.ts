@@ -12,14 +12,14 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.DADATA_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "DADATA_API_KEY not configured" }, { status: 500 });
 
-  const res = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party", {
+  const res = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
       "Authorization": `Token ${apiKey}`,
     },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, count: 7 }),
   });
 
   const data = await res.json();

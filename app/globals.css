@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@theme {
+  --color-orange-500: #f97334;
+  --color-orange-600: #F65022;
+  --color-orange-700: #d9421c;
+  --color-orange-800: #b83516;
+}
+
 /* Safelist colored shadows */
 @source inline("hover:shadow-blue-200 hover:shadow-amber-200 hover:shadow-emerald-200 hover:shadow-red-200 hover:shadow-lg");
 

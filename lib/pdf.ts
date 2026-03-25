@@ -1,5 +1,3 @@
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { formatDate } from "./utils";
 
 export async function generateOfferPDF(offer: any) {
@@ -92,6 +90,11 @@ export async function generateOfferPDF(offer: any) {
   document.body.appendChild(container);
 
   try {
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+
     const canvas = await html2canvas(container, {
       scale: 2,
       useCORS: true,

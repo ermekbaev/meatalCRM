@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { REQUEST_STATUS_LABELS, PRIORITY_LABELS, formatCurrency } from "@/lib/utils";
 import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +23,8 @@ export default function NewRequestPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [comment, setComment] = useState("");
+
+  const [vatIncluded, setVatIncluded] = useState(false);
 
   const { register, handleSubmit, setValue, watch, control, formState: { isSubmitting } } = useForm({
     defaultValues: {
@@ -39,13 +42,13 @@ export default function NewRequestPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/clients").then((r) => r.json()),
+      fetch("/api/clients").then((r) => r.json()).catch(() => []),
       fetch("/api/users").then((r) => r.json()).catch(() => []),
-      fetch("/api/catalog").then((r) => r.json()),
+      fetch("/api/catalog").then((r) => r.json()).catch(() => []),
     ]).then(([c, u, cat]) => {
-      setClients(c);
-      setUsers(u);
-      setCatalog(cat);
+      setClients(Array.isArray(c) ? c : []);
+      setUsers(Array.isArray(u) ? u : []);
+      setCatalog(Array.isArray(cat) ? cat : []);
     });
   }, []);
 
@@ -69,16 +72,8 @@ export default function NewRequestPage() {
     return qty * price * (1 - disc / 100);
   };
 
-  const handleCatalogSelect = (index: number, serviceId: string) => {
-    const svc = catalog.find((c) => c.id === serviceId);
-    if (!svc) return;
-    setValue(`items.${index}.name`, svc.name);
-    setValue(`items.${index}.unit`, svc.unit || "шт");
-    setValue(`items.${index}.price`, svc.price || 0);
-  };
-
   const addRow = () => {
-    append({ name: "", quantity: 1, unit: "шт", price: 0, discount: 0, total: 0 });
+    append({ name: "", quantity: 1, unit: "шт", price: 0, discount: 0, total: 0, isCustomerMaterial: false });
   };
 
   async function onSubmit(data: any) {
@@ -96,6 +91,7 @@ export default function NewRequestPage() {
       clientId: data.clientId || null,
       assigneeId: data.assigneeId || null,
       amount: amount || null,
+      vatIncluded,
       items: itemsWithTotal,
     };
 
@@ -185,12 +181,13 @@ export default function NewRequestPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50">
-                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[35%]">Наименование</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[30%]">Наименование</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Кол-во</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Ед.</th>
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Цена, ₽</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Скидка %</th>
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Сумма, ₽</th>
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20" title="Материал заказчика">Мат. зак.</th>
                             <th className="px-2 py-2 w-8"></th>
                           </tr>
                         </thead>
@@ -250,8 +247,16 @@ export default function NewRequestPage() {
                                   placeholder="0"
                                 />
                               </td>
-                              <td className="px-2 py-2 text-right text-sm font-medium text-slate-700 whitespace-nowrap">
+                              <td className={`px-2 py-2 text-right text-sm font-medium whitespace-nowrap ${items[index]?.isCustomerMaterial ? "text-amber-600" : "text-slate-700"}`}>
                                 {formatCurrency(calcTotal(index))}
+                              </td>
+                              <td className="px-2 py-2 text-center">
+                                <input
+                                  type="checkbox"
+                                  {...register(`items.${index}.isCustomerMaterial`)}
+                                  className="h-4 w-4 accent-amber-500 cursor-pointer"
+                                  title="Материал заказчика (давальческое сырьё)"
+                                />
                               </td>
                               <td className="px-2 py-2">
                                 <button
@@ -345,10 +350,22 @@ export default function NewRequestPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {/* НДС */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-700">С НДС</p>
+                    <p className="text-xs text-gray-400">НДС 20% включён в цены</p>
+                  </div>
+                  <Switch checked={vatIncluded} onCheckedChange={setVatIncluded} />
+                </div>
+
                 {fields.length > 0 && (
-                  <div className="rounded-lg bg-slate-50 p-3 space-y-1">
+                  <div className="rounded-lg bg-slate-50 p-3 space-y-1.5">
                     <p className="text-xs text-slate-500">Сумма по позициям</p>
                     <p className="text-lg font-semibold text-slate-800">{formatCurrency(subtotal)}</p>
+                    {vatIncluded && subtotal > 0 && (
+                      <p className="text-xs text-slate-400">в т.ч. НДС: {formatCurrency(subtotal - subtotal / 1.2)}</p>
+                    )}
                   </div>
                 )}
               </CardContent>

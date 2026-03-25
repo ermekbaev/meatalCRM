@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Eye, EyeOff, User, Lock, LogIn, Loader2 } from "lucide-react";
 import { ParticlesBackground } from "@/components/ParticlesBackground";
 
@@ -36,7 +37,7 @@ export default function LoginPage() {
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden">
       {/* Градиентный фон */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-800 to-slate-900" />
+      <div className="absolute inset-0 bg-linear-to-br from-slate-950 via-slate-800 to-slate-900" />
 
       {/* Частицы */}
       <ParticlesBackground />
@@ -45,12 +46,20 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md mx-4">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Шапка */}
-          <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-8 py-6 text-center">
-            <h1 className="text-2xl font-bold text-white tracking-wide">МеталлCRM</h1>
-            <p className="text-blue-100 text-sm mt-1">Металлообрабатывающая компания</p>
-            <div className="mt-4 inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-2">
-              <LogIn className="w-4 h-4 text-white" />
-              <span className="text-white text-sm font-medium">Вход в систему</span>
+          <div className="px-8 py-6 text-center border-b border-slate-100">
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/public/logo.svg"
+                alt="ORIENT-LASER"
+                width={220}
+                height={57}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-full px-4 py-2">
+              <LogIn className="w-4 h-4 text-orange-600" />
+              <span className="text-orange-700 text-sm font-medium">Вход в систему</span>
             </div>
           </div>
 
@@ -69,7 +78,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
-                  className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm outline-none"
+                  className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm outline-none"
                   placeholder="admin@metalcrm.ru"
                   autoComplete="email"
                   required
@@ -96,7 +105,7 @@ export default function LoginPage() {
                     setPassword(pasted);
                   }}
                   disabled={loading}
-                  className="w-full px-4 py-2.5 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm outline-none"
+                  className="w-full px-4 py-2.5 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm outline-none"
                   placeholder="••••••••"
                   autoComplete="current-password"
                   required
@@ -125,7 +134,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-medium py-2.5 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-slate-900/30 hover:shadow-xl hover:shadow-slate-900/40 hover:-translate-y-0.5 active:translate-y-0"
+              className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-medium py-2.5 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-orange-900/30 hover:shadow-xl hover:shadow-orange-900/40 hover:-translate-y-0.5 active:translate-y-0"
             >
               {loading ? (
                 <>
@@ -142,7 +151,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-white/40 text-xs mt-4">© 2025 МеталлCRM</p>
+        <p className="text-center text-white/40 text-xs mt-4">© 2025 ORIENT-LASER</p>
       </div>
     </div>
   );

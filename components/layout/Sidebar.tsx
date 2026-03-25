@@ -2,14 +2,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import Image from "next/image";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, LogOut, Factory, BookOpen, ChevronRight, Calculator,
+  Layers, Scissors, Box,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard",  label: "Dashboard",   icon: LayoutDashboard },
+  { href: "/dashboard",  label: "Главная",     icon: LayoutDashboard },
   { href: "/requests",   label: "Заявки",       icon: ClipboardList },
   { href: "/tasks",      label: "Задачи",        icon: CheckSquare },
   { href: "/clients",    label: "Контрагенты",  icon: Users },
@@ -18,9 +20,12 @@ const navItems = [
 ];
 
 const settingsItems = [
-  { href: "/settings/users",   label: "Пользователи",    icon: Users },
-  { href: "/settings/catalog", label: "Справочник услуг", icon: BookOpen },
-  { href: "/settings/company", label: "Реквизиты",        icon: Factory },
+  { href: "/settings/users",           label: "Пользователи",    icon: Users },
+  { href: "/settings/catalog",         label: "Услуги/Товары",   icon: BookOpen },
+  { href: "/settings/catalog/metals",  label: "Металлы",         icon: Layers },
+  { href: "/settings/catalog/bending", label: "Гибка",           icon: Box },
+  { href: "/settings/catalog/cutting", label: "Резка",           icon: Scissors },
+  { href: "/settings/company",         label: "Реквизиты",       icon: Factory },
 ];
 
 export function Sidebar() {
@@ -31,14 +36,15 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-slate-50 border-r border-slate-200">
       {/* Logo */}
-      <div className="flex h-15 items-center gap-3 px-5 border-b border-slate-200">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700 shadow-sm">
-          <Factory className="h-4 w-4 text-slate-200" />
-        </div>
-        <div>
-          <p className="text-[13px] font-semibold text-slate-800 leading-tight">МеталлCRM</p>
-          <p className="text-[11px] text-slate-400 leading-tight">Металлообработка</p>
-        </div>
+      <div className="flex h-18 items-center px-4 border-b border-slate-200">
+        <Image
+          src="/public/logo.svg"
+          alt="ORIENT-LASER"
+          width={200}
+          height={52}
+          className="object-contain"
+          priority
+        />
       </div>
 
       {/* Nav */}
@@ -53,13 +59,13 @@ export function Sidebar() {
               className={cn(
                 "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                 active
-                  ? "bg-slate-700 text-white"
+                  ? "bg-orange-600 text-white"
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
               )}
             >
               <Icon className={cn(
                 "h-4 w-4 shrink-0 transition-colors",
-                active ? "text-slate-300" : "text-slate-400 group-hover:text-slate-600"
+                active ? "text-orange-100" : "text-slate-400 group-hover:text-slate-600"
               )} />
               {item.label}
               {active && <ChevronRight className="ml-auto h-3 w-3 text-slate-400" />}
@@ -83,13 +89,13 @@ export function Sidebar() {
                     className={cn(
                       "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                       active
-                        ? "bg-slate-700 text-white"
+                        ? "bg-orange-600 text-white"
                         : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                     )}
                   >
                     <Icon className={cn(
                       "h-4 w-4 shrink-0",
-                      active ? "text-slate-300" : "text-slate-400 group-hover:text-slate-600"
+                      active ? "text-orange-100" : "text-slate-400 group-hover:text-slate-600"
                     )} />
                     {item.label}
                   </Link>

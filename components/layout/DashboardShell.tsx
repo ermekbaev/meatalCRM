@@ -1,11 +1,13 @@
 "use client";
 import { createContext, useContext, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, Factory, BookOpen, X, LogOut, Calculator,
+  Layers, Scissors, Box,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
@@ -15,7 +17,7 @@ export const useSidebar = () => useContext(SidebarCtx);
 
 // Все пункты — для полноэкранного мобильного меню
 const navItems = [
-  { href: "/dashboard",  label: "Главная",      mobileLabel: "Главная",  icon: LayoutDashboard },
+  { href: "/dashboard",  label: "Главная",     mobileLabel: "Главная",  icon: LayoutDashboard },
   { href: "/requests",   label: "Заявки",        mobileLabel: "Заявки",   icon: ClipboardList },
   { href: "/tasks",      label: "Задачи",         mobileLabel: "Задачи",   icon: CheckSquare },
   { href: "/clients",    label: "Контрагенты",   mobileLabel: "Клиенты",  icon: Users },
@@ -27,9 +29,12 @@ const navItems = [
 const bottomTabItems = navItems.slice(0, 4);
 
 const settingsItems = [
-  { href: "/settings/users",   label: "Пользователи",    icon: Users },
-  { href: "/settings/catalog", label: "Справочник услуг", icon: BookOpen },
-  { href: "/settings/company", label: "Реквизиты",        icon: Factory },
+  { href: "/settings/users",           label: "Пользователи",  icon: Users },
+  { href: "/settings/catalog",         label: "Услуги/Товары", icon: BookOpen },
+  { href: "/settings/catalog/metals",  label: "Металлы",       icon: Layers },
+  { href: "/settings/catalog/bending", label: "Гибка",         icon: Box },
+  { href: "/settings/catalog/cutting", label: "Резка",         icon: Scissors },
+  { href: "/settings/company",         label: "Реквизиты",     icon: Factory },
 ];
 
 function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -44,21 +49,21 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
         isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
       )}
     >
-      <div className="absolute inset-0 bg-slate-900/95 flex flex-col">
+      <div className="absolute inset-0 bg-white flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700/60">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-600 shadow-sm">
-              <Factory className="h-4 w-4 text-slate-200" />
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-slate-100 leading-tight">МеталлCRM</p>
-              <p className="text-[11px] text-slate-400 leading-tight">Металлообработка</p>
-            </div>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+          <div className="flex items-center gap-3" suppressHydrationWarning>
+            <Image
+              src="/public/logo.svg"
+              alt="ORIENT-LASER"
+              width={180}
+              height={46}
+              className="object-contain"
+            />
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -77,19 +82,19 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
                 className={cn(
                   "flex items-center gap-4 rounded-xl px-4 py-3.5 text-[15px] font-medium transition-all",
                   active
-                    ? "bg-slate-700 text-white"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    ? "bg-orange-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 )}
               >
-                <Icon className={cn("h-5 w-5 shrink-0", active ? "text-slate-300" : "text-slate-500")} />
+                <Icon className={cn("h-5 w-5 shrink-0", active ? "text-orange-100" : "text-slate-400")} />
                 {item.label}
               </Link>
             );
           })}
 
           {isAdmin && (
-            <div className="pt-3 mt-2 border-t border-slate-700/60">
-              <p className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+            <div className="pt-3 mt-2 border-t border-slate-200">
+              <p className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                 Настройки
               </p>
               {settingsItems.map((item) => {
@@ -103,11 +108,11 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
                     className={cn(
                       "flex items-center gap-4 rounded-xl px-4 py-3.5 text-[15px] font-medium transition-all",
                       active
-                        ? "bg-slate-700 text-white"
-                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                        ? "bg-orange-600 text-white"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                     )}
                   >
-                    <Icon className={cn("h-5 w-5 shrink-0", active ? "text-slate-300" : "text-slate-500")} />
+                    <Icon className={cn("h-5 w-5 shrink-0", active ? "text-orange-100" : "text-slate-400")} />
                     {item.label}
                   </Link>
                 );
@@ -117,20 +122,20 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
         </nav>
 
         {/* User footer */}
-        <div className="border-t border-slate-700/60 p-4">
+        <div className="border-t border-slate-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-[12px] font-semibold text-slate-200">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-[12px] font-semibold text-white">
               {session?.user?.name?.charAt(0).toUpperCase() ?? "U"}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium text-slate-200">{session?.user?.name}</p>
-              <p className="truncate text-[11px] text-slate-500">
+              <p className="truncate text-[13px] font-medium text-slate-800">{session?.user?.name}</p>
+              <p className="truncate text-[11px] text-slate-400">
                 {ROLE_LABELS[(session?.user as any)?.role] ?? ""}
               </p>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="p-2 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
               title="Выйти"
             >
               <LogOut className="h-4 w-4" />

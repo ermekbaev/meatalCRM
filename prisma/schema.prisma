@@ -95,6 +95,7 @@ model Request {
   status      RequestStatus   @default(NEW)
   priority    RequestPriority @default(MEDIUM)
   amount      Float?
+  vatIncluded Boolean         @default(false)
   services    String[]        @default([])
 
   clientId   String
@@ -127,13 +128,14 @@ model RequestFile {
 }
 
 model RequestItem {
-  id       String  @id @default(cuid())
-  name     String
-  quantity Float   @default(1)
-  unit     String  @default("шт")
-  price    Float   @default(0)
-  discount Float   @default(0)
-  total    Float   @default(0)
+  id                 String  @id @default(cuid())
+  name               String
+  quantity           Float   @default(1)
+  unit               String  @default("шт")
+  price              Float   @default(0)
+  discount           Float   @default(0)
+  total              Float   @default(0)
+  isCustomerMaterial Boolean @default(false)
 
   requestId String
   request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -243,6 +245,42 @@ model ServiceCatalog {
   category    String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+model MetalCatalogEntry {
+  id         String   @id @default(cuid())
+  materialId String
+  thickness  Float
+  width      Int
+  length     Int
+  massPerSqM Float
+  sheetMass  Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([materialId, thickness, width, length])
+}
+
+model BendingCatalogEntry {
+  id         String   @id @default(cuid())
+  materialId String
+  thickness  Float
+  price      Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([materialId, thickness])
+}
+
+model CuttingCatalogEntry {
+  id             String   @id @default(cuid())
+  materialId     String
+  thickness      Float
+  minLength      Float
+  maxLength      Float?
+  pricePerMeter  Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model CompanySettings {

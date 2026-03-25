@@ -6,14 +6,14 @@ import { NextAuthProvider } from "@/components/providers/session-provider";
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
-  title: "МеталлCRM",
-  description: "CRM-система для металлообрабатывающего производства",
+  title: "ORIENT-LASER",
+  description: "CRM-система ORIENT-LASER — лазерная резка металла",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru">
-      <body className={`${inter.className} antialiased bg-gray-50`}>
+      <body className={`${inter.className} antialiased bg-gray-50`} suppressHydrationWarning>
         <NextAuthProvider>{children}</NextAuthProvider>
       </body>
     </html>

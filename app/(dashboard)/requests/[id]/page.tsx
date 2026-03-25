@@ -12,6 +12,7 @@ import {
   OFFER_STATUS_LABELS, OFFER_STATUS_COLORS,
   formatDate, formatDateTime, formatCurrency
 } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Send, Loader2, Clock, Plus, Trash2, Save, Paperclip, X, FileText, Download } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -96,7 +97,7 @@ export default function RequestDetailPage() {
 
   // --- Позиции ---
   const addItem = () => {
-    setItems((prev) => [...prev, { id: `new-${Date.now()}`, name: "", quantity: 1, unit: "шт", price: 0, discount: 0, total: 0 }]);
+    setItems((prev) => [...prev, { id: `new-${Date.now()}`, name: "", quantity: 1, unit: "шт", price: 0, discount: 0, total: 0, isCustomerMaterial: false }]);
   };
 
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
@@ -126,6 +127,9 @@ export default function RequestDetailPage() {
   };
 
   const subtotal = items.reduce((s, it) => s + (parseFloat(it.total) || 0), 0);
+  const customerMaterialTotal = items.filter(it => it.isCustomerMaterial).reduce((s, it) => s + (parseFloat(it.total) || 0), 0);
+  const ourRevenue = subtotal - customerMaterialTotal;
+  const vatAmount = request?.vatIncluded ? subtotal - subtotal / 1.2 : 0;
 
   if (loading) {
     return (
@@ -225,12 +229,13 @@ export default function RequestDetailPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50">
-                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[35%]">Наименование</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[30%]">Наименование</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Кол-во</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Ед.</th>
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Цена, ₽</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Скидка %</th>
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Сумма, ₽</th>
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20" title="Материал заказчика">Мат. зак.</th>
                             {!isEmployee && <th className="px-2 py-2 w-8"></th>}
                           </tr>
                         </thead>
@@ -302,8 +307,23 @@ export default function RequestDetailPage() {
                                   />
                                 )}
                               </td>
-                              <td className="px-2 py-2 text-right text-sm font-medium text-slate-700 whitespace-nowrap">
+                              <td className={`px-2 py-2 text-right text-sm font-medium whitespace-nowrap ${item.isCustomerMaterial ? "text-amber-600" : "text-slate-700"}`}>
                                 {formatCurrency(parseFloat(item.total) || 0)}
+                              </td>
+                              <td className="px-2 py-2 text-center">
+                                {isEmployee ? (
+                                  item.isCustomerMaterial ? (
+                                    <span className="text-xs text-amber-600 font-medium">Да</span>
+                                  ) : null
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    checked={item.isCustomerMaterial ?? false}
+                                    onChange={(e) => updateItem(index, "isCustomerMaterial", e.target.checked)}
+                                    className="h-4 w-4 accent-amber-500 cursor-pointer"
+                                    title="Материал заказчика (давальческое сырьё)"
+                                  />
+                                )}
                               </td>
                               {!isEmployee && (
                                 <td className="px-2 py-2">
@@ -357,12 +377,30 @@ export default function RequestDetailPage() {
                     </div>
 
                     {/* Итог */}
-                    <div className="border-t border-slate-100 px-6 py-3 flex justify-end">
-                      <div className="flex gap-8 text-sm text-slate-500">
+                    <div className="border-t border-slate-100 px-6 py-3 space-y-1.5">
+                      <div className="flex justify-end gap-8 text-sm text-slate-500">
                         <span>Позиций: {items.length}</span>
                         <span>Итого:</span>
-                        <span className="font-semibold text-slate-800 min-w-20 text-right">{formatCurrency(subtotal)}</span>
+                        <span className="font-semibold text-slate-800 min-w-24 text-right">{formatCurrency(subtotal)}</span>
                       </div>
+                      {request?.vatIncluded && (
+                        <div className="flex justify-end gap-8 text-xs text-slate-400">
+                          <span>в т.ч. НДС 20%:</span>
+                          <span className="min-w-24 text-right">{formatCurrency(vatAmount)}</span>
+                        </div>
+                      )}
+                      {customerMaterialTotal > 0 && (
+                        <>
+                          <div className="flex justify-end gap-8 text-xs text-amber-600">
+                            <span>Материал заказчика:</span>
+                            <span className="min-w-24 text-right">− {formatCurrency(customerMaterialTotal)}</span>
+                          </div>
+                          <div className="flex justify-end gap-8 text-sm font-medium text-slate-700 border-t border-slate-100 pt-1.5">
+                            <span>Наша выручка:</span>
+                            <span className="min-w-24 text-right text-green-700">{formatCurrency(ourRevenue)}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -504,10 +542,32 @@ export default function RequestDetailPage() {
                   </>
                 )}
 
+                {/* НДС */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-700">С НДС</p>
+                    <p className="text-xs text-gray-400">НДС 20% включён в цены</p>
+                  </div>
+                  <Switch
+                    checked={request?.vatIncluded ?? false}
+                    onCheckedChange={(v) => updateField("vatIncluded", v)}
+                    disabled={isEmployee}
+                  />
+                </div>
+
                 {subtotal > 0 && (
-                  <div className="rounded-lg bg-slate-50 p-3 space-y-1">
+                  <div className="rounded-lg bg-slate-50 p-3 space-y-1.5">
                     <p className="text-xs text-slate-500">Сумма по позициям</p>
                     <p className="text-lg font-semibold text-slate-800">{formatCurrency(subtotal)}</p>
+                    {request?.vatIncluded && vatAmount > 0 && (
+                      <p className="text-xs text-slate-400">в т.ч. НДС: {formatCurrency(vatAmount)}</p>
+                    )}
+                    {customerMaterialTotal > 0 && (
+                      <div className="border-t border-slate-200 pt-1.5 mt-1.5 space-y-0.5">
+                        <p className="text-xs text-amber-600">Матер. заказчика: {formatCurrency(customerMaterialTotal)}</p>
+                        <p className="text-xs font-medium text-green-700">Наша выручка: {formatCurrency(ourRevenue)}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 

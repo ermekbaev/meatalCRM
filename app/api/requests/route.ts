@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
             price: parseFloat(item.price) || 0,
             discount: parseFloat(item.discount) || 0,
             total: parseFloat(item.total) || 0,
+            isCustomerMaterial: item.isCustomerMaterial ?? false,
           })) }
         : undefined,
     },

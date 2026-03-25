@@ -3,28 +3,78 @@ import { Header } from "@/components/layout/Header";
 import { formatCurrency, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS } from "@/lib/utils";
 import { ClipboardList, Users, FileText, TrendingUp, Inbox, Loader, CheckCircle2, XCircle } from "lucide-react";
 import { DashboardCharts } from "./DashboardCharts";
+import { PeriodFilter } from "./PeriodFilter";
 import Link from "next/link";
+import { Suspense } from "react";
 
-export default async function DashboardPage() {
-  const [totalRequests, totalClients, totalOffers, requestsByStatus, recentRequests, revenue] =
+const MONTH_NAMES = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
+
+function getPeriodStart(period: string): Date | null {
+  const now = new Date();
+  if (period === "week")    { const d = new Date(now); d.setDate(d.getDate() - 7);   return d; }
+  if (period === "month")   { const d = new Date(now); d.setMonth(d.getMonth() - 1); return d; }
+  if (period === "quarter") { const d = new Date(now); d.setMonth(d.getMonth() - 3); return d; }
+  if (period === "year")    { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); return d; }
+  return null; // all
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const { period = "month" } = await searchParams;
+  const since = getPeriodStart(period);
+  const dateFilter = since ? { createdAt: { gte: since } } : {};
+
+  const [totalRequests, totalClients, totalOffers, requestsByStatus, recentRequests, revenue, completedRequests] =
     await Promise.all([
-      prisma.request.count(),
-      prisma.client.count(),
-      prisma.commercialOffer.count(),
-      prisma.request.groupBy({ by: ["status"], _count: true }),
+      prisma.request.count({ where: dateFilter }),
+      prisma.client.count({ where: dateFilter }),
+      prisma.commercialOffer.count({ where: dateFilter }),
+      prisma.request.groupBy({ by: ["status"], _count: true, where: dateFilter }),
       prisma.request.findMany({
         take: 6,
         orderBy: { createdAt: "desc" },
         include: { client: true },
       }),
-      prisma.request.aggregate({ _sum: { amount: true }, where: { status: "COMPLETED" } }),
+      prisma.request.aggregate({
+        _sum: { amount: true },
+        where: { status: "COMPLETED", ...dateFilter },
+      }),
+      // Для графика выручки по месяцам — последние 6 месяцев
+      prisma.request.findMany({
+        where: {
+          status: "COMPLETED",
+          createdAt: { gte: new Date(new Date().setMonth(new Date().getMonth() - 5)) },
+        },
+        select: { amount: true, createdAt: true },
+      }),
     ]);
 
+  // Группируем выручку по месяцам
+  const revenueByMonth: Record<string, number> = {};
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    revenueByMonth[key] = 0;
+  }
+  completedRequests.forEach((r) => {
+    const d = new Date(r.createdAt);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (key in revenueByMonth) revenueByMonth[key] += r.amount ?? 0;
+  });
+  const revenueData = Object.entries(revenueByMonth).map(([key, revenue]) => {
+    const [year, month] = key.split("-").map(Number);
+    return { month: MONTH_NAMES[month], revenue };
+  });
+
   const stats = [
-    { title: "Заявок всего",  value: totalRequests,                          icon: ClipboardList, color: "text-slate-600", bg: "bg-slate-100" },
-    { title: "Контрагенты",   value: totalClients,                           icon: Users,         color: "text-slate-600", bg: "bg-slate-100" },
-    { title: "КП создано",    value: totalOffers,                            icon: FileText,      color: "text-slate-600", bg: "bg-slate-100" },
-    { title: "Выручка",       value: formatCurrency(revenue._sum.amount ?? 0), icon: TrendingUp,    color: "text-teal-600",  bg: "bg-teal-50"   },
+    { title: "Заявок",       value: totalRequests,                            icon: ClipboardList, color: "text-slate-600", bg: "bg-slate-100" },
+    { title: "Контрагенты",  value: totalClients,                             icon: Users,         color: "text-slate-600", bg: "bg-slate-100" },
+    { title: "КП создано",   value: totalOffers,                              icon: FileText,      color: "text-slate-600", bg: "bg-slate-100" },
+    { title: "Выручка",      value: formatCurrency(revenue._sum.amount ?? 0), icon: TrendingUp,    color: "text-teal-600",  bg: "bg-teal-50"   },
   ];
 
   const statusData = requestsByStatus.map((s) => ({
@@ -40,9 +90,23 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f1f3f5]">
-      <Header title="Dashboard" />
-      <div className="p-6 space-y-5">
+    <div className="min-h-screen bg-[#f1f3f5] overflow-x-hidden">
+      <Header title="Главная" />
+      <div className="p-4 lg:p-6 space-y-5">
+
+        {/* Period filter */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-400">
+            {period === "all" ? "За всё время" :
+             period === "week" ? "За последние 7 дней" :
+             period === "month" ? "За последние 30 дней" :
+             period === "quarter" ? "За последние 3 месяца" :
+             "За последний год"}
+          </p>
+          <Suspense>
+            <PeriodFilter current={period} />
+          </Suspense>
+        </div>
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -64,10 +128,10 @@ export default async function DashboardPage() {
           })}
         </div>
 
-        {/* Chart + recent */}
+        {/* Charts + recent */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <DashboardCharts statusData={statusData} />
+            <DashboardCharts statusData={statusData} revenueData={revenueData} />
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm">

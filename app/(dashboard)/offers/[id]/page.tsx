@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { OFFER_STATUS_LABELS, OFFER_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
 import { ArrowLeft, FileDown, Loader2, Building2 } from "lucide-react";
 import Link from "next/link";
-import { generateOfferPDF } from "@/lib/pdf";
 
 export default function OfferDetailPage() {
   const params = useParams();
@@ -41,6 +40,7 @@ export default function OfferDetailPage() {
   const handleExportPDF = async () => {
     if (!offer) return;
     setExportingPDF(true);
+    const { generateOfferPDF } = await import("@/lib/pdf");
     await generateOfferPDF(offer);
     setExportingPDF(false);
   };
