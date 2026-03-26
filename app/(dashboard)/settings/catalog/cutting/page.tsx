@@ -1,252 +1,379 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Pencil, Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { Plus, Trash2, Save, X, Loader2, Scissors } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const MATERIAL_TABS = [
-  { id: "hot-rolled",  label: "Г/К" },
-  { id: "cold-rolled", label: "Х/К" },
-  { id: "galvanized",  label: "Оцинковка" },
+const MATERIAL_OPTIONS = [
+  { id: "hot-rolled",  label: "Г/К сталь (горячекатаная)" },
+  { id: "cold-rolled", label: "Х/К сталь (холоднокатаная)" },
+  { id: "galvanized",  label: "Оцинкованная сталь" },
   { id: "stainless",   label: "Нержавейка" },
   { id: "aluminum",    label: "Алюминий" },
 ];
 
-type FormData = {
-  thickness: string;
-  minLength: string;
-  maxLength: string;
-  pricePerMeter: string;
-};
+type Range = { minLength: string; maxLength: string; pricePerMeter: string };
+
+function emptyRange(): Range {
+  return { minLength: "", maxLength: "", pricePerMeter: "" };
+}
 
 export default function CuttingReferencePage() {
-  const [items, setItems] = useState<any[]>([]);
+  const [allItems, setAllItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("hot-rolled");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editItem, setEditItem] = useState<any>(null);
 
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<FormData>();
+  // Filters
+  const [selectedMaterial, setSelectedMaterial] = useState("hot-rolled");
+  const [selectedThickness, setSelectedThickness] = useState<string>("");
 
-  const fetchItems = async () => {
+  // Editing state
+  const [ranges, setRanges] = useState<Range[]>([]);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Add new thickness dialog
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newMaterial, setNewMaterial] = useState("hot-rolled");
+  const [newThickness, setNewThickness] = useState("");
+
+  const fetchItems = useCallback(async () => {
     setLoading(true);
     const res = await fetch("/api/catalog/cutting");
-    if (res.ok) setItems(await res.json());
+    if (res.ok) setAllItems(await res.json());
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  const filtered = items
-    .filter((i) => i.materialId === tab)
-    .sort((a, b) => a.thickness - b.thickness || a.minLength - b.minLength);
+  // Available thicknesses for selected material
+  const thicknessOptions = Array.from(
+    new Set(
+      allItems
+        .filter((i) => i.materialId === selectedMaterial)
+        .map((i) => i.thickness)
+    )
+  ).sort((a, b) => a - b);
 
-  const openCreate = () => {
-    setEditItem(null);
-    reset({ thickness: "", minLength: "", maxLength: "", pricePerMeter: "" });
-    setDialogOpen(true);
-  };
+  // When material changes, reset thickness selection
+  useEffect(() => {
+    const available = allItems
+      .filter((i) => i.materialId === selectedMaterial)
+      .map((i) => i.thickness);
+    const sorted = Array.from(new Set(available)).sort((a, b) => a - b);
+    setSelectedThickness(sorted.length > 0 ? String(sorted[0]) : "");
+    setDirty(false);
+  }, [selectedMaterial, allItems]);
 
-  const openEdit = (item: any) => {
-    setEditItem(item);
-    reset({
-      thickness: String(item.thickness),
-      minLength: String(item.minLength),
-      maxLength: item.maxLength ? String(item.maxLength) : "",
-      pricePerMeter: String(item.pricePerMeter),
-    });
-    setDialogOpen(true);
-  };
-
-  const onSubmit = async (data: FormData) => {
-    const payload = {
-      materialId: tab,
-      thickness: parseFloat(data.thickness),
-      minLength: parseFloat(data.minLength),
-      maxLength: data.maxLength ? parseFloat(data.maxLength) : null,
-      pricePerMeter: parseFloat(data.pricePerMeter),
-    };
-    if (editItem) {
-      await fetch(`/api/catalog/cutting/${editItem.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    } else {
-      await fetch("/api/catalog/cutting", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+  // When thickness changes, load ranges from DB
+  useEffect(() => {
+    if (!selectedThickness) {
+      setRanges([emptyRange()]);
+      setDirty(false);
+      return;
     }
-    setDialogOpen(false);
-    fetchItems();
-  };
+    const t = parseFloat(selectedThickness);
+    const entries = allItems
+      .filter((i) => i.materialId === selectedMaterial && i.thickness === t)
+      .sort((a: any, b: any) => a.minLength - b.minLength);
 
-  const deleteItem = async (id: string) => {
-    await fetch(`/api/catalog/cutting/${id}`, { method: "DELETE" });
-    fetchItems();
-  };
+    if (entries.length === 0) {
+      setRanges([emptyRange()]);
+    } else {
+      setRanges(
+        entries.map((e: any) => ({
+          minLength: String(e.minLength),
+          maxLength: e.maxLength != null ? String(e.maxLength) : "",
+          pricePerMeter: String(e.pricePerMeter),
+        }))
+      );
+    }
+    setDirty(false);
+  }, [selectedThickness, selectedMaterial, allItems]);
+
+  function updateRange(index: number, field: keyof Range, value: string) {
+    setRanges((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+    setDirty(true);
+  }
+
+  function addRange() {
+    setRanges((prev) => [...prev, emptyRange()]);
+    setDirty(true);
+  }
+
+  function removeRange(index: number) {
+    setRanges((prev) => prev.filter((_, i) => i !== index));
+    setDirty(true);
+  }
+
+  async function save() {
+    if (!selectedThickness) return;
+    setSaving(true);
+    await fetch("/api/catalog/cutting/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        materialId: selectedMaterial,
+        thickness: parseFloat(selectedThickness),
+        ranges,
+      }),
+    });
+    await fetchItems();
+    setSaving(false);
+    setDirty(false);
+  }
+
+  function discard() {
+    // Re-trigger the thickness effect by toggling dirty
+    const t = parseFloat(selectedThickness);
+    const entries = allItems
+      .filter((i) => i.materialId === selectedMaterial && i.thickness === t)
+      .sort((a: any, b: any) => a.minLength - b.minLength);
+    if (entries.length === 0) {
+      setRanges([emptyRange()]);
+    } else {
+      setRanges(
+        entries.map((e: any) => ({
+          minLength: String(e.minLength),
+          maxLength: e.maxLength != null ? String(e.maxLength) : "",
+          pricePerMeter: String(e.pricePerMeter),
+        }))
+      );
+    }
+    setDirty(false);
+  }
+
+  async function addNewThickness() {
+    if (!newThickness) return;
+    // Check if combination already exists
+    const exists = allItems.some(
+      (i) => i.materialId === newMaterial && i.thickness === parseFloat(newThickness)
+    );
+    if (exists) {
+      setSelectedMaterial(newMaterial);
+      setSelectedThickness(newThickness);
+      setAddDialogOpen(false);
+      return;
+    }
+    // Switch to that combination with one empty range
+    setSelectedMaterial(newMaterial);
+    setSelectedThickness(newThickness);
+    setRanges([emptyRange()]);
+    setDirty(true);
+    setAddDialogOpen(false);
+  }
+
+  const materialLabel = MATERIAL_OPTIONS.find((m) => m.id === selectedMaterial)?.label ?? selectedMaterial;
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Справочник резки" />
+      <Header title="Цены на резку" />
       <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {/* Tabs */}
-          <div className="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit">
-            {MATERIAL_TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
-                  tab === t.id
-                    ? "bg-white shadow text-slate-800"
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        <div className="max-w-2xl mx-auto space-y-5">
 
-          {/* Actions */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Тарифы резки —{" "}
-              <span className="font-medium text-slate-700">
-                {MATERIAL_TABS.find((t) => t.id === tab)?.label}
-              </span>
-            </p>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              Добавить
+          {/* Subtitle */}
+          <p className="text-sm text-slate-500">Справочник цен для расчёта стоимости резки</p>
+
+          {/* Top controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="shrink-0 text-sm text-slate-600">Материал:</Label>
+              <Select value={selectedMaterial} onValueChange={setSelectedMaterial}>
+                <SelectTrigger className="w-52">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MATERIAL_OPTIONS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Label className="shrink-0 text-sm text-slate-600">Толщина, мм:</Label>
+              {thicknessOptions.length > 0 ? (
+                <Select value={selectedThickness} onValueChange={setSelectedThickness}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {thicknessOptions.map((t) => (
+                      <SelectItem key={t} value={String(t)}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="text-sm text-slate-400 italic">—</span>
+              )}
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              onClick={() => {
+                setNewMaterial(selectedMaterial);
+                setNewThickness("");
+                setAddDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Добавить цену
             </Button>
           </div>
 
-          {/* Table */}
-          <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50">
-                  <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Толщина, мм</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Длина от, мм</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Длина до, мм</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">₽/м.п.</TableHead>
-                  <TableHead className="w-20" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12">
-                      <Loader2 className="h-5 w-5 animate-spin mx-auto text-slate-400" />
-                    </TableCell>
-                  </TableRow>
-                ) : filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-slate-400 text-sm">
-                      Нет записей. Добавьте тарифы на резку.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-slate-50/50">
-                      <TableCell className="font-medium">{item.thickness} мм</TableCell>
-                      <TableCell>{item.minLength.toLocaleString("ru-RU")}</TableCell>
-                      <TableCell>{item.maxLength ? item.maxLength.toLocaleString("ru-RU") : "∞"}</TableCell>
-                      <TableCell>{item.pricePerMeter.toLocaleString("ru-RU")} ₽</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 justify-end">
-                          <button
-                            onClick={() => openEdit(item)}
-                            className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <button className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Удалить запись?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Тариф резки {item.thickness} мм ({item.minLength}–{item.maxLength ?? "∞"} мм) будет удалён.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                <AlertDialogAction
-                                  className="bg-red-600 hover:bg-red-700"
-                                  onClick={() => deleteItem(item.id)}
-                                >
-                                  Удалить
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          {/* Ranges editor */}
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            </div>
+          ) : thicknessOptions.length === 0 && !dirty ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-slate-200 bg-white py-14 text-center shadow-sm">
+              <Scissors className="h-8 w-8 text-slate-300" />
+              <p className="text-sm font-medium text-slate-500">Нет цен для {materialLabel}</p>
+              <p className="text-xs text-slate-400">Нажмите «Добавить цену», чтобы задать тарифы</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-5 py-3.5">
+                <p className="text-sm font-medium text-slate-700">
+                  Диапазоны длины и цены
+                  <span className="ml-2 text-xs font-normal text-slate-400">
+                    {materialLabel} · {selectedThickness} мм
+                  </span>
+                </p>
+              </div>
+
+              <div className="p-4 space-y-2">
+                {/* Column headers */}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-24 text-center text-xs font-medium text-slate-400">От, м</span>
+                  <span className="w-4 shrink-0" />
+                  <span className="w-24 text-center text-xs font-medium text-slate-400">До, м</span>
+                  <span className="w-4 shrink-0" />
+                  <span className="w-28 text-center text-xs font-medium text-slate-400">Цена, ₽/м</span>
+                </div>
+
+                {ranges.map((range, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      className="w-24 text-center"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={range.minLength}
+                      onChange={(e) => updateRange(index, "minLength", e.target.value)}
+                      placeholder="0"
+                    />
+                    <span className="text-slate-300 shrink-0">—</span>
+                    <Input
+                      className={cn("w-24 text-center", !range.maxLength && "text-slate-400")}
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={range.maxLength}
+                      onChange={(e) => updateRange(index, "maxLength", e.target.value)}
+                      placeholder="∞"
+                    />
+                    <span className="text-slate-300 shrink-0">:</span>
+                    <Input
+                      className="w-28 text-center"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={range.pricePerMeter}
+                      onChange={(e) => updateRange(index, "pricePerMeter", e.target.value)}
+                      placeholder="0.00"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeRange(index)}
+                      className="p-1.5 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addRange}
+                  className="flex items-center gap-1.5 mt-3 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Добавить диапазон
+                </button>
+              </div>
+
+              {dirty && (
+                <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
+                  <Button size="sm" onClick={save} disabled={saving}>
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-1.5" />
+                    )}
+                    Сохранить
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={discard} className="text-slate-500">
+                    <X className="h-4 w-4 mr-1.5" />
+                    Отмена
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Add new thickness dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{editItem ? "Редактировать тариф" : "Добавить тариф резки"}</DialogTitle>
+            <DialogTitle>Добавить цену резки</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Материал</Label>
+              <Select value={newMaterial} onValueChange={setNewMaterial}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MATERIAL_OPTIONS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label>Толщина, мм</Label>
-              <Input {...register("thickness", { required: true })} placeholder="4.0" type="number" step="0.1" />
+              <Input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={newThickness}
+                onChange={(e) => setNewThickness(e.target.value)}
+                placeholder="напр. 3"
+                autoFocus
+              />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Длина от, мм</Label>
-                <Input {...register("minLength", { required: true })} placeholder="0" type="number" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Длина до, мм</Label>
-                <Input {...register("maxLength")} placeholder="(без ограничений)" type="number" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Цена, ₽/м.п.</Label>
-              <Input {...register("pricePerMeter", { required: true })} placeholder="80" type="number" step="0.01" />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Отмена</Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {editItem ? "Сохранить" : "Добавить"}
-              </Button>
-            </DialogFooter>
-          </form>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Отмена</Button>
+            <Button onClick={addNewThickness} disabled={!newThickness}>Создать</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

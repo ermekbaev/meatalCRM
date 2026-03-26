@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { formatCurrency, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS } from "@/lib/utils";
-import { ClipboardList, Users, FileText, TrendingUp, Inbox, Loader, CheckCircle2, XCircle } from "lucide-react";
+import { Inbox, Loader, CheckCircle2, XCircle } from "lucide-react";
 import { DashboardCharts } from "./DashboardCharts";
+import { DashboardStats } from "./DashboardStats";
+import { PopularItemsCard } from "./PopularItemsCard";
 import { PeriodFilter } from "./PeriodFilter";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -27,7 +29,7 @@ export default async function DashboardPage({
   const since = getPeriodStart(period);
   const dateFilter = since ? { createdAt: { gte: since } } : {};
 
-  const [totalRequests, totalClients, totalOffers, requestsByStatus, recentRequests, revenue, completedRequests] =
+  const [totalRequests, totalClients, totalOffers, requestsByStatus, recentRequests, revenue, completedRequests, topItems] =
     await Promise.all([
       prisma.request.count({ where: dateFilter }),
       prisma.client.count({ where: dateFilter }),
@@ -50,6 +52,13 @@ export default async function DashboardPage({
         },
         select: { amount: true, createdAt: true },
       }),
+      prisma.requestItem.groupBy({
+        by: ["name"],
+        _count: { name: true },
+        _sum: { total: true },
+        orderBy: { _count: { name: "desc" } },
+        take: 5,
+      }),
     ]);
 
   // Группируем выручку по месяцам
@@ -71,10 +80,10 @@ export default async function DashboardPage({
   });
 
   const stats = [
-    { title: "Заявок",       value: totalRequests,                            icon: ClipboardList, color: "text-slate-600", bg: "bg-slate-100" },
-    { title: "Контрагенты",  value: totalClients,                             icon: Users,         color: "text-slate-600", bg: "bg-slate-100" },
-    { title: "КП создано",   value: totalOffers,                              icon: FileText,      color: "text-slate-600", bg: "bg-slate-100" },
-    { title: "Выручка",      value: formatCurrency(revenue._sum.amount ?? 0), icon: TrendingUp,    color: "text-teal-600",  bg: "bg-teal-50"   },
+    { title: "Заявок",       value: totalRequests,                            icon: "ClipboardList", color: "text-slate-600", bg: "bg-slate-100"                  },
+    { title: "Контрагенты",  value: totalClients,                             icon: "Users",         color: "text-slate-600", bg: "bg-slate-100"                  },
+    { title: "КП создано",   value: totalOffers,                              icon: "FileText",      color: "text-slate-600", bg: "bg-slate-100"                  },
+    { title: "Выручка",      value: formatCurrency(revenue._sum.amount ?? 0), icon: "TrendingUp",    color: "text-teal-600",  bg: "bg-teal-50",  clickable: true  },
   ];
 
   const statusData = requestsByStatus.map((s) => ({
@@ -109,24 +118,7 @@ export default async function DashboardPage({
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((s) => {
-            const Icon = s.icon;
-            return (
-              <div key={s.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{s.title}</p>
-                    <p className="mt-2 text-3xl font-bold text-slate-800 tracking-tight">{s.value}</p>
-                  </div>
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.bg}`}>
-                    <Icon className={`h-5 w-5 ${s.color}`} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <DashboardStats stats={stats} />
 
         {/* Charts + recent */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -137,7 +129,7 @@ export default async function DashboardPage({
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Последние заявки</p>
-              <Link href="/requests" className="text-[12px] text-slate-500 hover:text-slate-700 font-medium">
+              <Link href="/requests" className="text-xs text-slate-500 hover:text-slate-700 font-medium">
                 Все →
               </Link>
             </div>
@@ -178,12 +170,15 @@ export default async function DashboardPage({
                       <cfg.icon className={`h-4 w-4 ${cfg.iconColor}`} />
                     </div>
                   </div>
-                  <p className="mt-2 text-[12px] font-medium text-slate-500">{label}</p>
+                  <p className="mt-2 text-xs font-medium text-slate-500">{label}</p>
                 </div>
               </Link>
             );
           })}
         </div>
+
+        {/* Popular items */}
+        <PopularItemsCard items={topItems} />
 
       </div>
     </div>

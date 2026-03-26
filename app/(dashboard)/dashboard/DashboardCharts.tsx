@@ -17,7 +17,7 @@ export function DashboardCharts({ statusData, revenueData }: Props) {
       {/* Выручка по месяцам */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-3.5">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Выручка по месяцам
           </p>
         </div>
@@ -58,7 +58,7 @@ export function DashboardCharts({ statusData, revenueData }: Props) {
           ) : (
             <div className="flex h-55 flex-col items-center justify-center gap-3">
               <div className="h-16 w-16 rounded-full border-[3px] border-dashed border-slate-200" />
-              <p className="text-[12px] text-slate-400">Нет завершённых заявок</p>
+              <p className="text-xs text-slate-400">Нет завершённых заявок</p>
             </div>
           )}
         </div>
@@ -67,7 +67,7 @@ export function DashboardCharts({ statusData, revenueData }: Props) {
       {/* Распределение по статусам */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-3.5">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             По статусам
           </p>
         </div>
@@ -110,7 +110,7 @@ export function DashboardCharts({ statusData, revenueData }: Props) {
           ) : (
             <div className="flex h-55 flex-col items-center justify-center gap-3">
               <div className="h-16 w-16 rounded-full border-[3px] border-dashed border-slate-200" />
-              <p className="text-[12px] text-slate-400">Нет данных</p>
+              <p className="text-xs text-slate-400">Нет данных</p>
             </div>
           )}
         </div>

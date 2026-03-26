@@ -22,7 +22,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
         </button>
         <div>
           <h1 className="text-[15px] font-semibold text-slate-800 leading-tight">{title}</h1>
-          {subtitle && <p className="text-[12px] text-slate-400 mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
         </div>
       </div>
       <div className="flex items-center gap-3">

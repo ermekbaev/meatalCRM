@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { Calculator, Scissors, Layers, Info, AlertTriangle, CheckCircle2, History, Trash2, ChevronDown } from "lucide-react";
+import { Calculator, Scissors, Layers, Info, AlertTriangle, CheckCircle2, History, Trash2, ChevronDown, Zap, Users, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   findMetalEntry,
   getThicknessesForMaterial,
@@ -79,8 +80,63 @@ function formatCur(n: number) {
   return n.toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + " ₽";
 }
 
+// ─── Диалог выбора режима ─────────────────────────────────────────────────────
+type CalcMode = "quick" | "counterparty";
+
+function CalculatorModeDialog({ open, onSelect }: { open: boolean; onSelect: (mode: CalcMode) => void }) {
+  return (
+    <Dialog open={open}>
+      <DialogContent className="max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="text-center text-xl">Калькулятор металла</DialogTitle>
+          <DialogDescription className="text-center">Выберите режим расчёта</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 py-4">
+          <div
+            className="group relative cursor-pointer rounded-xl border-2 border-slate-200 p-5 transition-all hover:border-orange-400 hover:bg-orange-50"
+            onClick={() => onSelect("quick")}
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-md transition-transform group-hover:scale-110">
+                <Zap className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 group-hover:text-orange-600">Быстрый расчёт</p>
+                <p className="mt-0.5 text-sm text-slate-500">Простой расчёт без привязки к клиенту</p>
+                <ul className="mt-2 space-y-1 text-xs text-slate-500">
+                  <li className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-orange-500" />Мгновенный результат</li>
+                  <li className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-orange-500" />Сохраняется в историю</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="group relative cursor-pointer rounded-xl border-2 border-slate-200 p-5 transition-all hover:border-blue-400 hover:bg-blue-50"
+            onClick={() => onSelect("counterparty")}
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md transition-transform group-hover:scale-110">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 group-hover:text-blue-600">Расчёт с контрагентом</p>
+                <p className="mt-0.5 text-sm text-slate-500">Расчёт с привязкой к клиенту</p>
+                <ul className="mt-2 space-y-1 text-xs text-slate-500">
+                  <li className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" />Скидка клиента</li>
+                  <li className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-500" />Привязка к заявке</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Таб: Металл ─────────────────────────────────────────────────────────────
-function MetalCalculator() {
+function MetalCalculator({ mode }: { mode: CalcMode }) {
   const initThicknesses = useMemo(() => getThicknessesForMaterial("hot-rolled"), []);
   const initThickness   = initThicknesses[0] ?? 0;
   const initSizes       = useMemo(() => getSizesForMaterial("hot-rolled", initThickness), [initThickness]);
@@ -96,15 +152,21 @@ function MetalCalculator() {
   const [pricePerTon,    setPricePerTon]    = useState("78000");
   const [markupType,     setMarkupType]     = useState<"percent" | "fixed">("percent");
   const [markupValue,    setMarkupValue]    = useState("");
-  const [useCustomMass,  setUseCustomMass]  = useState(false);
-  const [customSheetMass,setCustomSheetMass]= useState("");
+  const [weightMode,      setWeightMode]      = useState<"auto" | "invoice" | "formula">("auto");
+  const [invoiceMass,     setInvoiceMass]     = useState("");
+  const [invoiceMassEdited, setInvoiceMassEdited] = useState(false);
   const [vatEnabled,     setVatEnabled]     = useState(false);
+  const [clientQuery,    setClientQuery]    = useState("");
+  const [clientResults,  setClientResults]  = useState<{ id: string; name: string; discount?: number | null }[]>([]);
+  const [selectedClient, setSelectedClient] = useState<{ id: string; name: string; discount?: number | null } | null>(null);
+  const [clientLoading,  setClientLoading]  = useState(false);
   const [result, setResult] = useState<{
     massPerSheet: number; totalMass: number; cost: number;
     costWithMarkup: number; markupAmount: number;
     vatAmount: number; costWithVat: number;
     area: number; massPerSqM: number;
     fromTable: boolean; warning?: string;
+    refMass?: number; weightMode: "auto" | "invoice" | "formula";
   } | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -129,6 +191,32 @@ function MetalCalculator() {
     { width: 2000, length: 6000 },
   ];
 
+  // Запись из справочника для текущего выбора
+  const refEntry = useMemo(
+    () => findMetalEntry(materialId, thickness, width, length),
+    [materialId, thickness, width, length],
+  );
+
+  // Автозаполнение массы из справочника в режиме "из накладной"
+  useEffect(() => {
+    if (weightMode === "invoice" && !invoiceMassEdited && refEntry) {
+      setInvoiceMass(String(refEntry.sheetMass));
+    }
+  }, [refEntry, weightMode, invoiceMassEdited]);
+
+  useEffect(() => {
+    if (mode !== "counterparty" || clientQuery.length < 2) { setClientResults([]); return; }
+    setClientLoading(true);
+    const t = setTimeout(() => {
+      fetch(`/api/clients?search=${encodeURIComponent(clientQuery)}&limit=5`)
+        .then(r => r.json())
+        .then(data => setClientResults(Array.isArray(data) ? data : data.clients ?? []))
+        .catch(() => {})
+        .finally(() => setClientLoading(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [clientQuery, mode]);
+
   function handleMaterialChange(id: string) {
     setMaterialId(id);
     const mat = MATERIALS.find(m => m.id === id)!;
@@ -140,6 +228,7 @@ function MetalCalculator() {
       const sizes = getSizesForMaterial(id, t);
       if (sizes[0]) { setWidth(sizes[0].width); setLength(sizes[0].length); }
     }
+    setInvoiceMassEdited(false);
     setResult(null);
   }
 
@@ -149,6 +238,15 @@ function MetalCalculator() {
       const sizes = getSizesForMaterial(materialId, val);
       if (sizes[0]) { setWidth(sizes[0].width); setLength(sizes[0].length); }
     }
+    setInvoiceMassEdited(false);
+    setResult(null);
+  }
+
+  function handleWeightModeChange(m: "auto" | "invoice" | "formula") {
+    setWeightMode(m);
+    setInvoiceMassEdited(false);
+    if (m === "invoice" && refEntry) setInvoiceMass(String(refEntry.sheetMass));
+    else if (m === "invoice") setInvoiceMass("");
     setResult(null);
   }
 
@@ -194,34 +292,40 @@ function MetalCalculator() {
     let massPerSheet: number;
     let fromTable = false;
     let warning: string | undefined;
+    const refMass = refEntry?.sheetMass;
 
-    if (useCustomMass) {
-      massPerSheet = parseFloat(customSheetMass) || 0;
+    if (weightMode === "invoice") {
+      massPerSheet = parseFloat(invoiceMass) || 0;
       if (!massPerSheet) return;
+      fromTable = !invoiceMassEdited && !!refEntry;
+    } else if (weightMode === "formula") {
+      if (!thickness) return;
+      massPerSheet = density * (thickness / 1000) * area;
     } else {
-      const entry = findMetalEntry(materialId, thickness, width, length);
-      if (entry) {
-        massPerSheet = entry.sheetMass;
+      // auto — из справочника, при отсутствии — формула
+      if (refEntry) {
+        massPerSheet = refEntry.sheetMass;
         fromTable = true;
       } else {
         if (!thickness) return;
         massPerSheet = density * (thickness / 1000) * area;
-        warning = "Нестандартный размер — расчёт по формуле (плотность)";
+        warning = "Нестандартный размер — расчёт по формуле";
       }
     }
 
     const totalMass    = massPerSheet * q;
     const cost         = (totalMass / 1000) * ppt;
+    const clientDiscount = (mode === "counterparty" && selectedClient?.discount) ? selectedClient.discount : 0;
     const mv           = parseFloat(markupValue) || 0;
     const markupAmount = mv > 0
       ? (markupType === "percent" ? cost * (mv / 100) : mv)
-      : 0;
+      : clientDiscount > 0 ? -(cost * (clientDiscount / 100)) : 0;
     const costWithMarkup = cost + markupAmount;
     const vatAmount    = vatEnabled ? costWithMarkup * 0.20 : 0;
     const costWithVat  = costWithMarkup + vatAmount;
     const massPerSqM   = massPerSheet / area;
 
-    setResult({ massPerSheet, totalMass, cost, costWithMarkup, markupAmount, vatAmount, costWithVat, area, massPerSqM, fromTable, warning });
+    setResult({ massPerSheet, totalMass, cost, costWithMarkup, markupAmount, vatAmount, costWithVat, area, massPerSqM, fromTable, warning, refMass, weightMode });
 
     saveToHistory({
       id: `h-${Date.now()}`,
@@ -240,6 +344,15 @@ function MetalCalculator() {
         <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-4 py-2.5 flex-1">
           <Info className="h-4 w-4 shrink-0 text-slate-400" />
           <span>{material.description}</span>
+          {weightMode === "auto" && refEntry && (
+            <span className="ml-2 text-xs text-green-600 font-medium">· справочник ГОСТ</span>
+          )}
+          {weightMode === "invoice" && (
+            <span className="ml-2 text-xs text-orange-600 font-medium">· вес из накладной</span>
+          )}
+          {weightMode === "formula" && (
+            <span className="ml-2 text-xs text-blue-600 font-medium">· расчёт по плотности</span>
+          )}
         </div>
         <div className="relative">
           <Button variant="outline" size="sm" onClick={() => setShowHistory(v => !v)} className="gap-2">
@@ -297,6 +410,49 @@ function MetalCalculator() {
         <CardHeader><CardTitle className="text-base">Параметры</CardTitle></CardHeader>
         <CardContent className="space-y-4">
 
+          {/* Контрагент */}
+          {mode === "counterparty" && (
+            <div className="space-y-1.5">
+              <Label>Контрагент</Label>
+              {selectedClient ? (
+                <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">{selectedClient.name}</p>
+                    {selectedClient.discount ? (
+                      <p className="text-xs text-blue-500">Скидка: {selectedClient.discount}% (применена автоматически)</p>
+                    ) : null}
+                  </div>
+                  <button onClick={() => { setSelectedClient(null); setClientQuery(""); }} className="text-blue-400 hover:text-blue-600">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Input
+                    placeholder="Поиск по названию..."
+                    value={clientQuery}
+                    onChange={e => setClientQuery(e.target.value)}
+                  />
+                  {clientLoading && (
+                    <p className="absolute right-3 top-2.5 text-xs text-slate-400">Поиск...</p>
+                  )}
+                  {clientResults.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {clientResults.map(c => (
+                        <button key={c.id} onClick={() => { setSelectedClient(c); setClientQuery(""); setClientResults([]); }}
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-slate-50">
+                          <Users className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="font-medium text-slate-700">{c.name}</span>
+                          {c.discount ? <span className="ml-auto text-xs text-blue-500">−{c.discount}%</span> : null}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Материал */}
           <div className="space-y-1.5">
             <Label>Материал</Label>
@@ -323,8 +479,52 @@ function MetalCalculator() {
             </div>
           )}
 
-          {/* Толщина */}
-          {!useCustomMass && (
+          {/* Режим расчёта веса */}
+          <div className="space-y-1.5">
+            <Label>Режим расчёта</Label>
+            <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 gap-0.5">
+              {([
+                { id: "auto",    label: "Справочник",  hint: "Авто из ГОСТ" },
+                { id: "invoice", label: "Из накладной", hint: "Фактический вес" },
+                { id: "formula", label: "По плотности", hint: "Ручной расчёт" },
+              ] as const).map(m => (
+                <button key={m.id} type="button"
+                  onClick={() => handleWeightModeChange(m.id)}
+                  className={cn(
+                    "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-all",
+                    weightMode === m.id
+                      ? "bg-white text-slate-800 shadow-sm"
+                      : "text-slate-400 hover:text-slate-600"
+                  )}
+                  title={m.hint}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Толщина (не нужна в режиме накладной без размеров) */}
+          {weightMode !== "invoice" && (
+            <div className="space-y-1.5">
+              <Label>Толщина, мм</Label>
+              {tableThicknesses.length > 0 && weightMode !== "formula" ? (
+                <Select value={String(thickness)} onValueChange={v => handleThicknessChange(parseFloat(v))}>
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-44 overflow-y-auto">
+                    {tableThicknesses.map(t => (
+                      <SelectItem key={t} value={String(t)} className="font-mono">{t} мм</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input type="number" min="0" step="0.1" value={thickness || ""}
+                  onChange={e => { setThickness(parseFloat(e.target.value) || 0); setResult(null); }}
+                  placeholder="напр. 4" className="w-36" />
+              )}
+            </div>
+          )}
+          {weightMode === "invoice" && (
             <div className="space-y-1.5">
               <Label>Толщина, мм</Label>
               {tableThicknesses.length > 0 ? (
@@ -344,21 +544,35 @@ function MetalCalculator() {
             </div>
           )}
 
-          {/* Вес из накладной */}
-          <div className="flex items-center gap-2">
-            <Switch id="custom-mass" checked={useCustomMass}
-              onCheckedChange={v => { setUseCustomMass(v); setResult(null); }} />
-            <Label htmlFor="custom-mass" className="text-sm cursor-pointer">
-              Вес листа из накладной
-            </Label>
-          </div>
-          {useCustomMass && (
+          {/* Поле массы в режиме "из накладной" */}
+          {weightMode === "invoice" && (
             <div className="space-y-1.5">
-              <Label>Вес листа, кг</Label>
-              <Input type="number" min="0" step="0.1" value={customSheetMass}
-                onChange={e => { setCustomSheetMass(e.target.value); setResult(null); }}
-                placeholder="напр. 295" />
-              <p className="text-[11px] text-orange-600">Фактический вес из прайса / накладной поставщика</p>
+              <div className="flex items-center justify-between">
+                <Label>Масса листа, кг</Label>
+                {!invoiceMassEdited && refEntry ? (
+                  <span className="flex items-center gap-1 text-[10px] text-green-600">
+                    <CheckCircle2 className="h-3 w-3" /> из справочника
+                  </span>
+                ) : invoiceMassEdited && refEntry ? (
+                  <button
+                    type="button"
+                    onClick={() => { setInvoiceMassEdited(false); setInvoiceMass(String(refEntry.sheetMass)); setResult(null); }}
+                    className="text-[10px] text-orange-500 hover:text-orange-700 transition-colors"
+                  >
+                    Сбросить к справочнику ({refEntry.sheetMass} кг)
+                  </button>
+                ) : null}
+              </div>
+              <Input
+                type="number" min="0" step="0.01"
+                value={invoiceMass}
+                onChange={e => { setInvoiceMass(e.target.value); setInvoiceMassEdited(true); setResult(null); }}
+                placeholder="напр. 36.8"
+                className={cn(!invoiceMassEdited && refEntry ? "border-green-200 bg-green-50" : "")}
+              />
+              {!refEntry && thickness > 0 && (
+                <p className="text-[11px] text-slate-400">Размер не найден в справочнике — введите фактический вес</p>
+              )}
             </div>
           )}
 
@@ -461,10 +675,22 @@ function MetalCalculator() {
             </div>
           ) : (
             <div className="space-y-3">
-              {useCustomMass ? (
+              {result.weightMode === "invoice" && result.fromTable && !invoiceMassEdited ? (
+                <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-xs text-green-700">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  Вес из справочника ГОСТ — применён как фактический
+                </div>
+              ) : result.weightMode === "invoice" ? (
                 <div className="flex items-center gap-2 rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-xs text-orange-700">
                   <Info className="h-3.5 w-3.5 shrink-0" />
-                  Вес из накладной: {customSheetMass} кг
+                  Фактический вес из накладной: {invoiceMass} кг
+                  {result.refMass ? ` (справочник: ${result.refMass} кг)` : ""}
+                </div>
+              ) : result.weightMode === "formula" ? (
+                <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  Расчёт по плотности {density} кг/м³
+                  {result.refMass ? ` · Справочник: ${result.refMass} кг` : ""}
                 </div>
               ) : result.fromTable ? (
                 <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-xs text-green-700">
@@ -483,7 +709,10 @@ function MetalCalculator() {
                 <ResultRow label="Размер"          value={`${width}×${length} мм`} />
                 <ResultRow label="Толщина"         value={`${thickness} мм`} />
                 <ResultRow label="Площадь листа"   value={`${formatNum(result.area)} м²`} />
-                <ResultRow label="Масса 1 листа"   value={`${formatNum(result.massPerSheet)} кг`} />
+                <ResultRow label="Масса 1 листа"   value={`${formatNum(result.massPerSheet)} кг`} highlight />
+                {result.refMass !== undefined && result.refMass !== result.massPerSheet && (
+                  <ResultRow label="По справочнику" value={`${formatNum(result.refMass)} кг`} />
+                )}
                 <ResultRow label="Удельный вес"    value={`${formatNum(result.massPerSqM)} кг/м²`} />
                 <ResultRow label={`Масса (${quantity} шт)`} value={`${formatNum(result.totalMass)} кг`} highlight />
                 <ResultRow label="В тоннах"        value={`${formatNum(result.totalMass / 1000, 4)} т`} />
@@ -531,12 +760,53 @@ function MetalCalculator() {
 }
 
 // ─── Таб: Резка ──────────────────────────────────────────────────────────────
+const CUTTING_MATERIAL_OPTIONS = [
+  { id: "hot-rolled",  label: "Г/К сталь" },
+  { id: "cold-rolled", label: "Х/К сталь" },
+  { id: "galvanized",  label: "Оцинковка" },
+  { id: "stainless",   label: "Нержавейка" },
+  { id: "aluminum",    label: "Алюминий" },
+];
+
 function CuttingCalculator() {
   const [cutType, setCutType] = useState("laser");
+  const [metalType, setMetalType] = useState("hot-rolled");
+  const [thickness, setThickness] = useState("");
   const [cutLength, setCutLength] = useState("");
   const [quantity, setQuantity] = useState("1");
-  const [costPerMeter, setCostPerMeter] = useState("40");
+  const [costPerMeter, setCostPerMeter] = useState("");
   const [result, setResult] = useState<{ totalLength: number; totalCost: number } | null>(null);
+  const [catalogEntries, setCatalogEntries] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/catalog/cutting").then(r => r.ok ? r.json() : []).then(setCatalogEntries);
+  }, []);
+
+  // Thicknesses available in DB for selected material
+  const availableThicknesses = Array.from(
+    new Set(catalogEntries.filter(e => e.materialId === metalType).map(e => e.thickness))
+  ).sort((a, b) => a - b);
+
+  // Suggest price from DB based on metal, thickness, and total cut length (in meters)
+  const totalLengthM = (parseFloat(cutLength) || 0) / 1000 * (parseInt(quantity) || 1);
+
+  const suggestedPrice = useMemo(() => {
+    const t = parseFloat(thickness);
+    if (!t || !totalLengthM) return null;
+    const entries = catalogEntries
+      .filter(e => e.materialId === metalType && e.thickness === t)
+      .sort((a: any, b: any) => a.minLength - b.minLength);
+    if (entries.length === 0) return null;
+    for (const e of entries) {
+      if (totalLengthM >= e.minLength && (e.maxLength == null || totalLengthM <= e.maxLength)) {
+        return e.pricePerMeter as number;
+      }
+    }
+    // Use last range if beyond all defined
+    return entries[entries.length - 1].pricePerMeter as number;
+  }, [catalogEntries, metalType, thickness, totalLengthM]);
+
+  const hasDbData = availableThicknesses.length > 0;
 
   function calculate() {
     const l = parseFloat(cutLength) || 0;
@@ -565,6 +835,61 @@ function CuttingCalculator() {
             </Select>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Вид металла</Label>
+              <Select value={metalType} onValueChange={v => { setMetalType(v); setThickness(""); setResult(null); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CUTTING_MATERIAL_OPTIONS.map(m => (
+                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Толщина, мм</Label>
+              {hasDbData ? (
+                <Select value={thickness} onValueChange={v => { setThickness(v); setResult(null); }}>
+                  <SelectTrigger><SelectValue placeholder="Выбрать" /></SelectTrigger>
+                  <SelectContent>
+                    {availableThicknesses.map(t => (
+                      <SelectItem key={t} value={String(t)}>{t} мм</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  type="number" min="0.1" step="0.1"
+                  value={thickness}
+                  onChange={e => { setThickness(e.target.value); setResult(null); }}
+                  placeholder="напр. 3"
+                />
+              )}
+            </div>
+          </div>
+
+          {!hasDbData && (
+            <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Справочник цен резки пуст. Заполните его в <span className="font-medium">Настройки → Резка</span>.
+            </div>
+          )}
+
+          {suggestedPrice !== null && (
+            <div className="flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+              <p className="text-xs text-blue-700">
+                По справочнику для {formatNum(totalLengthM)} м: <span className="font-bold">{suggestedPrice} ₽/м</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setCostPerMeter(String(suggestedPrice))}
+                className="ml-3 shrink-0 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                Применить
+              </button>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Длина реза, мм</Label>
             <Input
@@ -590,16 +915,9 @@ function CuttingCalculator() {
                 type="number" min="0"
                 value={costPerMeter}
                 onChange={e => { setCostPerMeter(e.target.value); setResult(null); }}
+                placeholder="₽/м"
               />
             </div>
-          </div>
-
-          <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs text-slate-500 space-y-1">
-            <p className="font-medium text-slate-600">Ориентировочные тарифы лазер:</p>
-            <p>0–10 м → 40 ₽/м</p>
-            <p>11–100 м → 33 ₽/м</p>
-            <p>101–500 м → 28 ₽/м</p>
-            <p>500+ м → 25 ₽/м</p>
           </div>
 
           <Button className="w-full" onClick={calculate}>Рассчитать</Button>
@@ -617,6 +935,8 @@ function CuttingCalculator() {
             <div className="space-y-3">
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-3">
                 <ResultRow label="Тип резки" value={CUT_TYPES.find(t => t.id === cutType)?.label ?? cutType} />
+                <ResultRow label="Вид металла" value={CUTTING_MATERIAL_OPTIONS.find(m => m.id === metalType)?.label ?? metalType} />
+                {thickness && <ResultRow label="Толщина" value={`${thickness} мм`} />}
                 <ResultRow label="Длина реза (1 дет.)" value={`${formatNum(parseFloat(cutLength) / 1000)} м`} />
                 <ResultRow label="Кол-во деталей" value={`${quantity} шт`} />
                 <ResultRow label="Общая длина реза" value={`${formatNum(result.totalLength)} м`} highlight />
@@ -768,34 +1088,53 @@ type TabId = typeof TABS[number]["id"];
 
 export default function CalculatorPage() {
   const [activeTab, setActiveTab] = useState<TabId>("metal");
+  const [mode, setMode] = useState<CalcMode | null>(null);
 
   return (
     <div>
+      <CalculatorModeDialog open={mode === null} onSelect={setMode} />
       <Header title="Калькулятор" />
       <div className="p-6 space-y-6">
-        {/* Tabs */}
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1 w-fit">
-          {TABS.map(tab => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all",
-                  activeTab === tab.id
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* Tabs + режим */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex gap-1 rounded-xl bg-slate-100 p-1 w-fit">
+            {TABS.map(tab => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all",
+                    activeTab === tab.id
+                      ? "bg-white text-slate-800 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          {mode && (
+            <button
+              onClick={() => setMode(null)}
+              className={cn(
+                "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
+                mode === "counterparty"
+                  ? "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+              )}
+            >
+              {mode === "counterparty" ? <Users className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
+              {mode === "counterparty" ? "С контрагентом" : "Быстрый расчёт"}
+              <span className="text-slate-400">· сменить</span>
+            </button>
+          )}
         </div>
 
-        {activeTab === "metal"   && <MetalCalculator />}
+        {activeTab === "metal"   && <MetalCalculator mode={mode ?? "quick"} />}
         {activeTab === "cutting" && <CuttingCalculator />}
         {activeTab === "bending" && <BendingCalculator />}
       </div>

@@ -14,6 +14,17 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status") ?? "";
   const priority = searchParams.get("priority") ?? "";
   const clientId = searchParams.get("clientId") ?? "";
+  const minimal = searchParams.get("minimal") === "true";
+
+  // Лёгкий режим для дропдаунов — только id, number, title, status
+  if (minimal) {
+    const requests = await prisma.request.findMany({
+      select: { id: true, number: true, title: true, status: true },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    return NextResponse.json(requests);
+  }
 
   const requests = await prisma.request.findMany({
     where: {

@@ -113,7 +113,7 @@ export function Sidebar() {
             {session?.user?.name?.charAt(0).toUpperCase() ?? "U"}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[12px] font-medium text-slate-700">{session?.user?.name}</p>
+            <p className="truncate text-xs font-medium text-slate-700">{session?.user?.name}</p>
             <p className="truncate text-[11px] text-slate-400">
               {ROLE_LABELS[(session?.user as any)?.role] ?? ""}
             </p>

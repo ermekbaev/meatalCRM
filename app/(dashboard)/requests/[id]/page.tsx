@@ -13,9 +13,10 @@ import {
   formatDate, formatDateTime, formatCurrency
 } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Send, Loader2, Clock, Plus, Trash2, Save, Paperclip, X, FileText, Download } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Clock, Plus, Trash2, Save, Paperclip, X, FileText, Download, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -31,6 +32,7 @@ export default function RequestDetailPage() {
   const [itemsSaving, setItemsSaving] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   const fetchRequest = useCallback(async () => {
     const res = await fetch(`/api/requests/${params.id}`);
@@ -100,6 +102,19 @@ export default function RequestDetailPage() {
     setItems((prev) => [...prev, { id: `new-${Date.now()}`, name: "", quantity: 1, unit: "шт", price: 0, discount: 0, total: 0, isCustomerMaterial: false }]);
   };
 
+  const addFromCatalog = (catalogItem: any) => {
+    setItems((prev) => [...prev, {
+      id: `new-${Date.now()}`,
+      name: catalogItem.name,
+      quantity: 1,
+      unit: catalogItem.unit ?? "шт",
+      price: catalogItem.price ?? 0,
+      discount: 0,
+      total: catalogItem.price ?? 0,
+      isCustomerMaterial: false,
+    }]);
+  };
+
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
   const updateItem = (idx: number, field: string, value: any) => {
@@ -148,6 +163,7 @@ export default function RequestDetailPage() {
 
   return (
     <div>
+      <CatalogPickerDialog open={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={addFromCatalog} />
       <Header title={`Заявка #${request.number}`} />
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
@@ -203,8 +219,11 @@ export default function RequestDetailPage() {
                 <CardTitle className="text-base">Позиции</CardTitle>
                 {!isEmployee && (
                   <div className="flex gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={() => setCatalogOpen(true)}>
+                      <BookOpen className="mr-1 h-4 w-4" /> Из каталога
+                    </Button>
                     <Button type="button" size="sm" variant="outline" onClick={addItem}>
-                      <Plus className="mr-1 h-4 w-4" /> Добавить
+                      <Plus className="mr-1 h-4 w-4" /> Вручную
                     </Button>
                     <Button type="button" size="sm" onClick={saveItems} disabled={itemsSaving}>
                       {itemsSaving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Save className="mr-1 h-4 w-4" />}
@@ -218,9 +237,14 @@ export default function RequestDetailPage() {
                   <div className="px-6 pb-6 text-center">
                     <p className="text-sm text-slate-400 mb-3">Нет позиций</p>
                     {!isEmployee && (
-                      <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                        <Plus className="mr-1 h-4 w-4" /> Добавить позицию
-                      </Button>
+                      <div className="flex gap-2 justify-center">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setCatalogOpen(true)}>
+                          <BookOpen className="mr-1 h-4 w-4" /> Из каталога
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                          <Plus className="mr-1 h-4 w-4" /> Вручную
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -483,8 +507,8 @@ export default function RequestDetailPage() {
                         <div>
                           <span className="font-medium text-gray-700">{log.user?.name}</span>
                           {" изменил "}<span className="font-mono text-xs bg-gray-100 px-1 rounded">{log.field}</span>
-                          {log.oldValue && <span className="text-gray-400"> с "{log.oldValue}"</span>}
-                          {log.newValue && <span> на "{log.newValue}"</span>}
+                          {log.oldValue && <span className="text-gray-400"> с &quot;{log.oldValue}&quot;</span>}
+                          {log.newValue && <span> на &quot;{log.newValue}&quot;</span>}
                           <span className="ml-2 text-xs text-gray-400">{formatDateTime(log.createdAt)}</span>
                         </div>
                       </div>
@@ -553,6 +577,23 @@ export default function RequestDetailPage() {
                     onCheckedChange={(v) => updateField("vatIncluded", v)}
                     disabled={isEmployee}
                   />
+                </div>
+
+                {/* Способ оплаты */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-500">Способ оплаты</p>
+                  <Select
+                    value={request.paymentMethod ?? ""}
+                    onValueChange={(v) => updateField("paymentMethod", v || null)}
+                    disabled={isEmployee}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Не выбран" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Наличные</SelectItem>
+                      <SelectItem value="transfer">Перевод</SelectItem>
+                      <SelectItem value="non_cash">Безналичный расчёт</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {subtotal > 0 && (

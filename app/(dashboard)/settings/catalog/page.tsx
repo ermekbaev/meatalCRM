@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Pencil, Loader2, Wrench, Package } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Wrench, Package, Folder, FolderOpen, ChevronRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { cn } from "@/lib/utils";
 
@@ -17,19 +17,130 @@ const TABS = [
   { key: "product", label: "Товары",  icon: Package },
 ];
 
+// ─── Sub-components (defined outside to avoid re-creation on each render) ─────
+
+interface ItemRowProps {
+  item: any;
+  noun: string;
+  nounTitle: string;
+  onEdit: (item: any) => void;
+  onDelete: (id: string) => void;
+}
+
+function ItemRow({ item, noun, nounTitle, onEdit, onDelete }: ItemRowProps) {
+  return (
+    <TableRow>
+      <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
+      <TableCell className="text-slate-400 text-[13px]">{item.description ?? "—"}</TableCell>
+      <TableCell className="text-slate-500 text-[13px]">{item.unit}</TableCell>
+      <TableCell className="font-medium text-slate-700 text-[13px]">
+        {item.price ? `${item.price.toLocaleString("ru")} ₽ / ${item.unit}` : "—"}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1">
+          <Button size="icon" variant="ghost" onClick={() => onEdit(item)}>
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Удалить {noun}?</AlertDialogTitle>
+                <AlertDialogDescription>{nounTitle} будет деактивирован(а).</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDelete(item.id)}>Удалить</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+interface CategorySectionProps {
+  title?: string;
+  rows: any[];
+  catKey: string;
+  openCats: Set<string>;
+  onToggle: (cat: string) => void;
+  noun: string;
+  nounTitle: string;
+  onEdit: (item: any) => void;
+  onDelete: (id: string) => void;
+}
+
+function CategorySection({ title, rows, catKey, openCats, onToggle, noun, nounTitle, onEdit, onDelete }: CategorySectionProps) {
+  const isOpen = !title || openCats.has(catKey);
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {title && (
+        <button
+          onClick={() => onToggle(catKey)}
+          className="flex w-full items-center gap-2 bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 transition-colors border-b border-slate-200"
+        >
+          {isOpen
+            ? <FolderOpen className="h-4 w-4 text-orange-500" />
+            : <Folder className="h-4 w-4 text-slate-400" />}
+          <span className="flex-1 text-[13px] font-semibold text-slate-700">{title}</span>
+          <span className="text-[11px] text-slate-400">{rows.length} позиций</span>
+          <ChevronRight className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", isOpen && "rotate-90")} />
+        </button>
+      )}
+      {isOpen && (
+        <Table className="table-fixed">
+          <colgroup>
+            <col style={{ width: "30%" }} />
+            <col />
+            <col style={{ width: "96px" }} />
+            <col style={{ width: "144px" }} />
+            <col style={{ width: "80px" }} />
+          </colgroup>
+          <TableHeader>
+            <TableRow className="bg-slate-50">
+              <TableHead>Название</TableHead>
+              <TableHead>Описание</TableHead>
+              <TableHead>Ед. изм.</TableHead>
+              <TableHead>Цена</TableHead>
+              <TableHead>Действия</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((item) => (
+              <ItemRow key={item.id} item={item} noun={noun} nounTitle={nounTitle} onEdit={onEdit} onDelete={onDelete} />
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function CatalogPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"service" | "product">("service");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
+  const [openCats, setOpenCats] = useState<Set<string>>(new Set());
 
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
 
   const fetchItems = async () => {
     setLoading(true);
     const res = await fetch("/api/catalog");
-    setItems(await res.json());
+    const data = await res.json();
+    setItems(data);
+    const cats = new Set<string>(data.map((i: any) => i.category).filter(Boolean));
+    setOpenCats(cats);
     setLoading(false);
   };
 
@@ -69,71 +180,12 @@ export default function CatalogPage() {
   const noun = isService ? "услугу" : "товар";
   const nounTitle = isService ? "Услуга" : "Товар";
 
-  const ItemRow = ({ item }: { item: any }) => (
-    <TableRow>
-      <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
-      <TableCell className="text-slate-400 text-[13px]">{item.description ?? "—"}</TableCell>
-      <TableCell className="text-slate-500 text-[13px]">{item.unit}</TableCell>
-      <TableCell className="font-medium text-slate-700 text-[13px]">
-        {item.price ? `${item.price.toLocaleString("ru")} ₽ / ${item.unit}` : "—"}
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" onClick={() => openEdit(item)}>
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Удалить {noun}?</AlertDialogTitle>
-                <AlertDialogDescription>{nounTitle} будет деактивирован(а).</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleDelete(item.id)}>Удалить</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </TableCell>
-    </TableRow>
-  );
-
-  const CategorySection = ({ title, rows }: { title?: string; rows: any[] }) => (
-    <div className="space-y-1">
-      {title && (
-        <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{title}</p>
-      )}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <Table className="table-fixed">
-          <colgroup>
-            <col style={{ width: "30%" }} />
-            <col />
-            <col style={{ width: "96px" }} />
-            <col style={{ width: "144px" }} />
-            <col style={{ width: "80px" }} />
-          </colgroup>
-          <TableHeader>
-            <TableRow className="bg-slate-50">
-              <TableHead>Название</TableHead>
-              <TableHead>Описание</TableHead>
-              <TableHead>Ед. изм.</TableHead>
-              <TableHead>Цена</TableHead>
-              <TableHead>Действия</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((item) => <ItemRow key={item.id} item={item} />)}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
+  const toggleCat = (cat: string) =>
+    setOpenCats((prev) => {
+      const next = new Set(prev);
+      next.has(cat) ? next.delete(cat) : next.add(cat);
+      return next;
+    });
 
   return (
     <div>
@@ -171,18 +223,32 @@ export default function CatalogPage() {
             Справочник пуст
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-3">
             {categories.map((cat) => (
               <CategorySection
                 key={cat as string}
+                catKey={cat as string}
                 title={cat as string}
                 rows={filtered.filter((i) => i.category === cat)}
+                openCats={openCats}
+                onToggle={toggleCat}
+                noun={noun}
+                nounTitle={nounTitle}
+                onEdit={openEdit}
+                onDelete={handleDelete}
               />
             ))}
             {uncategorized.length > 0 && (
               <CategorySection
+                catKey="__none__"
                 title={categories.length > 0 ? "Без категории" : undefined}
                 rows={uncategorized}
+                openCats={openCats}
+                onToggle={toggleCat}
+                noun={noun}
+                nounTitle={nounTitle}
+                onEdit={openEdit}
+                onDelete={handleDelete}
               />
             )}
           </div>

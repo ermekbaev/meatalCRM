@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { REQUEST_STATUS_LABELS, PRIORITY_LABELS, formatCurrency } from "@/lib/utils";
-import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Trash2, BookOpen } from "lucide-react";
 import Link from "next/link";
+import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 
 export default function NewRequestPage() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function NewRequestPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [comment, setComment] = useState("");
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   const [vatIncluded, setVatIncluded] = useState(false);
 
@@ -74,6 +76,18 @@ export default function NewRequestPage() {
 
   const addRow = () => {
     append({ name: "", quantity: 1, unit: "шт", price: 0, discount: 0, total: 0, isCustomerMaterial: false });
+  };
+
+  const addFromCatalog = (item: any) => {
+    append({
+      name: item.name,
+      quantity: 1,
+      unit: item.unit ?? "шт",
+      price: item.price ?? 0,
+      discount: 0,
+      total: item.price ?? 0,
+      isCustomerMaterial: false,
+    });
   };
 
   async function onSubmit(data: any) {
@@ -163,17 +177,27 @@ export default function NewRequestPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base">Позиции</CardTitle>
-                <Button type="button" size="sm" variant="outline" onClick={addRow}>
-                  <Plus className="mr-1 h-4 w-4" /> Добавить позицию
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setCatalogOpen(true)}>
+                    <BookOpen className="mr-1 h-4 w-4" /> Из каталога
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={addRow}>
+                    <Plus className="mr-1 h-4 w-4" /> Вручную
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 {fields.length === 0 ? (
-                  <div className="px-6 pb-6 text-center">
+                  <div className="px-6 pb-6 text-center space-y-2">
                     <p className="text-sm text-slate-400 mb-3">Нет позиций</p>
-                    <Button type="button" variant="outline" size="sm" onClick={addRow}>
-                      <Plus className="mr-1 h-4 w-4" /> Добавить позицию
-                    </Button>
+                    <div className="flex justify-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setCatalogOpen(true)}>
+                        <BookOpen className="mr-1 h-4 w-4" /> Из каталога
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                        <Plus className="mr-1 h-4 w-4" /> Вручную
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -274,14 +298,22 @@ export default function NewRequestPage() {
                     </div>
 
                     {/* Строка добавления */}
-                    <div className="border-t border-slate-100 px-4 py-2">
+                    <div className="border-t border-slate-100 px-4 py-2 flex gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setCatalogOpen(true)}
+                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-orange-500 transition-colors py-1"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                        <span>Из каталога</span>
+                      </button>
                       <button
                         type="button"
                         onClick={addRow}
-                        className="flex items-center gap-2 w-full text-sm text-slate-400 hover:text-slate-600 transition-colors py-1"
+                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-600 transition-colors py-1"
                       >
                         <Plus className="h-4 w-4" />
-                        <span>Добавить позицию</span>
+                        <span>Вручную</span>
                       </button>
                     </div>
 
@@ -378,6 +410,12 @@ export default function NewRequestPage() {
           </div>
         </form>
       </div>
+
+      <CatalogPickerDialog
+        open={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        onSelect={addFromCatalog}
+      />
     </div>
   );
 }

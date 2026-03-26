@@ -95,7 +95,8 @@ model Request {
   status      RequestStatus   @default(NEW)
   priority    RequestPriority @default(MEDIUM)
   amount      Float?
-  vatIncluded Boolean         @default(false)
+  vatIncluded    Boolean         @default(false)
+  paymentMethod  String?
   services    String[]        @default([])
 
   clientId   String

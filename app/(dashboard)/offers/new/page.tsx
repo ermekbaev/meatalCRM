@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS } from "@/lib/utils";
-import { ArrowLeft, Plus, Trash2, Loader2, Building2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2, Building2, ClipboardCheck, X, BookOpen } from "lucide-react";
 import Link from "next/link";
+import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 
 export default function NewOfferPage() {
   const router = useRouter();
@@ -22,6 +23,8 @@ export default function NewOfferPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [clientInfo, setClientInfo] = useState<any>(null);
+  const [importedRequest, setImportedRequest] = useState<{ number: number; title: string } | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   const { register, handleSubmit, setValue, watch, control, formState: { isSubmitting } } = useForm({
     defaultValues: {
@@ -36,9 +39,20 @@ export default function NewOfferPage() {
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
+  const addFromCatalog = (item: any) => {
+    append({
+      service: item.name,
+      description: item.description ?? "",
+      quantity: 1,
+      unit: item.unit ?? "шт",
+      price: item.price ?? 0,
+      total: item.price ?? 0,
+    });
+  };
+
   useEffect(() => {
     Promise.all([
-      fetch("/api/requests").then((r) => r.json()),
+      fetch("/api/requests?minimal=true").then((r) => r.json()),
       fetch("/api/catalog").then((r) => r.json()),
     ]).then(([reqs, cat]) => {
       setRequests(reqs);
@@ -51,24 +65,28 @@ export default function NewOfferPage() {
   const selectedRequest = watch("requestId");
   const selectedStatus = watch("status");
 
-  // Подтягиваем данные контрагента при выборе заявки
+  // Подтягиваем данные контрагента и позиции при выборе заявки
   useEffect(() => {
     if (!selectedRequest) { setClientInfo(null); return; }
     fetch(`/api/requests/${selectedRequest}`)
       .then((r) => r.json())
-      .then((req) => setClientInfo(req.client ?? null))
+      .then((req) => {
+        setClientInfo(req.client ?? null);
+        // Импортируем позиции только при начальной загрузке из заявки
+        if (selectedRequest === requestId && req.items?.length > 0) {
+          setValue("items", req.items.map((item: any) => ({
+            service: item.name,
+            description: "",
+            quantity: item.quantity ?? 1,
+            unit: item.unit ?? "шт",
+            price: item.price ?? 0,
+            total: item.total ?? 0,
+          })));
+          setImportedRequest({ number: req.number, title: req.title });
+        }
+      })
       .catch(() => setClientInfo(null));
   }, [selectedRequest]);
-
-  // При начальной загрузке, если requestId передан из URL
-  useEffect(() => {
-    if (requestId) {
-      fetch(`/api/requests/${requestId}`)
-        .then((r) => r.json())
-        .then((req) => setClientInfo(req.client ?? null))
-        .catch(() => {});
-    }
-  }, [requestId]);
 
   const subtotal = items.reduce((sum: number, item: any) => {
     return sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
@@ -118,20 +136,56 @@ export default function NewOfferPage() {
           </Link>
         </div>
 
+        {/* Баннер импорта из заявки */}
+        {importedRequest && (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <ClipboardCheck className="h-5 w-5 shrink-0 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-green-800">
+                  Позиции импортированы из заявки #{importedRequest.number}
+                </p>
+                <p className="text-xs text-green-600">{importedRequest.title} · {fields.length} поз.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setValue("items", [{ service: "", description: "", quantity: 1, unit: "шт", price: 0, total: 0 }]);
+                setImportedRequest(null);
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+              Начать с чистого листа
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           <div className="lg:col-span-3 space-y-6">
             {/* Позиции */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Перечень услуг</CardTitle>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => append({ service: "", description: "", quantity: 1, unit: "шт", price: 0, total: 0 })}
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Добавить
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCatalogOpen(true)}
+                  >
+                    <BookOpen className="mr-1 h-4 w-4" /> Из каталога
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => append({ service: "", description: "", quantity: 1, unit: "шт", price: 0, total: 0 })}
+                  >
+                    <Plus className="mr-1 h-4 w-4" /> Вручную
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -289,6 +343,12 @@ export default function NewOfferPage() {
           </div>
         </form>
       </div>
+
+      <CatalogPickerDialog
+        open={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        onSelect={addFromCatalog}
+      />
     </div>
   );
 }
