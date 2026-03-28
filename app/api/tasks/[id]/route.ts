@@ -18,6 +18,12 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
         orderBy: { createdAt: "asc" },
         include: { user: { select: { id: true, name: true } } },
       },
+      files: {
+        orderBy: { createdAt: "asc" },
+        include: { uploadedBy: { select: { id: true, name: true } } },
+      },
+      checklist: { orderBy: [{ order: "asc" }, { createdAt: "asc" }] },
+      tags: true,
     },
   });
 

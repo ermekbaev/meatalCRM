@@ -6,7 +6,7 @@ import Image from "next/image";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, LogOut, Factory, BookOpen, ChevronRight, Calculator,
-  Layers, Scissors, Box,
+  Layers, Scissors, Box, BarChart2, Receipt,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 
@@ -16,6 +16,8 @@ const navItems = [
   { href: "/tasks",      label: "Задачи",        icon: CheckSquare },
   { href: "/clients",    label: "Контрагенты",  icon: Users },
   { href: "/offers",     label: "КП",            icon: FileText },
+  { href: "/invoices",   label: "Счета",         icon: Receipt },
+  { href: "/analytics",  label: "Аналитика",    icon: BarChart2 },
   { href: "/calculator", label: "Калькулятор",  icon: Calculator },
 ];
 

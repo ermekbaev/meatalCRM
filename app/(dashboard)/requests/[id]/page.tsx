@@ -144,7 +144,8 @@ export default function RequestDetailPage() {
   const subtotal = items.reduce((s, it) => s + (parseFloat(it.total) || 0), 0);
   const customerMaterialTotal = items.filter(it => it.isCustomerMaterial).reduce((s, it) => s + (parseFloat(it.total) || 0), 0);
   const ourRevenue = subtotal - customerMaterialTotal;
-  const vatAmount = request?.vatIncluded ? subtotal - subtotal / 1.2 : 0;
+  const vatAmount = request?.vatIncluded ? subtotal * 0.2 : 0;
+  const totalWithVat = subtotal + vatAmount;
 
   if (loading) {
     return (
@@ -404,14 +405,20 @@ export default function RequestDetailPage() {
                     <div className="border-t border-slate-100 px-6 py-3 space-y-1.5">
                       <div className="flex justify-end gap-8 text-sm text-slate-500">
                         <span>Позиций: {items.length}</span>
-                        <span>Итого:</span>
+                        <span>{request?.vatIncluded ? "Без НДС:" : "Итого:"}</span>
                         <span className="font-semibold text-slate-800 min-w-24 text-right">{formatCurrency(subtotal)}</span>
                       </div>
                       {request?.vatIncluded && (
-                        <div className="flex justify-end gap-8 text-xs text-slate-400">
-                          <span>в т.ч. НДС 20%:</span>
-                          <span className="min-w-24 text-right">{formatCurrency(vatAmount)}</span>
-                        </div>
+                        <>
+                          <div className="flex justify-end gap-8 text-xs text-slate-400">
+                            <span>НДС 20%:</span>
+                            <span className="min-w-24 text-right">+{formatCurrency(vatAmount)}</span>
+                          </div>
+                          <div className="flex justify-end gap-8 text-sm font-semibold text-slate-800 border-t border-slate-100 pt-1.5">
+                            <span>Итого с НДС:</span>
+                            <span className="min-w-24 text-right">{formatCurrency(totalWithVat)}</span>
+                          </div>
+                        </>
                       )}
                       {customerMaterialTotal > 0 && (
                         <>
@@ -482,7 +489,7 @@ export default function RequestDetailPage() {
                           <p className="truncate text-sm font-medium text-slate-700">{f.originalName}</p>
                           <p className="text-xs text-slate-400">{(f.size / 1024).toFixed(0)} КБ · {f.uploadedBy?.name}</p>
                         </div>
-                        <a href={`/uploads/${f.filename}`} download={f.originalName} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <a href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`} className="text-slate-400 hover:text-slate-600 transition-colors">
                           <Download className="h-4 w-4" />
                         </a>
                         <button onClick={() => deleteFile(f.id)} className="text-slate-300 hover:text-red-500 transition-colors">
@@ -598,10 +605,13 @@ export default function RequestDetailPage() {
 
                 {subtotal > 0 && (
                   <div className="rounded-lg bg-slate-50 p-3 space-y-1.5">
-                    <p className="text-xs text-slate-500">Сумма по позициям</p>
+                    <p className="text-xs text-slate-500">{request?.vatIncluded ? "Без НДС" : "Сумма по позициям"}</p>
                     <p className="text-lg font-semibold text-slate-800">{formatCurrency(subtotal)}</p>
                     {request?.vatIncluded && vatAmount > 0 && (
-                      <p className="text-xs text-slate-400">в т.ч. НДС: {formatCurrency(vatAmount)}</p>
+                      <>
+                        <p className="text-xs text-slate-400">НДС 20%: +{formatCurrency(vatAmount)}</p>
+                        <p className="text-sm font-semibold text-slate-800">Итого: {formatCurrency(totalWithVat)}</p>
+                      </>
                     )}
                     {customerMaterialTotal > 0 && (
                       <div className="border-t border-slate-200 pt-1.5 mt-1.5 space-y-0.5">
@@ -629,9 +639,14 @@ export default function RequestDetailPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-base">КП ({request.offers?.length ?? 0})</CardTitle>
-                <Link href={`/offers/new?requestId=${request.id}`}>
-                  <Button size="sm" variant="outline">Создать КП</Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link href={`/invoices/new?requestId=${request.id}`}>
+                    <Button size="sm" variant="outline">Создать счёт</Button>
+                  </Link>
+                  <Link href={`/offers/new?requestId=${request.id}`}>
+                    <Button size="sm" variant="outline">Создать КП</Button>
+                  </Link>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 {request.offers?.length === 0 ? (

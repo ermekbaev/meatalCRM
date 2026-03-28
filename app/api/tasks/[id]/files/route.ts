@@ -11,8 +11,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const files = await prisma.requestFile.findMany({
-    where: { requestId: id },
+  const files = await prisma.taskFile.findMany({
+    where: { taskId: id },
     include: { uploadedBy: { select: { id: true, name: true } } },
     orderBy: { createdAt: "asc" },
   });
@@ -34,15 +34,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (file.size > MAX_SIZE) return NextResponse.json({ error: "Файл слишком большой (макс. 20 МБ)" }, { status: 400 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { key } = await uploadFile(buffer, file.name, file.type, "requests");
+  const { key } = await uploadFile(buffer, file.name, file.type, "tasks");
 
-  const record = await prisma.requestFile.create({
+  const record = await prisma.taskFile.create({
     data: {
       filename: key,
       originalName: file.name,
       size: file.size,
       mimeType: file.type || null,
-      requestId: id,
+      taskId: id,
       uploadedById: userId,
     },
     include: { uploadedBy: { select: { id: true, name: true } } },

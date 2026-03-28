@@ -13,10 +13,10 @@ export async function DELETE(
 
   const { fileId } = await params;
 
-  const file = await prisma.requestFile.findUnique({ where: { id: fileId } });
+  const file = await prisma.taskFile.findUnique({ where: { id: fileId } });
   if (!file) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await deleteFile(file.filename);
-  await prisma.requestFile.delete({ where: { id: fileId } });
+  await prisma.taskFile.delete({ where: { id: fileId } });
   return NextResponse.json({ ok: true });
 }

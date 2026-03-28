@@ -8,26 +8,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Pencil, Loader2, Wrench, Package, Folder, FolderOpen, ChevronRight } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Trash2, Pencil, Loader2, Wrench, Package, Folder, FolderOpen, ChevronRight, FolderPlus } from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { key: "service", label: "Услуги",  icon: Wrench },
-  { key: "product", label: "Товары",  icon: Package },
+  { key: "service", label: "Услуги", icon: Wrench },
+  { key: "product", label: "Товары", icon: Package },
 ];
 
-// ─── Sub-components (defined outside to avoid re-creation on each render) ─────
-
-interface ItemRowProps {
-  item: any;
-  noun: string;
-  nounTitle: string;
-  onEdit: (item: any) => void;
-  onDelete: (id: string) => void;
-}
-
-function ItemRow({ item, noun, nounTitle, onEdit, onDelete }: ItemRowProps) {
+function ItemRow({ item, onEdit, onDelete, noun }: any) {
   return (
     <TableRow>
       <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
@@ -50,7 +41,7 @@ function ItemRow({ item, noun, nounTitle, onEdit, onDelete }: ItemRowProps) {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Удалить {noun}?</AlertDialogTitle>
-                <AlertDialogDescription>{nounTitle} будет деактивирован(а).</AlertDialogDescription>
+                <AlertDialogDescription>Позиция будет деактивирована.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Отмена</AlertDialogCancel>
@@ -64,145 +55,256 @@ function ItemRow({ item, noun, nounTitle, onEdit, onDelete }: ItemRowProps) {
   );
 }
 
-interface CategorySectionProps {
-  title?: string;
-  rows: any[];
-  catKey: string;
-  openCats: Set<string>;
-  onToggle: (cat: string) => void;
-  noun: string;
-  nounTitle: string;
-  onEdit: (item: any) => void;
-  onDelete: (id: string) => void;
-}
-
-function CategorySection({ title, rows, catKey, openCats, onToggle, noun, nounTitle, onEdit, onDelete }: CategorySectionProps) {
-  const isOpen = !title || openCats.has(catKey);
+function ItemsTable({ rows, onEdit, onDelete, noun }: any) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      {title && (
-        <button
-          onClick={() => onToggle(catKey)}
-          className="flex w-full items-center gap-2 bg-slate-50 px-4 py-3 text-left hover:bg-slate-100 transition-colors border-b border-slate-200"
-        >
-          {isOpen
-            ? <FolderOpen className="h-4 w-4 text-orange-500" />
-            : <Folder className="h-4 w-4 text-slate-400" />}
-          <span className="flex-1 text-[13px] font-semibold text-slate-700">{title}</span>
-          <span className="text-[11px] text-slate-400">{rows.length} позиций</span>
-          <ChevronRight className={cn("h-3.5 w-3.5 text-slate-400 transition-transform", isOpen && "rotate-90")} />
-        </button>
-      )}
-      {isOpen && (
-        <Table className="table-fixed">
-          <colgroup>
-            <col style={{ width: "30%" }} />
-            <col />
-            <col style={{ width: "96px" }} />
-            <col style={{ width: "144px" }} />
-            <col style={{ width: "80px" }} />
-          </colgroup>
-          <TableHeader>
-            <TableRow className="bg-slate-50">
-              <TableHead>Название</TableHead>
-              <TableHead>Описание</TableHead>
-              <TableHead>Ед. изм.</TableHead>
-              <TableHead>Цена</TableHead>
-              <TableHead>Действия</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((item) => (
-              <ItemRow key={item.id} item={item} noun={noun} nounTitle={nounTitle} onEdit={onEdit} onDelete={onDelete} />
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </div>
+    <Table className="table-fixed">
+      <colgroup>
+        <col style={{ width: "30%" }} />
+        <col />
+        <col style={{ width: "96px" }} />
+        <col style={{ width: "144px" }} />
+        <col style={{ width: "80px" }} />
+      </colgroup>
+      <TableHeader>
+        <TableRow className="bg-slate-50">
+          <TableHead>Название</TableHead>
+          <TableHead>Описание</TableHead>
+          <TableHead>Ед. изм.</TableHead>
+          <TableHead>Цена</TableHead>
+          <TableHead>Действия</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((item: any) => (
+          <ItemRow key={item.id} item={item} noun={noun} onEdit={onEdit} onDelete={onDelete} />
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 export default function CatalogPage() {
   const [items, setItems] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"service" | "product">("service");
+
+  // Выбранная категория: null = показать все, строка id = конкретная папка
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+
+  // Диалог позиции
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const [openCats, setOpenCats] = useState<Set<string>>(new Set());
+  const { register, handleSubmit, reset, control, formState: { isSubmitting } } = useForm();
 
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
+  // Диалог категории
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [catParentId, setCatParentId] = useState<string | null>(null);
+  const [catName, setCatName] = useState("");
+  const [savingCat, setSavingCat] = useState(false);
 
-  const fetchItems = async () => {
+  const fetchAll = async () => {
     setLoading(true);
-    const res = await fetch("/api/catalog");
-    const data = await res.json();
-    setItems(data);
-    const cats = new Set<string>(data.map((i: any) => i.category).filter(Boolean));
-    setOpenCats(cats);
+    const [itemsRes, catsRes] = await Promise.all([
+      fetch("/api/catalog"),
+      fetch("/api/catalog/categories"),
+    ]);
+    const [itemsData, catsData] = await Promise.all([itemsRes.json(), catsRes.json()]);
+    setItems(itemsData);
+    setCategories(catsData);
     setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => { fetchAll(); }, []);
+
+  // Категории верхнего уровня
+  const filtered = items.filter((i) => i.type === tab);
+  const isService = tab === "service";
+  const noun = isService ? "услугу" : "товар";
+
+  // Строим плоский список всех категорий для выпадашки
+  const flatCategories: any[] = [];
+  const flattenCats = (cats: any[], depth = 0) => {
+    cats.forEach((c) => {
+      flatCategories.push({ ...c, depth });
+      if (c.children?.length) flattenCats(c.children, depth + 1);
+    });
+  };
+  flattenCats(categories);
+
+  // Фильтр позиций по выбранной категории
+  const getItemsForCat = (catId: string | null): any[] => {
+    if (catId === null) return filtered;
+    // Найти все id подкатегорий
+    const catIds = new Set<string>();
+    const collect = (cats: any[]) => {
+      cats.forEach((c) => {
+        if (c.id === catId || catIds.has(c.id) || (c.parentId && catIds.has(c.parentId))) {
+          catIds.add(c.id);
+        }
+        if (c.children?.length) collect(c.children);
+      });
+    };
+    // Простой поиск: catId + все дочерние
+    const addChildren = (cats: any[]) => {
+      cats.forEach((c) => {
+        if (c.id === catId) {
+          catIds.add(c.id);
+          c.children?.forEach((ch: any) => { catIds.add(ch.id); ch.children?.forEach((g: any) => catIds.add(g.id)); });
+        }
+        if (c.children?.length) addChildren(c.children);
+      });
+    };
+    addChildren(categories);
+    return filtered.filter((i) => catIds.has(i.categoryId ?? ""));
+  };
+
+  const visibleItems = getItemsForCat(selectedCatId);
+
+  // Позиции без категории
+  const uncategorizedItems = filtered.filter((i) => !i.categoryId);
+
+  const toggleExpand = (id: string) => {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  // Отрисовка дерева
+  const renderTree = (cats: any[], depth = 0) =>
+    cats.map((cat) => {
+      const isExpanded = expandedCats.has(cat.id);
+      const isSelected = selectedCatId === cat.id;
+      const catItems = filtered.filter((i) => i.categoryId === cat.id);
+      return (
+        <div key={cat.id}>
+          <div
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-2 py-1.5 cursor-pointer group transition-colors",
+              isSelected ? "bg-orange-50 text-orange-700" : "hover:bg-slate-100 text-slate-600"
+            )}
+            style={{ paddingLeft: `${8 + depth * 16}px` }}
+          >
+            {cat.children?.length > 0 ? (
+              <button onClick={() => toggleExpand(cat.id)} className="shrink-0">
+                <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-90")} />
+              </button>
+            ) : (
+              <span className="h-3.5 w-3.5 shrink-0" />
+            )}
+            <span onClick={() => setSelectedCatId(cat.id)} className="flex items-center gap-1.5 flex-1 min-w-0 text-[13px] font-medium">
+              {isExpanded || isSelected
+                ? <FolderOpen className="h-3.5 w-3.5 shrink-0 text-orange-400" />
+                : <Folder className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+              <span className="truncate">{cat.name}</span>
+            </span>
+            <span className="text-[11px] text-slate-400 shrink-0">{catItems.length}</span>
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <button
+                onClick={() => { setCatParentId(cat.id); setCatName(""); setCatDialogOpen(true); }}
+                className="rounded p-0.5 hover:bg-slate-200"
+                title="Добавить подпапку"
+              >
+                <FolderPlus className="h-3 w-3" />
+              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="rounded p-0.5 hover:bg-red-100 text-red-400" title="Удалить папку">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Удалить папку «{cat.name}»?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Позиции останутся без категории. Подпапки переместятся на уровень выше.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteCategory(cat.id)}>Удалить</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+          {isExpanded && cat.children?.length > 0 && renderTree(cat.children, depth + 1)}
+        </div>
+      );
+    });
+
+  const deleteCategory = async (id: string) => {
+    await fetch(`/api/catalog/categories/${id}`, { method: "DELETE" });
+    if (selectedCatId === id) setSelectedCatId(null);
+    fetchAll();
+  };
+
+  const saveCategory = async () => {
+    if (!catName.trim()) return;
+    setSavingCat(true);
+    await fetch("/api/catalog/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: catName.trim(), parentId: catParentId }),
+    });
+    setSavingCat(false);
+    setCatDialogOpen(false);
+    fetchAll();
+  };
 
   const openCreate = () => {
     setEditItem(null);
-    reset({ name: "", description: "", unit: tab === "product" ? "шт" : "шт", price: "", category: "", type: tab });
+    reset({ name: "", description: "", unit: "шт", price: "", categoryId: selectedCatId ?? "" });
     setDialogOpen(true);
   };
 
   const openEdit = (item: any) => {
     setEditItem(item);
-    reset(item);
+    reset({ ...item, price: item.price ?? "", categoryId: item.categoryId ?? "" });
     setDialogOpen(true);
   };
 
   const onSubmit = async (data: any) => {
-    const body = { ...data, price: data.price ? parseFloat(data.price) : null, type: editItem ? editItem.type : tab };
+    const body = {
+      name: data.name,
+      description: data.description ?? null,
+      unit: data.unit,
+      price: data.price ? parseFloat(data.price) : null,
+      categoryId: data.categoryId || null,
+      type: editItem ? editItem.type : tab,
+    };
     const url = editItem ? `/api/catalog/${editItem.id}` : "/api/catalog";
     const method = editItem ? "PUT" : "POST";
     await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setDialogOpen(false);
-    fetchItems();
+    fetchAll();
   };
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/catalog/${id}`, { method: "DELETE" });
-    fetchItems();
+    fetchAll();
   };
 
-  const filtered = items.filter((i) => i.type === tab);
-  const categories = [...new Set(filtered.map((i) => i.category).filter(Boolean))];
-  const uncategorized = filtered.filter((i) => !i.category);
-
-  const isService = tab === "service";
-  const noun = isService ? "услугу" : "товар";
-  const nounTitle = isService ? "Услуга" : "Товар";
-
-  const toggleCat = (cat: string) =>
-    setOpenCats((prev) => {
-      const next = new Set(prev);
-      next.has(cat) ? next.delete(cat) : next.add(cat);
-      return next;
-    });
+  const displayItems = selectedCatId === null
+    ? null  // показываем всё по секциям ниже
+    : visibleItems;
 
   return (
     <div>
       <Header title="Справочник" />
-      <div className="p-6 space-y-5">
-
+      <div className="p-6 space-y-4">
         {/* Вкладки */}
         <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
-              onClick={() => setTab(key as any)}
+              onClick={() => { setTab(key as any); setSelectedCatId(null); }}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-medium transition-all",
-                tab === key
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                tab === key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -211,50 +313,118 @@ export default function CatalogPage() {
           ))}
         </div>
 
-        <div className="flex items-center justify-between">
-          <p className="text-[13px] text-slate-400">{filtered.length} {isService ? "услуг" : "товаров"} в каталоге</p>
-          <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Добавить {noun}</Button>
-        </div>
-
-        {loading ? (
-          <div className="flex h-32 items-center justify-center text-slate-400 text-[13px]">Загрузка...</div>
-        ) : filtered.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm flex h-32 items-center justify-center text-slate-400 text-[13px]">
-            Справочник пуст
+        <div className="flex gap-5 items-start">
+          {/* Панель категорий */}
+          <div className="w-56 shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+              <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Папки</span>
+              <button
+                onClick={() => { setCatParentId(null); setCatName(""); setCatDialogOpen(true); }}
+                className="rounded p-1 hover:bg-slate-100 text-slate-400"
+                title="Новая папка"
+              >
+                <FolderPlus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="p-1.5 space-y-0.5">
+              <div
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer text-[13px] font-medium transition-colors",
+                  selectedCatId === null ? "bg-orange-50 text-orange-700" : "hover:bg-slate-100 text-slate-600"
+                )}
+                onClick={() => setSelectedCatId(null)}
+              >
+                <Folder className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1">Все позиции</span>
+                <span className="text-[11px] text-slate-400">{filtered.length}</span>
+              </div>
+              {renderTree(categories)}
+              {uncategorizedItems.length > 0 && (
+                <div
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer text-[13px] font-medium transition-colors",
+                    selectedCatId === "__none__" ? "bg-slate-100 text-slate-800" : "hover:bg-slate-100 text-slate-500"
+                  )}
+                  onClick={() => setSelectedCatId("__none__")}
+                >
+                  <Folder className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                  <span className="flex-1 italic">Без папки</span>
+                  <span className="text-[11px] text-slate-400">{uncategorizedItems.length}</span>
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {categories.map((cat) => (
-              <CategorySection
-                key={cat as string}
-                catKey={cat as string}
-                title={cat as string}
-                rows={filtered.filter((i) => i.category === cat)}
-                openCats={openCats}
-                onToggle={toggleCat}
-                noun={noun}
-                nounTitle={nounTitle}
-                onEdit={openEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-            {uncategorized.length > 0 && (
-              <CategorySection
-                catKey="__none__"
-                title={categories.length > 0 ? "Без категории" : undefined}
-                rows={uncategorized}
-                openCats={openCats}
-                onToggle={toggleCat}
-                noun={noun}
-                nounTitle={nounTitle}
-                onEdit={openEdit}
-                onDelete={handleDelete}
-              />
+
+          {/* Основной контент */}
+          <div className="flex-1 min-w-0 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] text-slate-400">
+                {selectedCatId === null
+                  ? `${filtered.length} ${isService ? "услуг" : "товаров"} в каталоге`
+                  : selectedCatId === "__none__"
+                  ? `${uncategorizedItems.length} позиций без папки`
+                  : `${visibleItems.length} позиций в папке`}
+              </p>
+              <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Добавить {noun}</Button>
+            </div>
+
+            {loading ? (
+              <div className="flex h-32 items-center justify-center text-slate-400 text-[13px]">Загрузка...</div>
+            ) : selectedCatId === "__none__" ? (
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <ItemsTable rows={uncategorizedItems} noun={noun} onEdit={openEdit} onDelete={handleDelete} />
+              </div>
+            ) : selectedCatId !== null ? (
+              visibleItems.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm flex h-32 items-center justify-center text-slate-400 text-[13px]">
+                  Нет позиций в этой папке
+                </div>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                  <ItemsTable rows={visibleItems} noun={noun} onEdit={openEdit} onDelete={handleDelete} />
+                </div>
+              )
+            ) : (
+              // Все позиции: сгруппировано по папкам
+              filtered.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm flex h-32 items-center justify-center text-slate-400 text-[13px]">
+                  Справочник пуст
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {flatCategories.map((cat) => {
+                    const catItems = filtered.filter((i) => i.categoryId === cat.id);
+                    if (!catItems.length) return null;
+                    return (
+                      <div key={cat.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                          {"  ".repeat(cat.depth)}
+                          <Folder className="h-4 w-4 text-orange-400 shrink-0" />
+                          <span className="text-[13px] font-semibold text-slate-700">{cat.name}</span>
+                          <span className="text-[11px] text-slate-400">{catItems.length} позиций</span>
+                        </div>
+                        <ItemsTable rows={catItems} noun={noun} onEdit={openEdit} onDelete={handleDelete} />
+                      </div>
+                    );
+                  })}
+                  {uncategorizedItems.length > 0 && (
+                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                      <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                        <Folder className="h-4 w-4 text-slate-300 shrink-0" />
+                        <span className="text-[13px] font-semibold text-slate-500 italic">Без папки</span>
+                        <span className="text-[11px] text-slate-400">{uncategorizedItems.length} позиций</span>
+                      </div>
+                      <ItemsTable rows={uncategorizedItems} noun={noun} onEdit={openEdit} onDelete={handleDelete} />
+                    </div>
+                  )}
+                </div>
+              )
             )}
           </div>
-        )}
+        </div>
       </div>
 
+      {/* Диалог добавления/редактирования позиции */}
       <Dialog open={dialogOpen} onOpenChange={(o) => !o && setDialogOpen(false)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -273,18 +443,24 @@ export default function CatalogPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Категория</Label>
-                <Input
-                  {...register("category")}
-                  placeholder={isService ? "Резка" : "Материалы"}
-                  list="category-list"
-                  autoComplete="off"
+                <Label>Папка</Label>
+                <Controller
+                  control={control}
+                  name="categoryId"
+                  render={({ field }) => (
+                    <Select value={field.value || "__none__"} onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="Без папки" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Без папки</SelectItem>
+                        {flatCategories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {"  ".repeat(c.depth)}{c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
-                <datalist id="category-list">
-                  {categories.map((cat) => (
-                    <option key={cat as string} value={cat as string} />
-                  ))}
-                </datalist>
               </div>
               <div className="space-y-2">
                 <Label>Единица измерения</Label>
@@ -303,6 +479,36 @@ export default function CatalogPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Диалог создания папки */}
+      <Dialog open={catDialogOpen} onOpenChange={(o) => !o && setCatDialogOpen(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{catParentId ? "Новая подпапка" : "Новая папка"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {catParentId && (
+              <p className="text-sm text-slate-500">
+                В папке: <span className="font-medium">{flatCategories.find((c) => c.id === catParentId)?.name}</span>
+              </p>
+            )}
+            <Input
+              value={catName}
+              onChange={(e) => setCatName(e.target.value)}
+              placeholder="Название папки"
+              onKeyDown={(e) => { if (e.key === "Enter") saveCategory(); }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Отмена</Button>
+            <Button onClick={saveCategory} disabled={savingCat || !catName.trim()}>
+              {savingCat && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Создать
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

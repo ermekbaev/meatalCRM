@@ -50,14 +50,16 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  requests      Request[]       @relation("AssignedRequests")
-  comments      Comment[]
-  changeLogs    ChangeLog[]
-  offers        CommercialOffer[]
-  assignedTasks Task[]          @relation("AssignedTasks")
-  createdTasks  Task[]          @relation("CreatedTasks")
-  taskComments  TaskComment[]
-  uploadedFiles RequestFile[]
+  requests          Request[]       @relation("AssignedRequests")
+  comments          Comment[]
+  changeLogs        ChangeLog[]
+  offers            CommercialOffer[]
+  assignedTasks     Task[]          @relation("AssignedTasks")
+  createdTasks      Task[]          @relation("CreatedTasks")
+  taskComments      TaskComment[]
+  uploadedFiles     RequestFile[]
+  uploadedTaskFiles TaskFile[]
+  invoices          Invoice[]
 }
 
 model Client {
@@ -85,6 +87,7 @@ model Client {
 
   requests  Request[]
   tasks     Task[]
+  invoices  Invoice[]
 }
 
 model Request {
@@ -113,6 +116,7 @@ model Request {
   offers     CommercialOffer[]
   items      RequestItem[]
   files      RequestFile[]
+  invoices   Invoice[]
 }
 
 model RequestFile {
@@ -221,6 +225,9 @@ model Task {
   client      Client? @relation(fields: [clientId], references: [id])
 
   comments    TaskComment[]
+  files       TaskFile[]
+  checklist   ChecklistItem[]
+  tags        Tag[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -236,6 +243,47 @@ model TaskComment {
   createdAt DateTime @default(now())
 }
 
+model TaskFile {
+  id           String   @id @default(cuid())
+  filename     String
+  originalName String
+  size         Int
+  mimeType     String?
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model Tag {
+  id    String  @id @default(cuid())
+  name  String  @unique
+  color String  @default("#6b7280")
+  tasks Task[]
+}
+
+model ChecklistItem {
+  id          String   @id @default(cuid())
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  text        String
+  isCompleted Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model CatalogCategory {
+  id       String            @id @default(cuid())
+  name     String
+  parentId String?
+  parent   CatalogCategory?  @relation("SubCategories", fields: [parentId], references: [id])
+  children CatalogCategory[] @relation("SubCategories")
+  items    ServiceCatalog[]
+  order    Int               @default(0)
+  createdAt DateTime         @default(now())
+}
+
 model ServiceCatalog {
   id          String   @id @default(cuid())
   type        String   @default("service")
@@ -244,6 +292,8 @@ model ServiceCatalog {
   unit        String   @default("шт")
   price       Float?
   category    String?
+  categoryId  String?
+  catalogCategory CatalogCategory? @relation(fields: [categoryId], references: [id])
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 }
@@ -301,5 +351,44 @@ model CompanySettings {
   bankCorAccount String?
   bankBik        String?
   director       String?
+  accountantName String?
+  stampImage     String?
+  signatureImage String?
   updatedAt      DateTime @updatedAt
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  number      Int       @unique @default(autoincrement())
+  date        DateTime  @default(now())
+  dueDate     DateTime?
+  basis       String?   @default("Основной договор")
+  vatRate     Float     @default(0)
+  notes       String?
+
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+
+  requestId   String?
+  request     Request? @relation(fields: [requestId], references: [id])
+
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  items       InvoiceItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  name      String
+  quantity  Float   @default(1)
+  unit      String  @default("шт")
+  price     Float   @default(0)
+  total     Float   @default(0)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }

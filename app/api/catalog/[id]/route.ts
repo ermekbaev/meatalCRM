@@ -11,8 +11,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
-  const data = await req.json();
-  const item = await prisma.serviceCatalog.update({ where: { id }, data });
+  const { catalogCategory: _cc, ...data } = await req.json();
+  const item = await prisma.serviceCatalog.update({
+    where: { id },
+    data: {
+      ...data,
+      price: data.price != null ? parseFloat(data.price) : null,
+      categoryId: data.categoryId ?? null,
+    },
+    include: { catalogCategory: { select: { id: true, name: true, parentId: true } } },
+  });
   return NextResponse.json(item);
 }
 
