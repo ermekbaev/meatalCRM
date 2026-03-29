@@ -65,10 +65,12 @@ export default function CompanySettingsPage() {
   };
 
   async function onSubmit(data: any) {
+    // Не отправляем stampImage/signatureImage — они управляются отдельно через uploadImage/clearImage
+    const { stampImage: _s, signatureImage: _sig, ...fields } = data;
     await fetch("/api/settings/company", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(fields),
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);

@@ -189,40 +189,31 @@ export default function AnalyticsPage() {
 
           <div className="h-4 w-px bg-slate-200 mx-1" />
 
-          <div className={cn(
-            "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 transition-all",
-            customActive ? "border-slate-800 bg-slate-800" : "border-slate-200 bg-white"
-          )}>
+          <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 transition-all hover:border-slate-300">
             <input
               type="date"
               value={customFrom}
               max={customTo || todayStr}
               onChange={(e) => setCustomFrom(e.target.value)}
-              className={cn(
-                "bg-transparent text-[13px] font-medium outline-none",
-                customActive ? "text-white" : "text-slate-500"
-              )}
+              className="bg-transparent text-[13px] font-medium text-slate-500 outline-none"
             />
-            <span className={cn("text-[11px]", customActive ? "text-slate-400" : "text-slate-300")}>—</span>
+            <span className="text-[11px] text-slate-300">—</span>
             <input
               type="date"
               value={customTo}
               min={customFrom}
               max={todayStr}
               onChange={(e) => setCustomTo(e.target.value)}
-              className={cn(
-                "bg-transparent text-[13px] font-medium outline-none",
-                customActive ? "text-white" : "text-slate-500"
-              )}
+              className="bg-transparent text-[13px] font-medium text-slate-500 outline-none"
             />
             <button
               onClick={fetchCustom}
               disabled={!customFrom || !customTo}
               className={cn(
-                "ml-1 rounded-md px-2 py-0.5 text-[12px] font-medium transition-all",
+                "ml-1 rounded-md px-2 py-0.5 transition-all disabled:opacity-30",
                 customActive
-                  ? "bg-white/20 text-white hover:bg-white/30"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40"
+                  ? "bg-slate-800 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
               <ArrowRight className="h-3.5 w-3.5" />
