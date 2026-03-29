@@ -21,8 +21,11 @@ interface Props {
   onSelect: (item: CatalogItem) => void;
 }
 
+type Tab = "service" | "product";
+
 export function CatalogPickerDialog({ open, onClose, onSelect }: Props) {
-  const [items, setItems] = useState<CatalogItem[]>([]);
+  const [allItems, setAllItems] = useState<CatalogItem[]>([]);
+  const [tab, setTab] = useState<Tab>("service");
   const [search, setSearch] = useState("");
   const [openCats, setOpenCats] = useState<Set<string>>(new Set());
 
@@ -32,17 +35,16 @@ export function CatalogPickerDialog({ open, onClose, onSelect }: Props) {
     fetch("/api/catalog")
       .then((r) => r.json())
       .then((data: any[]) => {
-        // Нормализуем: если есть catalogCategory — используем её имя
         const normalized: CatalogItem[] = data.map((i) => ({
           ...i,
           category: i.catalogCategory?.name || i.category || null,
         }));
-        setItems(normalized);
-        const cats = new Set(normalized.map((i) => i.category || "Без категории"));
-        setOpenCats(cats);
+        setAllItems(normalized);
       })
       .catch(() => {});
   }, [open]);
+
+  const items = useMemo(() => allItems.filter((i) => i.type === tab), [allItems, tab]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return items;
@@ -64,10 +66,10 @@ export function CatalogPickerDialog({ open, onClose, onSelect }: Props) {
     });
   }, [filtered]);
 
-  // При поиске открываем все категории автоматически
+  // Открываем все категории при смене таба или поиске
   useEffect(() => {
-    if (search) setOpenCats(new Set(categories));
-  }, [search, categories]);
+    setOpenCats(new Set(categories));
+  }, [tab, search]);
 
   const toggleCat = (cat: string) =>
     setOpenCats((prev) => {
@@ -81,12 +83,45 @@ export function CatalogPickerDialog({ open, onClose, onSelect }: Props) {
     onClose();
   };
 
+  const serviceCount = allItems.filter((i) => i.type === "service").length;
+  const productCount = allItems.filter((i) => i.type === "product").length;
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex max-h-[80vh] max-w-lg flex-col p-0 gap-0">
         <DialogHeader className="border-b border-slate-100 px-5 py-4">
           <DialogTitle>Выбор позиции из каталога</DialogTitle>
         </DialogHeader>
+
+        {/* Табы */}
+        <div className="flex border-b border-slate-100">
+          <button
+            onClick={() => { setTab("service"); setSearch(""); }}
+            className={cn(
+              "flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-medium border-b-2 transition-colors",
+              tab === "service"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Wrench className="h-3.5 w-3.5" />
+            Услуги
+            <span className="ml-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">{serviceCount}</span>
+          </button>
+          <button
+            onClick={() => { setTab("product"); setSearch(""); }}
+            className={cn(
+              "flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-medium border-b-2 transition-colors",
+              tab === "product"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Package className="h-3.5 w-3.5" />
+            Товары
+            <span className="ml-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">{productCount}</span>
+          </button>
+        </div>
 
         {/* Поиск */}
         <div className="border-b border-slate-100 px-4 py-3">
@@ -104,7 +139,7 @@ export function CatalogPickerDialog({ open, onClose, onSelect }: Props) {
 
         {/* Список */}
         <div className="flex-1 overflow-y-auto">
-          {items.length === 0 ? (
+          {allItems.length === 0 ? (
             <div className="flex h-32 items-center justify-center text-sm text-slate-400">
               Загрузка...
             </div>
@@ -120,7 +155,6 @@ export function CatalogPickerDialog({ open, onClose, onSelect }: Props) {
               const isOpen = openCats.has(cat);
               return (
                 <div key={cat}>
-                  {/* Заголовок категории */}
                   <button
                     onClick={() => toggleCat(cat)}
                     className="flex w-full items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-left transition-colors hover:bg-slate-100"
@@ -140,7 +174,6 @@ export function CatalogPickerDialog({ open, onClose, onSelect }: Props) {
                     />
                   </button>
 
-                  {/* Позиции */}
                   {isOpen &&
                     catItems.map((item) => (
                       <button
