@@ -85,6 +85,11 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [activePreset, setActivePreset] = useState(90);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState(todayStr);
+  const [customActive, setCustomActive] = useState(false);
+
   const getDateRange = (days: number) => {
     const to = new Date();
     const from = new Date();
@@ -104,10 +109,22 @@ export default function AnalyticsPage() {
     setLoading(false);
   };
 
+  const fetchCustom = async () => {
+    if (!customFrom || !customTo) return;
+    setLoading(true);
+    setCustomActive(true);
+    setActivePreset(0);
+    const res = await fetch(`/api/analytics?from=${customFrom}&to=${customTo}`);
+    const json = await res.json();
+    setData(json);
+    setLoading(false);
+  };
+
   useEffect(() => { fetchData(activePreset); }, []);
 
   const handlePreset = (days: number) => {
     setActivePreset(days);
+    setCustomActive(false);
     fetchData(days);
   };
 
@@ -153,15 +170,15 @@ export default function AnalyticsPage() {
       <Header title="Аналитика" />
       <div className="p-6 space-y-5">
 
-        {/* Пресеты */}
-        <div className="flex items-center gap-1.5">
+        {/* Пресеты + произвольный период */}
+        <div className="flex flex-wrap items-center gap-2">
           {PRESETS.map((p) => (
             <button
               key={p.days}
               onClick={() => handlePreset(p.days)}
               className={cn(
                 "rounded-lg px-3.5 py-1.5 text-[13px] font-medium transition-all",
-                activePreset === p.days
+                activePreset === p.days && !customActive
                   ? "bg-slate-800 text-white"
                   : "bg-white border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700"
               )}
@@ -169,6 +186,48 @@ export default function AnalyticsPage() {
               {p.label}
             </button>
           ))}
+
+          <div className="h-4 w-px bg-slate-200 mx-1" />
+
+          <div className={cn(
+            "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 transition-all",
+            customActive ? "border-slate-800 bg-slate-800" : "border-slate-200 bg-white"
+          )}>
+            <input
+              type="date"
+              value={customFrom}
+              max={customTo || todayStr}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className={cn(
+                "bg-transparent text-[13px] font-medium outline-none",
+                customActive ? "text-white" : "text-slate-500"
+              )}
+            />
+            <span className={cn("text-[11px]", customActive ? "text-slate-400" : "text-slate-300")}>—</span>
+            <input
+              type="date"
+              value={customTo}
+              min={customFrom}
+              max={todayStr}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className={cn(
+                "bg-transparent text-[13px] font-medium outline-none",
+                customActive ? "text-white" : "text-slate-500"
+              )}
+            />
+            <button
+              onClick={fetchCustom}
+              disabled={!customFrom || !customTo}
+              className={cn(
+                "ml-1 rounded-md px-2 py-0.5 text-[12px] font-medium transition-all",
+                customActive
+                  ? "bg-white/20 text-white hover:bg-white/30"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40"
+              )}
+            >
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Стат-карточки */}
