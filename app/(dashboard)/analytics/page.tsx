@@ -80,15 +80,25 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+const STORAGE_KEY = "analytics_period";
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activePreset, setActivePreset] = useState(90);
-
   const todayStr = new Date().toISOString().slice(0, 10);
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState(todayStr);
-  const [customActive, setCustomActive] = useState(false);
+
+  // Восстанавливаем состояние из localStorage
+  const saved = typeof window !== "undefined"
+    ? JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null")
+    : null;
+
+  const [activePreset, setActivePreset] = useState<number>(saved?.preset ?? 90);
+  const [customFrom, setCustomFrom] = useState(saved?.from ?? "");
+  const [customTo, setCustomTo] = useState(saved?.to ?? todayStr);
+  const [customActive, setCustomActive] = useState(saved?.customActive ?? false);
+
+  const savePeriod = (obj: object) =>
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
 
   const getDateRange = (days: number) => {
     const to = new Date();
@@ -109,22 +119,30 @@ export default function AnalyticsPage() {
     setLoading(false);
   };
 
-  const fetchCustom = async () => {
-    if (!customFrom || !customTo) return;
+  const fetchCustom = async (from = customFrom, to = customTo) => {
+    if (!from || !to) return;
     setLoading(true);
     setCustomActive(true);
     setActivePreset(0);
-    const res = await fetch(`/api/analytics?from=${customFrom}&to=${customTo}`);
+    savePeriod({ customActive: true, preset: 0, from, to });
+    const res = await fetch(`/api/analytics?from=${from}&to=${to}`);
     const json = await res.json();
     setData(json);
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(activePreset); }, []);
+  useEffect(() => {
+    if (saved?.customActive && saved.from && saved.to) {
+      fetchCustom(saved.from, saved.to);
+    } else {
+      fetchData(saved?.preset ?? 90);
+    }
+  }, []);
 
   const handlePreset = (days: number) => {
     setActivePreset(days);
     setCustomActive(false);
+    savePeriod({ preset: days, customActive: false, from: customFrom, to: customTo });
     fetchData(days);
   };
 
@@ -194,7 +212,7 @@ export default function AnalyticsPage() {
               type="date"
               value={customFrom}
               max={customTo || todayStr}
-              onChange={(e) => setCustomFrom(e.target.value)}
+              onChange={(e) => { setCustomFrom(e.target.value); savePeriod({ preset: activePreset, customActive, from: e.target.value, to: customTo }); }}
               className="bg-transparent text-[13px] font-medium text-slate-500 outline-none"
             />
             <span className="text-[11px] text-slate-300">—</span>
@@ -203,7 +221,7 @@ export default function AnalyticsPage() {
               value={customTo}
               min={customFrom}
               max={todayStr}
-              onChange={(e) => setCustomTo(e.target.value)}
+              onChange={(e) => { setCustomTo(e.target.value); savePeriod({ preset: activePreset, customActive, from: customFrom, to: e.target.value }); }}
               className="bg-transparent text-[13px] font-medium text-slate-500 outline-none"
             />
             <button
