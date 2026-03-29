@@ -104,11 +104,11 @@ export default function CatalogPage() {
   const [catName, setCatName] = useState("");
   const [savingCat, setSavingCat] = useState(false);
 
-  const fetchAll = async () => {
+  const fetchAll = async (currentTab = tab) => {
     setLoading(true);
     const [itemsRes, catsRes] = await Promise.all([
       fetch("/api/catalog"),
-      fetch("/api/catalog/categories"),
+      fetch(`/api/catalog/categories?type=${currentTab}`),
     ]);
     const [itemsData, catsData] = await Promise.all([itemsRes.json(), catsRes.json()]);
     setItems(itemsData);
@@ -248,7 +248,7 @@ export default function CatalogPage() {
     await fetch("/api/catalog/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: catName.trim(), parentId: catParentId }),
+      body: JSON.stringify({ name: catName.trim(), parentId: catParentId, type: tab }),
     });
     setSavingCat(false);
     setCatDialogOpen(false);
@@ -301,7 +301,7 @@ export default function CatalogPage() {
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
-              onClick={() => { setTab(key as any); setSelectedCatId(null); }}
+              onClick={() => { setTab(key as any); setSelectedCatId(null); fetchAll(key as any); }}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-medium transition-all",
                 tab === key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"

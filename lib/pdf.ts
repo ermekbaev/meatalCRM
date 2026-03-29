@@ -1,8 +1,29 @@
 import { formatDate } from "./utils";
 
-export async function generateOfferPDF(offer: any) {
+async function loadImageBase64(key: string): Promise<string | null> {
+  if (!key) return null;
+  try {
+    const url = key.startsWith("http") ? key : `/api/files?key=${encodeURIComponent(key)}&view=1`;
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function generateOfferPDF(offer: any, company?: any) {
   const subtotal = offer.items.reduce((s: number, i: any) => s + i.total, 0);
   const discountAmount = subtotal - offer.total;
+
+  const [stampB64, signatureB64] = await Promise.all([
+    company?.stampImage ? loadImageBase64(company.stampImage) : Promise.resolve(null),
+    company?.signatureImage ? loadImageBase64(company.signatureImage) : Promise.resolve(null),
+  ]);
 
   const container = document.createElement("div");
   container.style.cssText = [
@@ -22,11 +43,11 @@ export async function generateOfferPDF(offer: any) {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #334155;padding-bottom:20px;margin-bottom:24px;">
       <div>
         <h1 style="font-size:22px;font-weight:700;margin:0 0 6px 0;color:#0f172a;">
-          Коммерческое предложение №${offer.number}
+          Коммерческое предложение №${offer.numberOverride ?? offer.number}
         </h1>
-        ${offer.request?.client ? `<p style="margin:3px 0;color:#475569;">Клиент: <strong>${offer.request.client.name}</strong></p>` : ""}
-        ${offer.request?.client?.phone ? `<p style="margin:3px 0;color:#64748b;">Телефон: ${offer.request.client.phone}</p>` : ""}
-        ${offer.request?.client?.email ? `<p style="margin:3px 0;color:#64748b;">Email: ${offer.request.client.email}</p>` : ""}
+        ${(offer.client || offer.request?.client) ? `<p style="margin:3px 0;color:#475569;">Клиент: <strong>${(offer.client || offer.request?.client).name}</strong></p>` : ""}
+        ${(offer.client || offer.request?.client)?.phone ? `<p style="margin:3px 0;color:#64748b;">Телефон: ${(offer.client || offer.request?.client).phone}</p>` : ""}
+        ${(offer.client || offer.request?.client)?.email ? `<p style="margin:3px 0;color:#64748b;">Email: ${(offer.client || offer.request?.client).email}</p>` : ""}
       </div>
       <div style="text-align:right;color:#64748b;">
         <p style="margin:3px 0;">Дата: <strong>${formatDate(offer.createdAt)}</strong></p>
@@ -85,6 +106,28 @@ export async function generateOfferPDF(offer: any) {
       <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin:0 0 6px 0;">Примечания</p>
       <p style="margin:0;color:#475569;">${offer.notes}</p>
     </div>` : ""}
+
+    ${(stampB64 || signatureB64 || company?.director) ? `
+    <div style="margin-top:36px;border-top:1px dashed #cbd5e1;padding-top:20px;position:relative;">
+      <div style="display:flex;align-items:flex-end;gap:40px;">
+        <div style="flex:1;">
+          <div style="display:flex;align-items:flex-end;gap:12px;">
+            <span style="font-size:11px;font-weight:600;white-space:nowrap;color:#334155;">Руководитель</span>
+            <div style="flex:1;">
+              <div style="border-bottom:1px solid #334155;min-width:160px;height:36px;position:relative;">
+                ${signatureB64 ? `<img src="${signatureB64}" style="position:absolute;bottom:2px;left:10px;height:30px;opacity:0.85;" />` : ""}
+              </div>
+              <div style="font-size:10px;text-align:center;margin-top:3px;color:#64748b;">${company?.director ?? ""}</div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;"></div>
+      </div>
+      ${stampB64 ? `
+      <div style="position:absolute;bottom:-8px;right:0;">
+        <img src="${stampB64}" style="height:90px;opacity:0.75;" />
+      </div>` : ""}
+    </div>` : ""}
   `;
 
   document.body.appendChild(container);
@@ -127,7 +170,7 @@ export async function generateOfferPDF(offer: any) {
       }
     }
 
-    pdf.save(`KP-${offer.number}.pdf`);
+    pdf.save(`KP-${offer.numberOverride ?? offer.number}.pdf`);
   } finally {
     document.body.removeChild(container);
   }

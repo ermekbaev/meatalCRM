@@ -100,7 +100,7 @@ export default function InvoiceDetailPage() {
 
   return (
     <div>
-      <Header title={`Счёт № ${invoice.number}`} />
+      <Header title={`Счёт № ${invoice.numberOverride ?? invoice.number}`} />
       <div className="p-6 max-w-4xl space-y-5">
         {/* Тулбар */}
         <div className="flex items-center justify-between">
@@ -134,7 +134,7 @@ export default function InvoiceDetailPage() {
 
         {/* Реквизиты */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Счёт на оплату № {invoice.number} от {formatDate(invoice.date)}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Счёт на оплату № {invoice.numberOverride ?? invoice.number} от {formatDate(invoice.date)}</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
             <div>
               <p className="text-xs text-gray-500 mb-0.5">Поставщик (Исполнитель)</p>

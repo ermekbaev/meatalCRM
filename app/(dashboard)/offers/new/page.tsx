@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Header } from "@/components/layout/Header";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS } from "@/lib/utils";
-import { ArrowLeft, Plus, Trash2, Loader2, Building2, ClipboardCheck, X, BookOpen } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2, Building2, ClipboardCheck, X, BookOpen, Search } from "lucide-react";
 import Link from "next/link";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 
@@ -26,9 +26,18 @@ export default function NewOfferPage() {
   const [importedRequest, setImportedRequest] = useState<{ number: number; title: string } | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
 
+  // Прямой поиск контрагента
+  const [clientQuery, setClientQuery] = useState("");
+  const [clientResults, setClientResults] = useState<any[]>([]);
+  const [clientLoading, setClientLoading] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const clientRef = useRef<HTMLDivElement>(null);
+
   const { register, handleSubmit, setValue, watch, control, formState: { isSubmitting } } = useForm({
     defaultValues: {
       requestId: requestId ?? "",
+      numberOverride: "",
       status: "DRAFT",
       discount: 0,
       notes: "",
@@ -60,20 +69,52 @@ export default function NewOfferPage() {
     });
   }, []);
 
+  // Поиск контрагентов
+  useEffect(() => {
+    if (clientQuery.length < 2) { setClientResults([]); return; }
+    setClientLoading(true);
+    const timer = setTimeout(() => {
+      fetch(`/api/clients?search=${encodeURIComponent(clientQuery)}`)
+        .then((r) => r.json())
+        .then((data) => { setClientResults(Array.isArray(data) ? data : data.clients ?? []); setClientLoading(false); })
+        .catch(() => setClientLoading(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [clientQuery]);
+
+  // Закрытие дропдауна при клике вне
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (clientRef.current && !clientRef.current.contains(e.target as Node)) {
+        setShowClientDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const items = watch("items");
   const discount = watch("discount");
   const selectedRequest = watch("requestId");
   const selectedStatus = watch("status");
 
-  // Подтягиваем данные контрагента и позиции при выборе заявки
+  // При выборе заявки — подтягиваем контрагента и позиции
   useEffect(() => {
-    if (!selectedRequest) { setClientInfo(null); return; }
+    if (!selectedRequest) {
+      // Не сбрасываем clientInfo если выбран прямой контрагент
+      if (!selectedClientId) setClientInfo(null);
+      return;
+    }
     fetch(`/api/requests/${selectedRequest}`)
       .then((r) => r.json())
       .then((req) => {
         setClientInfo(req.client ?? null);
-        // Импортируем позиции только при начальной загрузке из заявки
-        if (selectedRequest === requestId && req.items?.length > 0) {
+        if (req.client) {
+          setSelectedClientId(null); // сбрасываем прямой выбор, используем клиента из заявки
+          setClientQuery("");
+        }
+        // Всегда импортируем позиции при выборе заявки
+        if (req.items?.length > 0) {
           setValue("items", req.items.map((item: any) => ({
             service: item.name,
             description: "",
@@ -88,8 +129,25 @@ export default function NewOfferPage() {
       .catch(() => setClientInfo(null));
   }, [selectedRequest]);
 
+  const selectClient = (client: any) => {
+    setSelectedClientId(client.id);
+    setClientInfo(client);
+    setClientQuery(client.name);
+    setClientResults([]);
+    setShowClientDropdown(false);
+    // Сбрасываем привязку к заявке при прямом выборе контрагента
+    setValue("requestId", "");
+    setImportedRequest(null);
+  };
+
+  const clearClient = () => {
+    setSelectedClientId(null);
+    setClientInfo(null);
+    setClientQuery("");
+  };
+
   const subtotal = items.reduce((sum: number, item: any) => {
-    return sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
+    return sum + (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0);
   }, 0);
   const total = subtotal * (1 - (parseFloat(String(discount)) || 0) / 100);
 
@@ -102,15 +160,17 @@ export default function NewOfferPage() {
   async function onSubmit(data: any) {
     const body = {
       ...data,
+      numberOverride: data.numberOverride?.trim() || null,
       discount: parseFloat(String(data.discount)) || 0,
       total,
       requestId: data.requestId || null,
+      clientId: selectedClientId || null,
       validUntil: data.validUntil || null,
       items: data.items.map((item: any) => ({
         ...item,
-        quantity: parseFloat(item.quantity) || 1,
-        price: parseFloat(item.price) || 0,
-        total: (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0),
+        quantity: parseFloat(String(item.quantity)) || 1,
+        price: parseFloat(String(item.price)) || 0,
+        total: (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0),
       })),
     };
     const res = await fetch("/api/offers", {
@@ -118,10 +178,7 @@ export default function NewOfferPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      alert("Ошибка при создании КП. Попробуйте ещё раз.");
-      return;
-    }
+    if (!res.ok) { alert("Ошибка при создании КП."); return; }
     const created = await res.json();
     router.push(`/offers/${created.id}`);
   }
@@ -136,15 +193,12 @@ export default function NewOfferPage() {
           </Link>
         </div>
 
-        {/* Баннер импорта из заявки */}
         {importedRequest && (
           <div className="mb-4 flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3">
             <div className="flex items-center gap-3">
               <ClipboardCheck className="h-5 w-5 shrink-0 text-green-600" />
               <div>
-                <p className="text-sm font-medium text-green-800">
-                  Позиции импортированы из заявки #{importedRequest.number}
-                </p>
+                <p className="text-sm font-medium text-green-800">Позиции импортированы из заявки #{importedRequest.number}</p>
                 <p className="text-xs text-green-600">{importedRequest.title} · {fields.length} поз.</p>
               </div>
             </div>
@@ -156,33 +210,22 @@ export default function NewOfferPage() {
               }}
               className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              <X className="h-3.5 w-3.5" />
-              Начать с чистого листа
+              <X className="h-3.5 w-3.5" /> Начать с чистого листа
             </button>
           </div>
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           <div className="lg:col-span-3 space-y-6">
-            {/* Позиции */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Перечень услуг</CardTitle>
                 <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setCatalogOpen(true)}
-                  >
+                  <Button type="button" size="sm" variant="outline" onClick={() => setCatalogOpen(true)}>
                     <BookOpen className="mr-1 h-4 w-4" /> Из каталога
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => append({ service: "", description: "", quantity: 1, unit: "шт", price: 0, total: 0 })}
-                  >
+                  <Button type="button" size="sm" variant="outline"
+                    onClick={() => append({ service: "", description: "", quantity: 1, unit: "шт", price: 0, total: 0 })}>
                     <Plus className="mr-1 h-4 w-4" /> Вручную
                   </Button>
                 </div>
@@ -226,21 +269,15 @@ export default function NewOfferPage() {
                           <Input {...register(`items.${index}.description`)} placeholder="Доп. описание" />
                         </TableCell>
                         <TableCell>
-                          <Input
-                            {...register(`items.${index}.quantity`)}
-                            type="number" min="0" step="0.01"
-                            onChange={(e) => { setValue(`items.${index}.quantity`, parseFloat(e.target.value) || 0); updateItemTotal(index); }}
-                          />
+                          <Input {...register(`items.${index}.quantity`)} type="number" min="0" step="0.01"
+                            onChange={(e) => { setValue(`items.${index}.quantity`, parseFloat(e.target.value) || 0); updateItemTotal(index); }} />
                         </TableCell>
                         <TableCell>
                           <Input {...register(`items.${index}.unit`)} placeholder="шт" />
                         </TableCell>
                         <TableCell>
-                          <Input
-                            {...register(`items.${index}.price`)}
-                            type="number" min="0" step="0.01"
-                            onChange={(e) => { setValue(`items.${index}.price`, parseFloat(e.target.value) || 0); updateItemTotal(index); }}
-                          />
+                          <Input {...register(`items.${index}.price`)} type="number" min="0" step="0.01"
+                            onChange={(e) => { setValue(`items.${index}.price`, parseFloat(e.target.value) || 0); updateItemTotal(index); }} />
                         </TableCell>
                         <TableCell className="font-medium text-gray-700">
                           {((parseFloat(String(items[index]?.quantity)) || 0) * (parseFloat(String(items[index]?.price)) || 0)).toLocaleString("ru")} ₽
@@ -254,7 +291,6 @@ export default function NewOfferPage() {
                     ))}
                   </TableBody>
                 </Table>
-
                 <div className="flex justify-end p-4 border-t border-gray-100">
                   <div className="text-right space-y-1">
                     <p className="text-sm text-gray-500">Подытог: {subtotal.toLocaleString("ru")} ₽</p>
@@ -280,11 +316,63 @@ export default function NewOfferPage() {
             <Card>
               <CardHeader><CardTitle className="text-base">Параметры КП</CardTitle></CardHeader>
               <CardContent className="space-y-4">
+
+                {/* Прямой выбор контрагента */}
                 <div className="space-y-2">
-                  <Label>Заявка</Label>
-                  <Select value={selectedRequest} onValueChange={(v) => setValue("requestId", v)}>
+                  <Label>Контрагент</Label>
+                  <div className="relative" ref={clientRef}>
+                    {selectedClientId ? (
+                      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <span className="text-sm font-medium text-slate-800 truncate">{clientQuery}</span>
+                        <button type="button" onClick={clearClient} className="text-slate-400 hover:text-slate-600 ml-2 shrink-0">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                          <Input
+                            value={clientQuery}
+                            onChange={(e) => { setClientQuery(e.target.value); setShowClientDropdown(true); }}
+                            onFocus={() => setShowClientDropdown(true)}
+                            placeholder="Поиск контрагента..."
+                            className="pl-8 text-sm"
+                          />
+                        </div>
+                        {showClientDropdown && (clientResults.length > 0 || clientLoading) && (
+                          <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
+                            {clientLoading ? (
+                              <div className="flex items-center justify-center py-3">
+                                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                              </div>
+                            ) : (
+                              clientResults.map((c: any) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 text-left"
+                                  onMouseDown={() => selectClient(c)}
+                                >
+                                  <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                  <span className="truncate">{c.name}</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Заявка (опционально) */}
+                <div className="space-y-2">
+                  <Label>Заявка <span className="text-slate-400 font-normal">(необязательно)</span></Label>
+                  <Select value={selectedRequest} onValueChange={(v) => setValue("requestId", v === "none" ? "" : v)}>
                     <SelectTrigger><SelectValue placeholder="Не привязано" /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Не привязано</SelectItem>
                       {requests.map((r: any) => (
                         <SelectItem key={r.id} value={r.id}>#{r.number} {r.title}</SelectItem>
                       ))}
@@ -292,27 +380,23 @@ export default function NewOfferPage() {
                   </Select>
                 </div>
 
-                {/* Блок данных контрагента */}
+                {/* Карточка контрагента */}
                 {clientInfo && (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      <Building2 className="h-3.5 w-3.5" />
-                      Контрагент
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1.5">
+                    <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+                      <Building2 className="h-3 w-3" /> Контрагент
                     </div>
-                    <p className="text-sm font-medium text-slate-800 leading-tight">{clientInfo.name}</p>
+                    <p className="text-sm font-medium text-slate-800">{clientInfo.name}</p>
                     {clientInfo.inn && (
-                      <div className="grid grid-cols-2 gap-x-3 text-xs text-slate-500">
-                        <span>ИНН: <span className="font-mono text-slate-700">{clientInfo.inn}</span></span>
-                        {clientInfo.kpp && <span>КПП: <span className="font-mono text-slate-700">{clientInfo.kpp}</span></span>}
-                      </div>
-                    )}
-                    {clientInfo.legalAddress && (
-                      <p className="text-xs text-slate-500 leading-tight">
-                        Адрес: <span className="text-slate-700">{clientInfo.legalAddress}</span>
-                      </p>
+                      <p className="text-xs text-slate-500">ИНН: <span className="font-mono text-slate-700">{clientInfo.inn}</span></p>
                     )}
                   </div>
                 )}
+
+                <div className="space-y-2">
+                  <Label>Номер КП <span className="text-slate-400 font-normal">(необязательно)</span></Label>
+                  <Input {...register("numberOverride")} placeholder="Авто" />
+                </div>
 
                 <div className="space-y-2">
                   <Label>Статус</Label>
@@ -344,11 +428,7 @@ export default function NewOfferPage() {
         </form>
       </div>
 
-      <CatalogPickerDialog
-        open={catalogOpen}
-        onClose={() => setCatalogOpen(false)}
-        onSelect={addFromCatalog}
-      />
+      <CatalogPickerDialog open={catalogOpen} onClose={() => setCatalogOpen(false)} onSelect={addFromCatalog} />
     </div>
   );
 }

@@ -194,7 +194,7 @@ export async function generateInvoicePDF(invoice: any, company: any) {
 
     <!-- Заголовок -->
     <h2 style="font-size:16px;font-weight:700;margin:0 0 10px 0;text-align:left;">
-      Счет на оплату № ${invoice.number} от ${fmtDate(invoice.date)}
+      Счет на оплату № ${invoice.numberOverride ?? invoice.number} от ${fmtDate(invoice.date)}
     </h2>
     <hr style="border:none;border-top:2px solid #000;margin:0 0 10px 0;"/>
 
@@ -339,7 +339,7 @@ export async function generateInvoicePDF(invoice: any, company: any) {
       }
     }
 
-    pdf.save(`Счёт-${invoice.number}.pdf`);
+    pdf.save(`Счёт-${invoice.numberOverride ?? invoice.number}.pdf`);
   } finally {
     document.body.removeChild(container);
   }

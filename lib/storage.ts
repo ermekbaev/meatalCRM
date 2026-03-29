@@ -66,3 +66,14 @@ export async function getViewUrl(key: string, expiresInSeconds = 3600): Promise<
   const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
   return getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
 }
+
+// ─── Проксирование файла (читаем на сервере, отдаём клиенту) ─────────────────
+
+export async function getFileStream(key: string): Promise<{ body: ReadableStream; contentType: string }> {
+  const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
+  const response = await s3.send(command);
+  const contentType = response.ContentType ?? "application/octet-stream";
+  // AWS SDK возвращает SdkStreamMixin, приводим к web ReadableStream
+  const body = response.Body!.transformToWebStream();
+  return { body, contentType };
+}

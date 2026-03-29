@@ -81,7 +81,7 @@ export default function OffersPage() {
               ) : (
                 offers.map((o) => (
                   <TableRow key={o.id}>
-                    <TableCell className="font-mono text-gray-500">#{o.number}</TableCell>
+                    <TableCell className="font-mono text-gray-500">#{o.numberOverride ?? o.number}</TableCell>
                     <TableCell>
                       <div>
                         {o.request ? (

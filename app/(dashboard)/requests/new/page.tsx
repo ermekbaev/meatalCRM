@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { REQUEST_STATUS_LABELS, PRIORITY_LABELS, formatCurrency } from "@/lib/utils";
-import { ArrowLeft, Loader2, Plus, Trash2, BookOpen } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Trash2, BookOpen, Paperclip, X } from "lucide-react";
 import Link from "next/link";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 
@@ -25,6 +25,7 @@ export default function NewRequestPage() {
   const [catalog, setCatalog] = useState<any[]>([]);
   const [comment, setComment] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const [vatIncluded, setVatIncluded] = useState(false);
 
@@ -128,6 +129,13 @@ export default function NewRequestPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: comment }),
       });
+    }
+
+    // Загружаем файлы после создания заявки
+    for (const file of pendingFiles) {
+      const fd = new FormData();
+      fd.append("file", file);
+      await fetch(`/api/requests/${created.id}/files`, { method: "POST", body: fd });
     }
 
     router.push(`/requests/${created.id}`);
@@ -403,9 +411,48 @@ export default function NewRequestPage() {
               </CardContent>
             </Card>
 
+            {/* Файлы */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Файлы</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-slate-200 px-3 py-2.5 text-sm text-slate-500 hover:border-orange-400 hover:bg-orange-50 transition-colors">
+                  <Paperclip className="h-4 w-4 shrink-0" />
+                  <span>Прикрепить файлы</span>
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      setPendingFiles((prev) => [...prev, ...files]);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {pendingFiles.length > 0 && (
+                  <ul className="space-y-1">
+                    {pendingFiles.map((f, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2.5 py-1.5">
+                        <span className="truncate text-xs text-slate-700">{f.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="shrink-0 text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Создать заявку
+              {isSubmitting && pendingFiles.length > 0 ? "Создание и загрузка..." : "Создать заявку"}
             </Button>
           </div>
         </form>

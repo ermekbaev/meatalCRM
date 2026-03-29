@@ -14,12 +14,18 @@ export async function GET(req: NextRequest) {
   const offers = await prisma.commercialOffer.findMany({
     where: {
       AND: [
-        search ? { request: { title: { contains: search, mode: "insensitive" } } } : {},
+        search ? {
+          OR: [
+            { request: { title: { contains: search, mode: "insensitive" } } },
+            { client: { name: { contains: search, mode: "insensitive" } } },
+          ],
+        } : {},
         status ? { status: status as any } : {},
       ],
     },
     include: {
       request: { include: { client: true } },
+      client: true,
       createdBy: { select: { id: true, name: true } },
       items: true,
     },
@@ -37,13 +43,14 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { items, ...data } = body;
 
-  // Очищаем данные перед отправкой в Prisma
   const cleanData: any = {
     status: data.status ?? "DRAFT",
     discount: parseFloat(String(data.discount)) || 0,
     total: parseFloat(String(data.total)) || 0,
     notes: data.notes || null,
     requestId: data.requestId || null,
+    clientId: data.clientId || null,
+    numberOverride: data.numberOverride?.trim() || null,
     validUntil: data.validUntil ? new Date(data.validUntil) : null,
     createdById: userId,
   };
@@ -63,7 +70,7 @@ export async function POST(req: NextRequest) {
         ...cleanData,
         items: { create: cleanItems },
       },
-      include: { items: true, request: { include: { client: true } }, createdBy: true },
+      include: { items: true, request: { include: { client: true } }, client: true, createdBy: true },
     });
     return NextResponse.json(offer, { status: 201 });
   } catch (e: any) {

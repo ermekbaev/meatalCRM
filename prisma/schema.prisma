@@ -88,6 +88,7 @@ model Client {
   requests  Request[]
   tasks     Task[]
   invoices  Invoice[]
+  offers    CommercialOffer[]
 }
 
 model Request {
@@ -169,9 +170,10 @@ model ChangeLog {
 }
 
 model CommercialOffer {
-  id          String      @id @default(cuid())
-  number      Int         @unique @default(autoincrement())
-  status      OfferStatus @default(DRAFT)
+  id             String      @id @default(cuid())
+  number         Int         @unique @default(autoincrement())
+  numberOverride String?
+  status         OfferStatus @default(DRAFT)
   discount    Float       @default(0)
   total       Float       @default(0)
   notes       String?
@@ -179,6 +181,8 @@ model CommercialOffer {
 
   requestId   String?
   request     Request? @relation(fields: [requestId], references: [id])
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id])
 
@@ -276,6 +280,7 @@ model ChecklistItem {
 model CatalogCategory {
   id       String            @id @default(cuid())
   name     String
+  type     String            @default("service")
   parentId String?
   parent   CatalogCategory?  @relation("SubCategories", fields: [parentId], references: [id])
   children CatalogCategory[] @relation("SubCategories")
@@ -358,8 +363,9 @@ model CompanySettings {
 }
 
 model Invoice {
-  id          String    @id @default(cuid())
-  number      Int       @unique @default(autoincrement())
+  id             String    @id @default(cuid())
+  number         Int       @unique @default(autoincrement())
+  numberOverride String?
   date        DateTime  @default(now())
   dueDate     DateTime?
   basis       String?   @default("Основной договор")

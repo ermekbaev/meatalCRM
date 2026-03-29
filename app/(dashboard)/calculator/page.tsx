@@ -1088,11 +1088,10 @@ type TabId = typeof TABS[number]["id"];
 
 export default function CalculatorPage() {
   const [activeTab, setActiveTab] = useState<TabId>("metal");
-  const [mode, setMode] = useState<CalcMode | null>(null);
+  const [mode, setMode] = useState<CalcMode>("quick");
 
   return (
     <div>
-      <CalculatorModeDialog open={mode === null} onSelect={setMode} />
       <Header title="Калькулятор" />
       <div className="p-6 space-y-6">
         {/* Tabs + режим */}

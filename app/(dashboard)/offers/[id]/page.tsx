@@ -36,12 +36,17 @@ export default function OfferDetailPage() {
   };
 
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [company, setCompany] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/company").then((r) => r.json()).then(setCompany).catch(() => {});
+  }, []);
 
   const handleExportPDF = async () => {
     if (!offer) return;
     setExportingPDF(true);
     const { generateOfferPDF } = await import("@/lib/pdf");
-    await generateOfferPDF(offer);
+    await generateOfferPDF(offer, company);
     setExportingPDF(false);
   };
 
@@ -62,7 +67,7 @@ export default function OfferDetailPage() {
 
   return (
     <div>
-      <Header title={`КП #${offer.number}`} />
+      <Header title={`КП ${offer.numberOverride ?? `#${offer.number}`}`} />
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <Link href="/offers">
@@ -84,7 +89,7 @@ export default function OfferDetailPage() {
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">Коммерческое предложение #{offer.number}</h2>
+                    <h2 className="text-xl font-bold text-gray-900">Коммерческое предложение {offer.numberOverride ?? `#${offer.number}`}</h2>
                     {offer.request && (
                       <p className="mt-1 text-sm text-gray-500">
                         Заявка: <Link href={`/requests/${offer.request.id}`} className="text-blue-600 hover:underline">#{offer.request.number} {offer.request.title}</Link>

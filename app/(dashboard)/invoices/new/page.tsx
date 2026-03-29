@@ -21,6 +21,7 @@ function NewInvoiceForm() {
   const [saving, setSaving] = useState(false);
 
   const [clientId, setClientId] = useState("");
+  const [numberOverride, setNumberOverride] = useState("");
   const [selectedRequestId, setSelectedRequestId] = useState(requestId ?? "");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState("");
@@ -84,6 +85,7 @@ function NewInvoiceForm() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         clientId,
+        numberOverride: numberOverride.trim() || null,
         requestId: selectedRequestId || null,
         date,
         dueDate: dueDate || null,
@@ -132,6 +134,11 @@ function NewInvoiceForm() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Номер счёта <span className="text-gray-400 font-normal">(необязательно)</span></Label>
+              <Input value={numberOverride} onChange={(e) => setNumberOverride(e.target.value)} placeholder="Авто" />
             </div>
 
             <div className="space-y-2">

@@ -25,7 +25,7 @@ export default function InvoicesPage() {
 
   const filtered = invoices.filter((inv) =>
     inv.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    String(inv.number).includes(search)
+    String(inv.numberOverride ?? inv.number).includes(search)
   );
 
   const handleExport = async (e: React.MouseEvent, inv: any) => {
@@ -94,7 +94,7 @@ export default function InvoicesPage() {
                     <tr key={inv.id} className="hover:bg-gray-50 transition-colors group">
                       <td className="px-4 py-3">
                         <Link href={`/invoices/${inv.id}`} className="font-bold text-gray-800 hover:text-orange-600">
-                          #{inv.number}
+                          #{inv.numberOverride ?? inv.number}
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{formatDate(inv.date)}</td>

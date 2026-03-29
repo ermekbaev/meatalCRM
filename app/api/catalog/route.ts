@@ -9,7 +9,7 @@ export async function GET(_: NextRequest) {
 
   const items = await prisma.serviceCatalog.findMany({
     where: { isActive: true },
-    orderBy: [{ category: "asc" }, { name: "asc" }],
+    orderBy: [{ name: "asc" }],
     include: { catalogCategory: { select: { id: true, name: true, parentId: true } } },
   });
 

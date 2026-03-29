@@ -31,10 +31,14 @@ export function CatalogPickerDialog({ open, onClose, onSelect }: Props) {
     setSearch("");
     fetch("/api/catalog")
       .then((r) => r.json())
-      .then((data: CatalogItem[]) => {
-        setItems(data);
-        // Открываем все категории по умолчанию
-        const cats = new Set(data.map((i) => i.category || "Без категории"));
+      .then((data: any[]) => {
+        // Нормализуем: если есть catalogCategory — используем её имя
+        const normalized: CatalogItem[] = data.map((i) => ({
+          ...i,
+          category: i.catalogCategory?.name || i.category || null,
+        }));
+        setItems(normalized);
+        const cats = new Set(normalized.map((i) => i.category || "Без категории"));
         setOpenCats(cats);
       })
       .catch(() => {});
