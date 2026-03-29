@@ -59,28 +59,33 @@ export default function NewOfferPage() {
     });
   };
 
+  const [allClients, setAllClients] = useState<any[]>([]);
+
   useEffect(() => {
     Promise.all([
       fetch("/api/requests?minimal=true").then((r) => r.json()),
       fetch("/api/catalog").then((r) => r.json()),
-    ]).then(([reqs, cat]) => {
+      fetch("/api/clients").then((r) => r.json()),
+    ]).then(([reqs, cat, cls]) => {
       setRequests(reqs);
       setCatalog(cat);
+      const list = Array.isArray(cls) ? cls : cls.clients ?? [];
+      setAllClients(list);
+      setClientResults(list);
     });
   }, []);
 
   // Поиск контрагентов
   useEffect(() => {
-    if (clientQuery.length < 2) { setClientResults([]); return; }
-    setClientLoading(true);
-    const timer = setTimeout(() => {
-      fetch(`/api/clients?search=${encodeURIComponent(clientQuery)}`)
-        .then((r) => r.json())
-        .then((data) => { setClientResults(Array.isArray(data) ? data : data.clients ?? []); setClientLoading(false); })
-        .catch(() => setClientLoading(false));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [clientQuery]);
+    if (!clientQuery.trim()) {
+      setClientResults(allClients);
+      return;
+    }
+    const q = clientQuery.toLowerCase();
+    setClientResults(allClients.filter((c) =>
+      c.name.toLowerCase().includes(q) || c.inn?.includes(q)
+    ));
+  }, [clientQuery, allClients]);
 
   // Закрытие дропдауна при клике вне
   useEffect(() => {
@@ -340,25 +345,22 @@ export default function NewOfferPage() {
                             className="pl-8 text-sm"
                           />
                         </div>
-                        {showClientDropdown && (clientResults.length > 0 || clientLoading) && (
-                          <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
-                            {clientLoading ? (
-                              <div className="flex items-center justify-center py-3">
-                                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                              </div>
-                            ) : (
-                              clientResults.map((c: any) => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 text-left"
-                                  onMouseDown={() => selectClient(c)}
-                                >
-                                  <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                  <span className="truncate">{c.name}</span>
-                                </button>
-                              ))
-                            )}
+                        {showClientDropdown && clientResults.length > 0 && (
+                          <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-56 overflow-y-auto">
+                            {clientResults.map((c: any) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 text-left"
+                                onMouseDown={() => selectClient(c)}
+                              >
+                                <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm text-slate-800">{c.name}</p>
+                                  {c.inn && <p className="text-[11px] text-slate-400">ИНН {c.inn}</p>}
+                                </div>
+                              </button>
+                            ))}
                           </div>
                         )}
                       </>
