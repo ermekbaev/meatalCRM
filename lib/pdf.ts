@@ -108,24 +108,22 @@ export async function generateOfferPDF(offer: any, company?: any) {
     </div>` : ""}
 
     ${(stampB64 || signatureB64 || company?.director) ? `
-    <div style="margin-top:36px;border-top:1px dashed #cbd5e1;padding-top:20px;position:relative;">
-      <div style="display:flex;align-items:flex-end;gap:40px;">
-        <div style="flex:1;">
-          <div style="display:flex;align-items:flex-end;gap:12px;">
-            <span style="font-size:11px;font-weight:600;white-space:nowrap;color:#334155;">Руководитель</span>
-            <div style="flex:1;">
-              <div style="border-bottom:1px solid #334155;min-width:160px;height:36px;position:relative;">
-                ${signatureB64 ? `<img src="${signatureB64}" style="position:absolute;bottom:2px;left:10px;height:30px;opacity:0.85;" />` : ""}
-              </div>
-              <div style="font-size:10px;text-align:center;margin-top:3px;color:#64748b;">${company?.director ?? ""}</div>
+    <div style="margin-top:36px;border-top:1px dashed #cbd5e1;padding-top:20px;position:relative;display:flex;align-items:flex-end;gap:40px;padding-bottom:8px;">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:flex-end;gap:12px;">
+          <span style="font-size:11px;font-weight:600;white-space:nowrap;color:#334155;">Руководитель</span>
+          <div style="flex:1;">
+            <div style="border-bottom:1px solid #334155;height:40px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
+              ${signatureB64 ? `<img src="${signatureB64}" style="height:34px;opacity:0.85;object-fit:contain;" />` : ""}
             </div>
+            <div style="font-size:10px;text-align:center;margin-top:3px;color:#64748b;">${company?.director ?? ""}</div>
           </div>
         </div>
-        <div style="flex:1;"></div>
       </div>
+      <div style="flex:1;"></div>
       ${stampB64 ? `
-      <div style="position:absolute;bottom:-8px;right:0;">
-        <img src="${stampB64}" style="height:90px;opacity:0.75;" />
+      <div style="position:absolute;left:120px;bottom:8px;transform:translateX(-50%);">
+        <img src="${stampB64}" style="height:90px;width:90px;object-fit:contain;opacity:0.8;" />
       </div>` : ""}
     </div>` : ""}
   `;

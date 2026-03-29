@@ -266,39 +266,41 @@ export async function generateInvoicePDF(invoice: any, company: any) {
     <hr style="border:none;border-top:1px dashed #999;margin:0 0 16px 0;"/>
 
     <!-- Подписи -->
-    <div style="display:flex;align-items:flex-end;gap:40px;margin-top:4px;">
-      <div style="flex:1;position:relative;">
-        <div style="display:flex;align-items:flex-end;gap:12px;">
+    <div style="position:relative;display:flex;align-items:flex-end;gap:40px;margin-top:4px;padding-bottom:8px;">
+
+      <!-- Руководитель -->
+      <div style="flex:1;">
+        <div style="display:flex;align-items:flex-end;gap:10px;">
           <span style="font-size:11px;font-weight:600;white-space:nowrap;">Руководитель</span>
-          <div style="flex:1;position:relative;">
-            <div style="border-bottom:1px solid #000;min-width:180px;height:32px;position:relative;">
-              ${signatureB64 ? `<img src="${signatureB64}" style="position:absolute;bottom:0;left:10px;height:28px;opacity:0.85;" />` : ""}
+          <div style="flex:1;">
+            <div style="position:relative;border-bottom:1px solid #000;height:40px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
+              ${signatureB64 ? `<img src="${signatureB64}" style="height:34px;opacity:0.85;object-fit:contain;" />` : ""}
             </div>
             <div style="font-size:10px;text-align:center;margin-top:2px;">${supplier?.director ?? ""}</div>
           </div>
         </div>
       </div>
+
+      <!-- Бухгалтер -->
       <div style="flex:1;">
-        <div style="display:flex;align-items:flex-end;gap:12px;">
+        <div style="display:flex;align-items:flex-end;gap:10px;">
           <span style="font-size:11px;font-weight:600;white-space:nowrap;">Бухгалтер</span>
           <div style="flex:1;">
-            <div style="border-bottom:1px solid #000;min-width:180px;height:32px;position:relative;">
-              ${signatureB64 ? `<img src="${signatureB64}" style="position:absolute;bottom:0;left:10px;height:28px;opacity:0.85;" />` : ""}
+            <div style="position:relative;border-bottom:1px solid #000;height:40px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
+              ${signatureB64 ? `<img src="${signatureB64}" style="height:34px;opacity:0.85;object-fit:contain;" />` : ""}
             </div>
             <div style="font-size:10px;text-align:center;margin-top:2px;">${supplier?.accountantName ?? supplier?.director ?? ""}</div>
           </div>
         </div>
       </div>
+
+      <!-- Печать: поверх левого блока, по центру -->
       ${stampB64 ? `
-      <div style="position:absolute;bottom:0;left:80px;">
-        <img src="${stampB64}" style="height:90px;opacity:0.75;" />
+      <div style="position:absolute;left:120px;bottom:8px;transform:translateX(-50%);">
+        <img src="${stampB64}" style="height:90px;width:90px;object-fit:contain;opacity:0.8;" />
       </div>` : ""}
     </div>
   `;
-
-  // Делаем relative для блока подписей
-  const sigBlock = container.querySelector("div[style*='display:flex;align-items:flex-end']") as HTMLElement;
-  if (sigBlock) sigBlock.style.position = "relative";
 
   document.body.appendChild(container);
 
