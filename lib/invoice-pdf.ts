@@ -268,7 +268,7 @@ export async function generateInvoicePDF(invoice: any, company: any) {
           <span style="font-size:9px;color:#555;">ИНН </span><strong>${supplier?.inn ?? ""}</strong>
           <span style="font-size:9px;color:#555;margin-left:12px;">КПП </span><strong>${supplier?.kpp ?? ""}</strong>
           <br/><strong>${supplier?.name ?? ""}</strong>
-          <div style="font-size:9px;color:#555;margin-top:1px; margin-bottom:2px;">Получатель</div>
+          <div style="font-size:9px;color:#555; margin-bottom:2px;">Получатель</div>
         </td>
         <td style="border:1px solid #000;padding:4px 6px;vertical-align:top;">
           <div style="font-size:9px;color:#555;">Сч. №</div>
