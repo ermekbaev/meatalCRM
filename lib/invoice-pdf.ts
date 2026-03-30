@@ -1,12 +1,72 @@
 // Перевод числа в рубли прописью
-const ones = ["", "один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять",
-  "десять", "одиннадцать", "двенадцать", "тринадцать", "четырнадцать", "пятнадцать",
-  "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать"];
-const onesF = ["", "одна", "две", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять",
-  "десять", "одиннадцать", "двенадцать", "тринадцать", "четырнадцать", "пятнадцать",
-  "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать"];
-const tens = ["", "десять", "двадцать", "тридцать", "сорок", "пятьдесят", "шестьдесят", "семьдесят", "восемьдесят", "девяносто"];
-const hundreds = ["", "сто", "двести", "триста", "четыреста", "пятьсот", "шестьсот", "семьсот", "восемьсот", "девятьсот"];
+const ones = [
+  "",
+  "один",
+  "два",
+  "три",
+  "четыре",
+  "пять",
+  "шесть",
+  "семь",
+  "восемь",
+  "девять",
+  "десять",
+  "одиннадцать",
+  "двенадцать",
+  "тринадцать",
+  "четырнадцать",
+  "пятнадцать",
+  "шестнадцать",
+  "семнадцать",
+  "восемнадцать",
+  "девятнадцать",
+];
+const onesF = [
+  "",
+  "одна",
+  "две",
+  "три",
+  "четыре",
+  "пять",
+  "шесть",
+  "семь",
+  "восемь",
+  "девять",
+  "десять",
+  "одиннадцать",
+  "двенадцать",
+  "тринадцать",
+  "четырнадцать",
+  "пятнадцать",
+  "шестнадцать",
+  "семнадцать",
+  "восемнадцать",
+  "девятнадцать",
+];
+const tens = [
+  "",
+  "десять",
+  "двадцать",
+  "тридцать",
+  "сорок",
+  "пятьдесят",
+  "шестьдесят",
+  "семьдесят",
+  "восемьдесят",
+  "девяносто",
+];
+const hundreds = [
+  "",
+  "сто",
+  "двести",
+  "триста",
+  "четыреста",
+  "пятьсот",
+  "шестьсот",
+  "семьсот",
+  "восемьсот",
+  "девятьсот",
+];
 
 function threeDigits(n: number, feminine = false): string {
   const h = Math.floor(n / 100);
@@ -60,8 +120,12 @@ export function numberToWords(amount: number): string {
   }
 
   const rublesStr = parts.filter(Boolean).join(" ") || "ноль";
-  const rublesWord = numWord(rubles % 1000 === 0 ? rubles / 1000 : remainder,
-    "рубль", "рубля", "рублей");
+  const rublesWord = numWord(
+    rubles % 1000 === 0 ? rubles / 1000 : remainder,
+    "рубль",
+    "рубля",
+    "рублей",
+  );
 
   const kopStr = kopecks.toString().padStart(2, "0");
   const kopWord = numWord(kopecks, "копейка", "копейки", "копеек");
@@ -72,17 +136,25 @@ export function numberToWords(amount: number): string {
 }
 
 function fmt(n: number): string {
-  return n.toLocaleString("ru", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString("ru", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function fmtDate(d: string | Date): string {
   const date = new Date(d);
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  return date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 export async function generateInvoicePDF(invoice: any, company: any) {
   const subtotal = invoice.items.reduce((s: number, i: any) => s + i.total, 0);
-  const vatAmount = invoice.vatRate > 0 ? subtotal * (invoice.vatRate / 100) : 0;
+  const vatAmount =
+    invoice.vatRate > 0 ? subtotal * (invoice.vatRate / 100) : 0;
   const total = subtotal + vatAmount;
   const itemsCount = invoice.items.length;
 
@@ -92,7 +164,9 @@ export async function generateInvoicePDF(invoice: any, company: any) {
   async function loadImageBase64(key: string): Promise<string | null> {
     if (!key) return null;
     try {
-      const url = key.startsWith("http") ? key : `/api/files?key=${encodeURIComponent(key)}&view=1`;
+      const url = key.startsWith("http")
+        ? key
+        : `/api/files?key=${encodeURIComponent(key)}&view=1`;
       const res = await fetch(url);
       const blob = await res.blob();
       return new Promise((resolve) => {
@@ -106,8 +180,12 @@ export async function generateInvoicePDF(invoice: any, company: any) {
   }
 
   const [stampB64, signatureB64] = await Promise.all([
-    company?.stampImage ? loadImageBase64(company.stampImage) : Promise.resolve(null),
-    company?.signatureImage ? loadImageBase64(company.signatureImage) : Promise.resolve(null),
+    company?.stampImage
+      ? loadImageBase64(company.stampImage)
+      : Promise.resolve(null),
+    company?.signatureImage
+      ? loadImageBase64(company.signatureImage)
+      : Promise.resolve(null),
   ]);
 
   const container = document.createElement("div");
@@ -116,10 +194,8 @@ export async function generateInvoicePDF(invoice: any, company: any) {
     "top:-9999px",
     "left:-9999px",
     "width:794px",
-    "box-sizing:border-box",
     "background:white",
     "font-family:Arial,Helvetica,sans-serif",
-    "padding:28px 52px 40px 52px",
     "color:#000",
     "font-size:11px",
     "line-height:1.4",
@@ -132,7 +208,9 @@ export async function generateInvoicePDF(invoice: any, company: any) {
   const supplierBankLine = [
     supplier?.inn ? `ИНН ${supplier.inn}` : "",
     supplier?.kpp ? `КПП ${supplier.kpp}` : "",
-  ].filter(Boolean).join(" / ");
+  ]
+    .filter(Boolean)
+    .join(" / ");
 
   // Строка поставщика полная
   const supplierFullLine = [
@@ -141,7 +219,9 @@ export async function generateInvoicePDF(invoice: any, company: any) {
     supplier?.kpp ? `КПП ${supplier.kpp}` : "",
     supplier?.ogrn ? `ОГРН ${supplier.ogrn}` : "",
     supplier?.legalAddress,
-  ].filter(Boolean).join(", ");
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   // Строка покупателя
   const clientFullLine = [
@@ -149,19 +229,24 @@ export async function generateInvoicePDF(invoice: any, company: any) {
     client?.inn ? `ИНН ${client.inn}` : "",
     client?.kpp ? `КПП ${client.kpp}` : "",
     client?.legalAddress ?? client?.postalAddress,
-  ].filter(Boolean).join(", ");
+  ]
+    .filter(Boolean)
+    .join(", ");
 
-  const vatRow = invoice.vatRate > 0 ? `
+  const vatRow =
+    invoice.vatRate > 0
+      ? `
     <tr>
       <td colspan="5" style="border:1px solid #000;padding:4px 6px;text-align:right;font-size:10px;">НДС ${invoice.vatRate}%:</td>
       <td style="border:1px solid #000;padding:4px 6px;text-align:right;font-size:10px;">${fmt(vatAmount)}</td>
-    </tr>` : `
+    </tr>`
+      : `
     <tr>
       <td colspan="5" style="border:1px solid #000;padding:4px 6px;text-align:right;font-size:10px;">НДС:</td>
       <td style="border:1px solid #000;padding:4px 6px;text-align:right;font-size:10px;">Без НДС</td>
     </tr>`;
 
-  container.innerHTML = `
+  container.innerHTML = `<div style="padding:28px 52px 40px 52px;">
     <!-- Банковский блок -->
     <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10px;">
       <tr>
@@ -183,7 +268,7 @@ export async function generateInvoicePDF(invoice: any, company: any) {
           <span style="font-size:9px;color:#555;">ИНН </span><strong>${supplier?.inn ?? ""}</strong>
           <span style="font-size:9px;color:#555;margin-left:12px;">КПП </span><strong>${supplier?.kpp ?? ""}</strong>
           <br/><strong>${supplier?.name ?? ""}</strong>
-          <div style="font-size:9px;color:#555;margin-top:2px;">Получатель</div>
+          <div style="font-size:9px;color:#555;margin-top:px;">Получатель</div>
         </td>
         <td style="border:1px solid #000;padding:4px 6px;vertical-align:top;">
           <div style="font-size:9px;color:#555;">Сч. №</div>
@@ -228,7 +313,9 @@ export async function generateInvoicePDF(invoice: any, company: any) {
         </tr>
       </thead>
       <tbody>
-        ${invoice.items.map((item: any, idx: number) => `
+        ${invoice.items
+          .map(
+            (item: any, idx: number) => `
           <tr>
             <td style="border:1px solid #000;padding:4px;text-align:center;">${idx + 1}</td>
             <td style="border:1px solid #000;padding:4px 6px;">${item.name}</td>
@@ -236,7 +323,9 @@ export async function generateInvoicePDF(invoice: any, company: any) {
             <td style="border:1px solid #000;padding:4px;text-align:center;">${item.unit}</td>
             <td style="border:1px solid #000;padding:4px;text-align:right;">${fmt(item.price)}</td>
             <td style="border:1px solid #000;padding:4px;text-align:right;">${fmt(item.total)}</td>
-          </tr>`).join("")}
+          </tr>`,
+          )
+          .join("")}
         <tr>
           <td colspan="5" style="border:1px solid #000;padding:4px 6px;text-align:right;font-weight:700;">${invoice.vatRate > 0 ? "Без НДС:" : "Итого:"}</td>
           <td style="border:1px solid #000;padding:4px;text-align:right;font-weight:700;">${fmt(subtotal)}</td>
@@ -296,12 +385,16 @@ export async function generateInvoicePDF(invoice: any, company: any) {
       </div>
 
       <!-- Печать: поверх левого блока, по центру -->
-      ${stampB64 ? `
+      ${
+        stampB64
+          ? `
       <div style="position:absolute;left:120px;bottom:8px;transform:translateX(-50%);">
         <img src="${stampB64}" style="height:90px;width:90px;object-fit:contain;opacity:0.8;" />
-      </div>` : ""}
+      </div>`
+          : ""
+      }
     </div>
-  `;
+  </div>`;
 
   document.body.appendChild(container);
 
@@ -337,7 +430,14 @@ export async function generateInvoicePDF(invoice: any, company: any) {
         sliceCanvas.getContext("2d")!.drawImage(canvas, 0, -offsetPx);
         const sliceMm = (sliceH * pageW) / canvas.width;
         if (offsetPx > 0) pdf.addPage();
-        pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", 0, 0, imgW, sliceMm);
+        pdf.addImage(
+          sliceCanvas.toDataURL("image/png"),
+          "PNG",
+          0,
+          0,
+          imgW,
+          sliceMm,
+        );
         offsetPx += pxPerPage;
       }
     }
