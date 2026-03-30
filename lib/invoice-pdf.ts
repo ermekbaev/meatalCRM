@@ -274,7 +274,7 @@ export async function generateInvoicePDF(invoice: any, company: any) {
           <span style="font-size:11px;font-weight:600;white-space:nowrap;">Руководитель</span>
           <div style="flex:1;">
             <div style="position:relative;border-bottom:1px solid #000;height:40px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
-              ${signatureB64 ? `<img src="${signatureB64}" style="height:34px;opacity:0.85;object-fit:contain;" />` : ""}
+              ${signatureB64 ? `<img src="${signatureB64}" style="height:50px;opacity:0.85;object-fit:contain;" />` : ""}
             </div>
             <div style="font-size:10px;text-align:center;margin-top:2px;">${supplier?.director ?? ""}</div>
           </div>
@@ -286,8 +286,8 @@ export async function generateInvoicePDF(invoice: any, company: any) {
         <div style="display:flex;align-items:flex-end;gap:10px;">
           <span style="font-size:11px;font-weight:600;white-space:nowrap;">Бухгалтер</span>
           <div style="flex:1;">
-            <div style="position:relative;border-bottom:1px solid #000;height:40px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
-              ${signatureB64 ? `<img src="${signatureB64}" style="height:34px;opacity:0.85;object-fit:contain;" />` : ""}
+            <div style="position:relative;border-bottom:1px solid #000;height:56px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
+              ${signatureB64 ? `<img src="${signatureB64}" style="height:50px;opacity:0.85;object-fit:contain;" />` : ""}
             </div>
             <div style="font-size:10px;text-align:center;margin-top:2px;">${supplier?.accountantName ?? supplier?.director ?? ""}</div>
           </div>

@@ -113,8 +113,8 @@ export async function generateOfferPDF(offer: any, company?: any) {
         <div style="display:flex;align-items:flex-end;gap:12px;">
           <span style="font-size:11px;font-weight:600;white-space:nowrap;color:#334155;">Руководитель</span>
           <div style="flex:1;">
-            <div style="border-bottom:1px solid #334155;height:40px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
-              ${signatureB64 ? `<img src="${signatureB64}" style="height:34px;opacity:0.85;object-fit:contain;" />` : ""}
+            <div style="border-bottom:1px solid #334155;height:56px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
+              ${signatureB64 ? `<img src="${signatureB64}" style="height:50px;opacity:0.85;object-fit:contain;" />` : ""}
             </div>
             <div style="font-size:10px;text-align:center;margin-top:3px;color:#64748b;">${company?.director ?? ""}</div>
           </div>
