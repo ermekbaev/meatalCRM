@@ -118,7 +118,7 @@ export async function generateInvoicePDF(invoice: any, company: any) {
     "width:794px",
     "background:white",
     "font-family:Arial,Helvetica,sans-serif",
-    "padding:20px 28px 28px 28px",
+    "padding:28px 48px 40px 48px",
     "color:#000",
     "font-size:11px",
     "line-height:1.4",
