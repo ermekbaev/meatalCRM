@@ -7,11 +7,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { REQUEST_STATUS_LABELS, PRIORITY_LABELS, formatCurrency } from "@/lib/utils";
-import { ArrowLeft, Loader2, Plus, Trash2, BookOpen, Paperclip, X } from "lucide-react";
+import {
+  REQUEST_STATUS_LABELS,
+  PRIORITY_LABELS,
+  formatCurrency,
+} from "@/lib/utils";
+import {
+  ArrowLeft,
+  Loader2,
+  Plus,
+  Trash2,
+  BookOpen,
+  Paperclip,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 
@@ -29,7 +47,14 @@ export default function NewRequestPage() {
 
   const [vatIncluded, setVatIncluded] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, control, formState: { isSubmitting } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    control,
+    formState: { isSubmitting },
+  } = useForm({
     defaultValues: {
       title: "",
       description: "",
@@ -45,9 +70,15 @@ export default function NewRequestPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/clients").then((r) => r.json()).catch(() => []),
-      fetch("/api/users").then((r) => r.json()).catch(() => []),
-      fetch("/api/catalog").then((r) => r.json()).catch(() => []),
+      fetch("/api/clients")
+        .then((r) => r.json())
+        .catch(() => []),
+      fetch("/api/users")
+        .then((r) => r.json())
+        .catch(() => []),
+      fetch("/api/catalog")
+        .then((r) => r.json())
+        .catch(() => []),
     ]).then(([c, u, cat]) => {
       setClients(Array.isArray(c) ? c : []);
       setUsers(Array.isArray(u) ? u : []);
@@ -76,7 +107,15 @@ export default function NewRequestPage() {
   };
 
   const addRow = () => {
-    append({ name: "", quantity: 1, unit: "шт", price: 0, discount: 0, total: 0, isCustomerMaterial: false });
+    append({
+      name: "",
+      quantity: 1,
+      unit: "шт",
+      price: 0,
+      discount: 0,
+      total: 0,
+      isCustomerMaterial: false,
+    });
   };
 
   const addFromCatalog = (item: any) => {
@@ -96,7 +135,10 @@ export default function NewRequestPage() {
       ...item,
       total: calcTotal(i),
     }));
-    const amount = itemsWithTotal.reduce((s: number, it: any) => s + it.total, 0);
+    const amount = itemsWithTotal.reduce(
+      (s: number, it: any) => s + it.total,
+      0,
+    );
 
     const body = {
       title: data.title,
@@ -135,7 +177,10 @@ export default function NewRequestPage() {
     for (const file of pendingFiles) {
       const fd = new FormData();
       fd.append("file", file);
-      await fetch(`/api/requests/${created.id}/files`, { method: "POST", body: fd });
+      await fetch(`/api/requests/${created.id}/files`, {
+        method: "POST",
+        body: fd,
+      });
     }
 
     router.push(`/requests/${created.id}`);
@@ -153,27 +198,46 @@ export default function NewRequestPage() {
           </Link>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="grid grid-cols-1 gap-6 lg:grid-cols-3"
+        >
           {/* Main */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
-              <CardHeader><CardTitle className="text-base">Основная информация</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Основная информация</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Название заявки *</Label>
-                  <Input {...register("title", { required: true })} placeholder="Лазерная резка листового металла" />
+                  <Input
+                    {...register("title", { required: true })}
+                    placeholder="Лазерная резка листового металла"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Описание</Label>
-                  <Textarea {...register("description")} rows={3} placeholder="Подробное описание работ..." />
+                  <Textarea
+                    {...register("description")}
+                    rows={3}
+                    placeholder="Подробное описание работ..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Контрагент *</Label>
-                  <Select value={selectedClient} onValueChange={(v) => setValue("clientId", v)}>
-                    <SelectTrigger><SelectValue placeholder="Выберите контрагента" /></SelectTrigger>
+                  <Select
+                    value={selectedClient}
+                    onValueChange={(v) => setValue("clientId", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите контрагента" />
+                    </SelectTrigger>
                     <SelectContent>
                       {clients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -186,10 +250,20 @@ export default function NewRequestPage() {
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base">Позиции</CardTitle>
                 <div className="flex gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={() => setCatalogOpen(true)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCatalogOpen(true)}
+                  >
                     <BookOpen className="mr-1 h-4 w-4" /> Из каталога
                   </Button>
-                  <Button type="button" size="sm" variant="outline" onClick={addRow}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addRow}
+                  >
                     <Plus className="mr-1 h-4 w-4" /> Вручную
                   </Button>
                 </div>
@@ -199,10 +273,20 @@ export default function NewRequestPage() {
                   <div className="px-6 pb-6 text-center space-y-2">
                     <p className="text-sm text-slate-400 mb-3">Нет позиций</p>
                     <div className="flex justify-center gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => setCatalogOpen(true)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCatalogOpen(true)}
+                      >
                         <BookOpen className="mr-1 h-4 w-4" /> Из каталога
                       </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addRow}
+                      >
                         <Plus className="mr-1 h-4 w-4" /> Вручную
                       </Button>
                     </div>
@@ -213,13 +297,30 @@ export default function NewRequestPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50">
-                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[30%]">Наименование</th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Кол-во</th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Ед.</th>
-                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Цена, ₽</th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Скидка %</th>
-                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Сумма, ₽</th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20" title="Материал заказчика">Мат. зак.</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[30%]">
+                              Наименование
+                            </th>
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
+                              Кол-во
+                            </th>
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
+                              Ед.
+                            </th>
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">
+                              Цена, ₽
+                            </th>
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
+                              Скидка %
+                            </th>
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">
+                              Сумма, ₽
+                            </th>
+                            <th
+                              className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20"
+                              title="Материал заказчика"
+                            >
+                              Мат. зак.
+                            </th>
                             <th className="px-2 py-2 w-8"></th>
                           </tr>
                         </thead>
@@ -279,13 +380,17 @@ export default function NewRequestPage() {
                                   placeholder="0"
                                 />
                               </td>
-                              <td className={`px-2 py-2 text-right text-sm font-medium whitespace-nowrap ${items[index]?.isCustomerMaterial ? "text-amber-600" : "text-slate-700"}`}>
+                              <td
+                                className={`px-2 py-2 text-right text-sm font-medium whitespace-nowrap ${items[index]?.isCustomerMaterial ? "text-amber-600" : "text-slate-700"}`}
+                              >
                                 {formatCurrency(calcTotal(index))}
                               </td>
                               <td className="px-2 py-2 text-center">
                                 <input
                                   type="checkbox"
-                                  {...register(`items.${index}.isCustomerMaterial`)}
+                                  {...register(
+                                    `items.${index}.isCustomerMaterial`,
+                                  )}
                                   className="h-4 w-4 accent-amber-500 cursor-pointer"
                                   title="Материал заказчика (давальческое сырьё)"
                                 />
@@ -342,7 +447,9 @@ export default function NewRequestPage() {
                         <div className="flex gap-8 text-slate-500">
                           <span>Позиций: {fields.length}</span>
                           <span>Итого:</span>
-                          <span className="font-semibold text-slate-800 min-w-20">{formatCurrency(subtotal)}</span>
+                          <span className="font-semibold text-slate-800 min-w-20">
+                            {formatCurrency(subtotal)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -355,37 +462,60 @@ export default function NewRequestPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             <Card>
-              <CardHeader><CardTitle className="text-base">Параметры</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-base">Параметры</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Статус</Label>
-                  <Select value={status} onValueChange={(v) => setValue("status", v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={status}
+                    onValueChange={(v) => setValue("status", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {Object.entries(REQUEST_STATUS_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                        <SelectItem key={k} value={k}>
+                          {v}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Приоритет</Label>
-                  <Select value={priority} onValueChange={(v) => setValue("priority", v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={priority}
+                    onValueChange={(v) => setValue("priority", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                        <SelectItem key={k} value={k}>
+                          {v}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Ответственный</Label>
-                  <Select value={watch("assigneeId")} onValueChange={(v) => setValue("assigneeId", v)}>
-                    <SelectTrigger><SelectValue placeholder="Не назначен" /></SelectTrigger>
+                  <Select
+                    value={watch("assigneeId")}
+                    onValueChange={(v) => setValue("assigneeId", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Не назначен" />
+                    </SelectTrigger>
                     <SelectContent>
                       {users.map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -394,17 +524,26 @@ export default function NewRequestPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-gray-700">С НДС</p>
-                    <p className="text-xs text-gray-400">НДС 20% включён в цены</p>
+                    <p className="text-xs text-gray-400">
+                      НДС 22% включён в цены
+                    </p>
                   </div>
-                  <Switch checked={vatIncluded} onCheckedChange={setVatIncluded} />
+                  <Switch
+                    checked={vatIncluded}
+                    onCheckedChange={setVatIncluded}
+                  />
                 </div>
 
                 {fields.length > 0 && (
                   <div className="rounded-lg bg-slate-50 p-3 space-y-1.5">
                     <p className="text-xs text-slate-500">Сумма по позициям</p>
-                    <p className="text-lg font-semibold text-slate-800">{formatCurrency(subtotal)}</p>
+                    <p className="text-lg font-semibold text-slate-800">
+                      {formatCurrency(subtotal)}
+                    </p>
                     {vatIncluded && subtotal > 0 && (
-                      <p className="text-xs text-slate-400">в т.ч. НДС: {formatCurrency(subtotal - subtotal / 1.2)}</p>
+                      <p className="text-xs text-slate-400">
+                        в т.ч. НДС: {formatCurrency(subtotal - subtotal / 1.2)}
+                      </p>
                     )}
                   </div>
                 )}
@@ -434,11 +573,20 @@ export default function NewRequestPage() {
                 {pendingFiles.length > 0 && (
                   <ul className="space-y-1">
                     {pendingFiles.map((f, i) => (
-                      <li key={i} className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2.5 py-1.5">
-                        <span className="truncate text-xs text-slate-700">{f.name}</span>
+                      <li
+                        key={i}
+                        className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2.5 py-1.5"
+                      >
+                        <span className="truncate text-xs text-slate-700">
+                          {f.name}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          onClick={() =>
+                            setPendingFiles((prev) =>
+                              prev.filter((_, idx) => idx !== i),
+                            )
+                          }
                           className="shrink-0 text-slate-400 hover:text-red-500 transition-colors"
                         >
                           <X className="h-3.5 w-3.5" />
@@ -451,8 +599,12 @@ export default function NewRequestPage() {
             </Card>
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSubmitting && pendingFiles.length > 0 ? "Создание и загрузка..." : "Создать заявку"}
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {isSubmitting && pendingFiles.length > 0
+                ? "Создание и загрузка..."
+                : "Создать заявку"}
             </Button>
           </div>
         </form>
