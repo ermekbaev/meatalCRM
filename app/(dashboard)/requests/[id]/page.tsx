@@ -99,7 +99,7 @@ export default function RequestDetailPage() {
 
   // --- Позиции ---
   const addItem = () => {
-    setItems((prev) => [...prev, { id: `new-${Date.now()}`, name: "", quantity: 1, unit: "шт", price: 0, discount: 0, total: 0, isCustomerMaterial: false }]);
+    setItems((prev) => [...prev, { id: `new-${Date.now()}`, name: "", quantity: 1, unit: "шт", price: 0, purchasePrice: null, discount: 0, total: 0, isCustomerMaterial: false }]);
   };
 
   const addFromCatalog = (catalogItem: any) => {
@@ -109,6 +109,7 @@ export default function RequestDetailPage() {
       quantity: 1,
       unit: catalogItem.unit ?? "шт",
       price: catalogItem.price ?? 0,
+      purchasePrice: catalogItem.purchasePrice ?? null,
       discount: 0,
       total: catalogItem.price ?? 0,
       isCustomerMaterial: false,
@@ -144,7 +145,7 @@ export default function RequestDetailPage() {
   const subtotal = items.reduce((s, it) => s + (parseFloat(it.total) || 0), 0);
   const customerMaterialTotal = items.filter(it => it.isCustomerMaterial).reduce((s, it) => s + (parseFloat(it.total) || 0), 0);
   const ourRevenue = subtotal - customerMaterialTotal;
-  const vatAmount = request?.vatIncluded ? subtotal * 0.2 : 0;
+  const vatAmount = request?.vatIncluded ? subtotal * 0.22 : 0;
   const totalWithVat = subtotal + vatAmount;
 
   if (loading) {
@@ -258,6 +259,7 @@ export default function RequestDetailPage() {
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Кол-во</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Ед.</th>
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Цена, ₽</th>
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Закуп., ₽</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">Скидка %</th>
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">Сумма, ₽</th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20" title="Материал заказчика">Мат. зак.</th>
@@ -320,6 +322,17 @@ export default function RequestDetailPage() {
                                   />
                                 )}
                               </td>
+                              {!isEmployee && (
+                                <td className="px-2 py-2">
+                                  <Input
+                                    value={item.purchasePrice ?? ""}
+                                    onChange={(e) => updateItem(index, "purchasePrice", e.target.value === "" ? null : e.target.value)}
+                                    type="number" min="0" step="0.01"
+                                    placeholder="—"
+                                    className="h-8 text-sm text-right w-full"
+                                  />
+                                </td>
+                              )}
                               <td className="px-2 py-2">
                                 {isEmployee ? (
                                   <span className="text-sm text-slate-800 block text-center">{item.discount}%</span>

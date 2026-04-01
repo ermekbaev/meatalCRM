@@ -17,18 +17,37 @@ export async function GET(req: NextRequest) {
   };
   const where = Object.keys(dateFilter).length ? { createdAt: dateFilter } : {};
 
-  // 1. Общие цифры
-  const [totalRequests, completedRequests, totalClients, totalOffers] = await Promise.all([
-    prisma.request.count({ where }),
+  // 1. Общие цифры + выручка/прибыль — один запрос по завершённым заявкам с позициями
+  const [completedWithItems, totalRequestsCount, totalClients, totalOffers] = await Promise.all([
     prisma.request.findMany({
-      where: { ...where, status: "COMPLETED", amount: { gt: 0 } },
-      select: { amount: true },
+      where: { ...where, status: "COMPLETED" },
+      select: {
+        amount: true,
+        updatedAt: true,
+        clientId: true,
+        client: { select: { name: true } },
+        items: { select: { quantity: true, purchasePrice: true } },
+      },
+      orderBy: { updatedAt: "asc" },
     }),
+    prisma.request.count({ where }),
     prisma.client.count({ where }),
     prisma.commercialOffer.count({ where }),
   ]);
 
-  const totalRevenue = completedRequests.reduce((s, r) => s + (r.amount ?? 0), 0);
+  const totalRevenue = completedWithItems.reduce((s, r) => s + (r.amount ?? 0), 0);
+
+  // Считаем себестоимость только по позициям с указанной закупочной ценой
+  let totalCost = 0;
+  completedWithItems.forEach((r) => {
+    r.items.forEach((item) => {
+      if (item.purchasePrice != null) {
+        totalCost += item.purchasePrice * item.quantity;
+      }
+    });
+  });
+  const totalProfit = totalRevenue - totalCost;
+  const margin = totalRevenue > 0 && totalCost > 0 ? (totalProfit / totalRevenue) * 100 : null;
 
   // 2. Заявки по статусам
   const byStatus = await prisma.request.groupBy({
@@ -37,29 +56,26 @@ export async function GET(req: NextRequest) {
     _count: { id: true },
   });
 
-  // 3. Выручка по месяцам (последние 12 или по фильтру)
-  const revenueRequests = await prisma.request.findMany({
-    where: { ...where, status: "COMPLETED", amount: { gt: 0 } },
-    select: { amount: true, updatedAt: true },
-    orderBy: { updatedAt: "asc" },
-  });
-
-  const revenueByMonth: Record<string, number> = {};
-  revenueRequests.forEach((r) => {
-    const key = r.updatedAt.toISOString().slice(0, 7); // "2025-03"
-    revenueByMonth[key] = (revenueByMonth[key] ?? 0) + (r.amount ?? 0);
+  // 3. Выручка и прибыль по месяцам
+  const revenueByMonth: Record<string, { revenue: number; profit: number; cost: number }> = {};
+  completedWithItems.forEach((r) => {
+    const key = r.updatedAt.toISOString().slice(0, 7);
+    if (!revenueByMonth[key]) revenueByMonth[key] = { revenue: 0, profit: 0, cost: 0 };
+    revenueByMonth[key].revenue += r.amount ?? 0;
+    let reqCost = 0;
+    r.items.forEach((item) => {
+      if (item.purchasePrice != null) reqCost += item.purchasePrice * item.quantity;
+    });
+    revenueByMonth[key].cost += reqCost;
+    revenueByMonth[key].profit += (r.amount ?? 0) - reqCost;
   });
   const revenueChart = Object.entries(revenueByMonth)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, revenue]) => ({ month, revenue }));
+    .map(([month, d]) => ({ month, revenue: d.revenue, profit: d.cost > 0 ? d.profit : null }));
 
   // 4. Топ клиентов по выручке
-  const completedWithClient = await prisma.request.findMany({
-    where: { ...where, status: "COMPLETED", amount: { gt: 0 } },
-    select: { amount: true, clientId: true, client: { select: { name: true } } },
-  });
   const clientMap: Record<string, { name: string; revenue: number; count: number }> = {};
-  completedWithClient.forEach((r) => {
+  completedWithItems.forEach((r) => {
     if (!clientMap[r.clientId]) clientMap[r.clientId] = { name: r.client.name, revenue: 0, count: 0 };
     clientMap[r.clientId].revenue += r.amount ?? 0;
     clientMap[r.clientId].count += 1;
@@ -104,7 +120,7 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({
-    summary: { totalRequests, totalRevenue, totalClients, totalOffers },
+    summary: { totalRequests: totalRequestsCount, totalRevenue, totalClients, totalOffers, totalProfit, totalCost, margin },
     byStatus,
     byPriority,
     revenueChart,

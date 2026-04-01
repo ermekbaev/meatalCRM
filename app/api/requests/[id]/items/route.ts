@@ -22,6 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         quantity: parseFloat(item.quantity) || 1,
         unit: item.unit || "шт",
         price: parseFloat(item.price) || 0,
+        purchasePrice: item.purchasePrice != null && item.purchasePrice !== "" ? parseFloat(item.purchasePrice) : null,
         discount: parseFloat(item.discount) || 0,
         total: parseFloat(item.total) || 0,
         isCustomerMaterial: item.isCustomerMaterial ?? false,

@@ -321,7 +321,7 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
       ? (markupType === "percent" ? cost * (mv / 100) : mv)
       : clientDiscount > 0 ? -(cost * (clientDiscount / 100)) : 0;
     const costWithMarkup = cost + markupAmount;
-    const vatAmount    = vatEnabled ? costWithMarkup * 0.20 : 0;
+    const vatAmount    = vatEnabled ? costWithMarkup * 0.22 : 0;
     const costWithVat  = costWithMarkup + vatAmount;
     const massPerSqM   = massPerSheet / area;
 

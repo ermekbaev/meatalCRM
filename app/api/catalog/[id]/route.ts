@@ -17,6 +17,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     data: {
       ...data,
       price: data.price != null ? parseFloat(data.price) : null,
+      purchasePrice: data.purchasePrice != null ? parseFloat(data.purchasePrice) : null,
       categoryId: data.categoryId ?? null,
     },
     include: { catalogCategory: { select: { id: true, name: true, parentId: true } } },

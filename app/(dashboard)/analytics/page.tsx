@@ -2,9 +2,9 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, TrendingUp, ClipboardList, Users, FileText, Award, ArrowRight } from "lucide-react";
+import { Loader2, TrendingUp, ClipboardList, Users, FileText, Award, ArrowRight, DollarSign, Percent } from "lucide-react";
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+  ResponsiveContainer, AreaChart, Area, Line, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, PieChart, Pie, Cell,
 } from "recharts";
 import { cn } from "@/lib/utils";
@@ -74,7 +74,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md text-sm">
       <p className="font-medium text-slate-700 mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
-        <p key={i} className="text-slate-500">{p.name}: <span className="font-semibold text-slate-800">{typeof p.value === "number" && p.name === "Выручка" ? fmt(p.value) : p.value}</span></p>
+        p.value != null && (
+          <p key={i} className="text-slate-500">{p.name}: <span className="font-semibold text-slate-800">{typeof p.value === "number" && (p.name === "Выручка" || p.name === "Прибыль") ? fmt(p.value) : p.value}</span></p>
+        )
       ))}
     </div>
   );
@@ -247,6 +249,26 @@ export default function AnalyticsPage() {
           <StatCard icon={FileText} label="КП выставлено" value={summary.totalOffers} accent="violet" />
         </div>
 
+        {/* Прибыль и маржинальность */}
+        {summary.totalCost > 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            <StatCard
+              icon={DollarSign}
+              label="Чистая прибыль"
+              value={fmt(summary.totalProfit)}
+              sub={`Себестоимость: ${fmt(summary.totalCost)}`}
+              accent="green"
+            />
+            <StatCard
+              icon={Percent}
+              label="Маржинальность"
+              value={summary.margin != null ? `${summary.margin.toFixed(1)}%` : "—"}
+              sub="По заявкам с закупочными ценами"
+              accent="blue"
+            />
+          </div>
+        )}
+
         {/* Выручка + Статусы */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <Card className="lg:col-span-2 border-slate-200">
@@ -270,6 +292,7 @@ export default function AnalyticsPage() {
                     <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}к` : v} />
                     <Tooltip content={<CustomTooltip />} />
                     <Area dataKey="revenue" name="Выручка" stroke="#f97316" strokeWidth={2} fill="url(#revenueGrad)" dot={{ r: 3, fill: "#f97316", strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                    <Line dataKey="profit" name="Прибыль" stroke="#22c55e" strokeWidth={2} dot={{ r: 3, fill: "#22c55e", strokeWidth: 0 }} activeDot={{ r: 5 }} connectNulls={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               )}

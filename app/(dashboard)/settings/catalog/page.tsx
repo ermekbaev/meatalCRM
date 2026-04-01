@@ -27,6 +27,9 @@ function ItemRow({ item, onEdit, onDelete, noun }: any) {
       <TableCell className="font-medium text-slate-700 text-[13px]">
         {item.price ? `${item.price.toLocaleString("ru")} ₽ / ${item.unit}` : "—"}
       </TableCell>
+      <TableCell className="text-slate-500 text-[13px]">
+        {item.purchasePrice ? `${item.purchasePrice.toLocaleString("ru")} ₽` : "—"}
+      </TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" onClick={() => onEdit(item)}>
@@ -59,10 +62,11 @@ function ItemsTable({ rows, onEdit, onDelete, noun }: any) {
   return (
     <Table className="table-fixed">
       <colgroup>
-        <col style={{ width: "30%" }} />
+        <col style={{ width: "28%" }} />
         <col />
-        <col style={{ width: "96px" }} />
-        <col style={{ width: "144px" }} />
+        <col style={{ width: "80px" }} />
+        <col style={{ width: "130px" }} />
+        <col style={{ width: "130px" }} />
         <col style={{ width: "80px" }} />
       </colgroup>
       <TableHeader>
@@ -70,7 +74,8 @@ function ItemsTable({ rows, onEdit, onDelete, noun }: any) {
           <TableHead>Название</TableHead>
           <TableHead>Описание</TableHead>
           <TableHead>Ед. изм.</TableHead>
-          <TableHead>Цена</TableHead>
+          <TableHead>Цена продажи</TableHead>
+          <TableHead>Закуп. цена</TableHead>
           <TableHead>Действия</TableHead>
         </TableRow>
       </TableHeader>
@@ -257,13 +262,13 @@ export default function CatalogPage() {
 
   const openCreate = () => {
     setEditItem(null);
-    reset({ name: "", description: "", unit: "шт", price: "", categoryId: selectedCatId ?? "" });
+    reset({ name: "", description: "", unit: "шт", price: "", purchasePrice: "", categoryId: selectedCatId ?? "" });
     setDialogOpen(true);
   };
 
   const openEdit = (item: any) => {
     setEditItem(item);
-    reset({ ...item, price: item.price ?? "", categoryId: item.categoryId ?? "" });
+    reset({ ...item, price: item.price ?? "", purchasePrice: item.purchasePrice ?? "", categoryId: item.categoryId ?? "" });
     setDialogOpen(true);
   };
 
@@ -273,6 +278,7 @@ export default function CatalogPage() {
       description: data.description ?? null,
       unit: data.unit,
       price: data.price ? parseFloat(data.price) : null,
+      purchasePrice: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
       categoryId: data.categoryId || null,
       type: editItem ? editItem.type : tab,
     };
@@ -467,9 +473,15 @@ export default function CatalogPage() {
                 <Input {...register("unit")} placeholder="шт, м², кг" />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Базовая цена (₽)</Label>
-              <Input {...register("price")} type="number" min="0" step="0.01" placeholder="1500" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Цена продажи (₽)</Label>
+                <Input {...register("price")} type="number" min="0" step="0.01" placeholder="1500" />
+              </div>
+              <div className="space-y-2">
+                <Label>Закупочная цена (₽)</Label>
+                <Input {...register("purchasePrice")} type="number" min="0" step="0.01" placeholder="1000" />
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Отмена</Button>

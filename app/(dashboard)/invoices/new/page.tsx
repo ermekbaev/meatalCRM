@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Plus, Trash2, Loader2, FileText } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2, FileText, Building2, Search, X } from "lucide-react";
 import Link from "next/link";
 
 function NewInvoiceForm() {
@@ -16,11 +16,16 @@ function NewInvoiceForm() {
   const searchParams = useSearchParams();
   const requestId = searchParams.get("requestId");
 
-  const [clients, setClients] = useState<any[]>([]);
+  const [allClients, setAllClients] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [clientId, setClientId] = useState("");
+  const [clientQuery, setClientQuery] = useState("");
+  const [clientResults, setClientResults] = useState<any[]>([]);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const clientRef = useRef<HTMLDivElement>(null);
+
   const [numberOverride, setNumberOverride] = useState("");
   const [selectedRequestId, setSelectedRequestId] = useState(requestId ?? "");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -31,9 +36,44 @@ function NewInvoiceForm() {
   const [items, setItems] = useState<any[]>([{ name: "", quantity: 1, unit: "шт", price: "", total: 0 }]);
 
   useEffect(() => {
-    fetch("/api/clients").then((r) => r.json()).then(setClients).catch(() => {});
+    fetch("/api/clients").then((r) => r.json()).then((cls) => {
+      const list = Array.isArray(cls) ? cls : cls.clients ?? [];
+      setAllClients(list);
+      setClientResults(list);
+    }).catch(() => {});
     fetch("/api/requests?limit=200").then((r) => r.json()).then((d) => setRequests(Array.isArray(d) ? d : d.data ?? [])).catch(() => {});
   }, []);
+
+  // Поиск контрагентов
+  useEffect(() => {
+    if (!clientQuery.trim()) {
+      setClientResults(allClients);
+      return;
+    }
+    const q = clientQuery.toLowerCase();
+    setClientResults(allClients.filter((c) =>
+      c.name.toLowerCase().includes(q) || c.inn?.includes(q)
+    ));
+  }, [clientQuery, allClients]);
+
+  // Закрытие дропдауна при клике вне
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (clientRef.current && !clientRef.current.contains(e.target as Node)) {
+        setShowClientDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Синхронизация имени контрагента при автозаполнении из заявки
+  useEffect(() => {
+    if (clientId && allClients.length > 0) {
+      const client = allClients.find((c) => c.id === clientId);
+      if (client && clientQuery !== client.name) setClientQuery(client.name);
+    }
+  }, [clientId, allClients]);
 
   // Автозаполнение из заявки
   useEffect(() => {
@@ -54,6 +94,18 @@ function NewInvoiceForm() {
       })
       .catch(() => {});
   }, [selectedRequestId]);
+
+  const selectClient = (client: any) => {
+    setClientId(client.id);
+    setClientQuery(client.name);
+    setShowClientDropdown(false);
+    setSelectedRequestId(""); // сбрасываем заявку при смене контрагента
+  };
+
+  const clearClient = () => {
+    setClientId("");
+    setClientQuery("");
+  };
 
   const updateItem = (idx: number, field: string, value: any) => {
     setItems((prev) => {
@@ -126,14 +178,47 @@ function NewInvoiceForm() {
           <CardContent className="grid grid-cols-2 gap-4">
             <div className="space-y-2 col-span-2">
               <Label>Контрагент (покупатель) *</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger><SelectValue placeholder="Выберите контрагента" /></SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative" ref={clientRef}>
+                {clientId ? (
+                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <span className="text-sm font-medium text-slate-800 truncate">{clientQuery}</span>
+                    <button type="button" onClick={clearClient} className="text-slate-400 hover:text-slate-600 ml-2 shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                      <Input
+                        value={clientQuery}
+                        onChange={(e) => { setClientQuery(e.target.value); setShowClientDropdown(true); }}
+                        onFocus={() => setShowClientDropdown(true)}
+                        placeholder="Поиск контрагента..."
+                        className="pl-8 text-sm"
+                      />
+                    </div>
+                    {showClientDropdown && clientResults.length > 0 && (
+                      <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-56 overflow-y-auto">
+                        {clientResults.map((c: any) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 text-left"
+                            onMouseDown={() => selectClient(c)}
+                          >
+                            <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm text-slate-800">{c.name}</p>
+                              {c.inn && <p className="text-[11px] text-slate-400">ИНН {c.inn}</p>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -147,7 +232,7 @@ function NewInvoiceForm() {
                 <SelectTrigger><SelectValue placeholder="Без заявки" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Без заявки</SelectItem>
-                  {requests.map((r) => (
+                  {(clientId ? requests.filter((r) => r.client?.id === clientId) : requests).map((r) => (
                     <SelectItem key={r.id} value={r.id}>#{r.number} {r.title}</SelectItem>
                   ))}
                 </SelectContent>
@@ -175,7 +260,6 @@ function NewInvoiceForm() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">Без НДС</SelectItem>
-                  <SelectItem value="20">НДС 20%</SelectItem>
                   <SelectItem value="22">НДС 22%</SelectItem>
                 </SelectContent>
               </Select>

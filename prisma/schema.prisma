@@ -139,6 +139,7 @@ model RequestItem {
   quantity           Float   @default(1)
   unit               String  @default("шт")
   price              Float   @default(0)
+  purchasePrice      Float?
   discount           Float   @default(0)
   total              Float   @default(0)
   isCustomerMaterial Boolean @default(false)
@@ -290,14 +291,15 @@ model CatalogCategory {
 }
 
 model ServiceCatalog {
-  id          String   @id @default(cuid())
-  type        String   @default("service")
-  name        String
-  description String?
-  unit        String   @default("шт")
-  price       Float?
-  category    String?
-  categoryId  String?
+  id            String   @id @default(cuid())
+  type          String   @default("service")
+  name          String
+  description   String?
+  unit          String   @default("шт")
+  price         Float?
+  purchasePrice Float?
+  category      String?
+  categoryId    String?
   catalogCategory CatalogCategory? @relation(fields: [categoryId], references: [id])
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
