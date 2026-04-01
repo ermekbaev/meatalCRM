@@ -14,6 +14,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   REQUEST_STATUS_LABELS,
+  CHANGELOG_FIELD_LABELS,
+  CHANGELOG_VALUE_LABELS,
   REQUEST_STATUS_COLORS,
   PRIORITY_LABELS,
   PRIORITY_COLORS,
@@ -787,17 +789,17 @@ export default function RequestDetailPage() {
                             {log.user?.name}
                           </span>
                           {" изменил "}
-                          <span className="font-mono text-xs bg-gray-100 px-1 rounded">
-                            {log.field}
+                          <span className="font-medium text-gray-600">
+                            {CHANGELOG_FIELD_LABELS[log.field] ?? log.field}
                           </span>
                           {log.oldValue && (
                             <span className="text-gray-400">
                               {" "}
-                              с &quot;{log.oldValue}&quot;
+                              с &quot;{CHANGELOG_VALUE_LABELS[log.oldValue] ?? log.oldValue}&quot;
                             </span>
                           )}
                           {log.newValue && (
-                            <span> на &quot;{log.newValue}&quot;</span>
+                            <span> на &quot;{CHANGELOG_VALUE_LABELS[log.newValue] ?? log.newValue}&quot;</span>
                           )}
                           <span className="ml-2 text-xs text-gray-400">
                             {formatDateTime(log.createdAt)}

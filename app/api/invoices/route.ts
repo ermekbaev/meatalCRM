@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendTelegram } from "@/lib/telegram";
 
 const INCLUDE = {
   client: true,
@@ -58,6 +59,12 @@ export async function POST(req: NextRequest) {
     },
     include: INCLUDE,
   });
+
+  await sendTelegram(
+    `🧾 <b>Новый счёт #${invoice.numberOverride ?? invoice.number}</b>\n` +
+    `🏢 Клиент: ${invoice.client?.name ?? "—"}\n` +
+    `💰 Сумма: ${invoice.items.reduce((s: number, i: any) => s + i.total, 0).toLocaleString("ru")} ₽`
+  );
 
   return NextResponse.json(invoice, { status: 201 });
 }

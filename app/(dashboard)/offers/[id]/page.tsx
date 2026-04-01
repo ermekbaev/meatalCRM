@@ -64,6 +64,8 @@ export default function OfferDetailPage() {
   if (!offer) return null;
 
   const subtotal = offer.items.reduce((s: number, i: any) => s + i.total, 0);
+  const afterDiscount = offer.discount > 0 ? subtotal * (1 - offer.discount / 100) : subtotal;
+  const vatAmount = offer.vatRate > 0 ? afterDiscount * (offer.vatRate / 100) : 0;
 
   return (
     <div>
@@ -172,7 +174,13 @@ export default function OfferDetailPage() {
                     {offer.discount > 0 && (
                       <div className="flex justify-between text-sm text-green-600">
                         <span>Скидка {offer.discount}%</span>
-                        <span>−{(subtotal - offer.total).toLocaleString("ru")} ₽</span>
+                        <span>−{(subtotal - afterDiscount).toLocaleString("ru")} ₽</span>
+                      </div>
+                    )}
+                    {offer.vatRate > 0 && (
+                      <div className="flex justify-between text-sm text-gray-500">
+                        <span>НДС {offer.vatRate}%</span>
+                        <span>{vatAmount.toLocaleString("ru")} ₽</span>
                       </div>
                     )}
                     <div className="flex justify-between border-t border-gray-200 pt-2 text-lg font-bold">

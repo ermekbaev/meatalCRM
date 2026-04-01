@@ -18,7 +18,9 @@ async function loadImageBase64(key: string): Promise<string | null> {
 
 export async function generateOfferPDF(offer: any, company?: any) {
   const subtotal = offer.items.reduce((s: number, i: any) => s + i.total, 0);
-  const discountAmount = subtotal - offer.total;
+  const afterDiscount = offer.discount > 0 ? subtotal * (1 - offer.discount / 100) : subtotal;
+  const vatAmount = offer.vatRate > 0 ? afterDiscount * (offer.vatRate / 100) : 0;
+  const discountAmount = subtotal - afterDiscount;
 
   const [stampB64, signatureB64] = await Promise.all([
     company?.stampImage ? loadImageBase64(company.stampImage) : Promise.resolve(null),
@@ -93,6 +95,11 @@ export async function generateOfferPDF(offer: any, company?: any) {
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#16a34a;">
           <span>Скидка ${offer.discount}%</span>
           <span>−${discountAmount.toLocaleString("ru")} ₽</span>
+        </div>` : ""}
+        ${offer.vatRate > 0 ? `
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#64748b;">
+          <span>НДС ${offer.vatRate}%</span>
+          <span>${vatAmount.toLocaleString("ru")} ₽</span>
         </div>` : ""}
         <div style="display:flex;justify-content:space-between;border-top:2px solid #334155;padding-top:8px;margin-top:4px;font-size:16px;font-weight:700;">
           <span>Итого</span>

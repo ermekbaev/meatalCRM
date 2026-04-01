@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendTelegram } from "@/lib/telegram";
+import { PRIORITY_LABELS } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -61,6 +63,13 @@ export async function POST(req: NextRequest) {
       client:    { select: { id: true, name: true } },
     },
   });
+
+  await sendTelegram(
+    `📝 <b>Новая задача</b>\n` +
+    `📌 ${task.title}\n` +
+    `⚡ Приоритет: ${PRIORITY_LABELS[task.priority]}\n` +
+    `👤 Исполнитель: ${task.assignee?.name ?? "Не назначен"}`
+  );
 
   return NextResponse.json(task, { status: 201 });
 }

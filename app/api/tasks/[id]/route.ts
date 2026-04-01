@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendTelegram } from "@/lib/telegram";
+import { TASK_STATUS_LABELS } from "@/lib/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -38,6 +40,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const data = await req.json();
 
+  const old = await prisma.task.findUnique({ where: { id }, select: { status: true } });
+
   const task = await prisma.task.update({
     where: { id },
     data: {
@@ -55,6 +59,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       client:    { select: { id: true, name: true } },
     },
   });
+
+  if (old && old.status !== task.status) {
+    await sendTelegram(
+      `🔄 <b>Статус задачи изменён</b>\n` +
+      `📌 ${task.title}\n` +
+      `${TASK_STATUS_LABELS[old.status] ?? old.status} → <b>${TASK_STATUS_LABELS[task.status] ?? task.status}</b>`
+    );
+  }
 
   return NextResponse.json(task);
 }

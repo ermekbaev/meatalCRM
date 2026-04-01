@@ -92,3 +92,24 @@ export const TASK_STATUS_COLORS: Record<string, string> = {
   DONE:        "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
   CANCELLED:   "bg-red-50     text-red-600    ring-1 ring-red-200",
 };
+
+export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
+  status:     "Статус",
+  priority:   "Приоритет",
+  title:      "Название",
+  assigneeId: "Ответственный",
+  amount:     "Сумма",
+};
+
+export const CHANGELOG_VALUE_LABELS: Record<string, string> = {
+  // Статусы заявок
+  NEW:         "Новая",
+  IN_PROGRESS: "В работе",
+  COMPLETED:   "Выполнено",
+  CANCELLED:   "Отменено",
+  // Приоритеты
+  LOW:    "Низкий",
+  MEDIUM: "Средний",
+  HIGH:   "Высокий",
+  URGENT: "Срочный",
+};

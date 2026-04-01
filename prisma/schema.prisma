@@ -176,6 +176,7 @@ model CommercialOffer {
   numberOverride String?
   status         OfferStatus @default(DRAFT)
   discount    Float       @default(0)
+  vatRate     Float       @default(0)
   total       Float       @default(0)
   notes       String?
   validUntil  DateTime?

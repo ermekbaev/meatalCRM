@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendTelegram } from "@/lib/telegram";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
   const cleanData: any = {
     status: data.status ?? "DRAFT",
     discount: parseFloat(String(data.discount)) || 0,
+    vatRate: parseFloat(String(data.vatRate)) || 0,
     total: parseFloat(String(data.total)) || 0,
     notes: data.notes || null,
     requestId: data.requestId || null,
@@ -72,6 +74,12 @@ export async function POST(req: NextRequest) {
       },
       include: { items: true, request: { include: { client: true } }, client: true, createdBy: true },
     });
+    await sendTelegram(
+      `📄 <b>Новое КП №${offer.numberOverride ?? offer.number}</b>\n` +
+      `🏢 Клиент: ${(offer.client || offer.request?.client)?.name ?? "—"}\n` +
+      `💰 Сумма: ${offer.total.toLocaleString("ru")} ₽`
+    );
+
     return NextResponse.json(offer, { status: 201 });
   } catch (e: any) {
     console.error("POST /api/offers error:", e);

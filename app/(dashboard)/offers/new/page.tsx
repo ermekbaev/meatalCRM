@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Plus, Trash2, Loader2, Building2, ClipboardCheck, X, BookOpen, Search } from "lucide-react";
 import Link from "next/link";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
@@ -25,6 +26,7 @@ export default function NewOfferPage() {
   const [clientInfo, setClientInfo] = useState<any>(null);
   const [importedRequest, setImportedRequest] = useState<{ number: number; title: string } | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [vatRate, setVatRate] = useState(0);
 
   // Прямой поиск контрагента
   const [clientQuery, setClientQuery] = useState("");
@@ -154,7 +156,9 @@ export default function NewOfferPage() {
   const subtotal = items.reduce((sum: number, item: any) => {
     return sum + (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0);
   }, 0);
-  const total = subtotal * (1 - (parseFloat(String(discount)) || 0) / 100);
+  const afterDiscount = subtotal * (1 - (parseFloat(String(discount)) || 0) / 100);
+  const vatAmount = afterDiscount * (vatRate / 100);
+  const total = afterDiscount + vatAmount;
 
   const updateItemTotal = (index: number) => {
     const item = items[index];
@@ -167,6 +171,7 @@ export default function NewOfferPage() {
       ...data,
       numberOverride: data.numberOverride?.trim() || null,
       discount: parseFloat(String(data.discount)) || 0,
+      vatRate,
       total,
       requestId: data.requestId || null,
       clientId: selectedClientId || null,
@@ -300,7 +305,10 @@ export default function NewOfferPage() {
                   <div className="text-right space-y-1">
                     <p className="text-sm text-gray-500">Подытог: {subtotal.toLocaleString("ru")} ₽</p>
                     {parseFloat(String(discount)) > 0 && (
-                      <p className="text-sm text-green-600">Скидка {discount}%: −{(subtotal - total).toLocaleString("ru")} ₽</p>
+                      <p className="text-sm text-green-600">Скидка {discount}%: −{(subtotal - afterDiscount).toLocaleString("ru")} ₽</p>
+                    )}
+                    {vatRate > 0 && (
+                      <p className="text-sm text-gray-500">НДС {vatRate}%: {vatAmount.toLocaleString("ru")} ₽</p>
                     )}
                     <p className="text-lg font-bold text-gray-900">Итого: {total.toLocaleString("ru")} ₽</p>
                   </div>
@@ -414,6 +422,21 @@ export default function NewOfferPage() {
                 <div className="space-y-2">
                   <Label>Скидка (%)</Label>
                   <Input {...register("discount")} type="number" min="0" max="100" step="0.1" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-700">НДС</p>
+                    <p className="text-xs text-gray-400">Добавить НДС к итогу</p>
+                  </div>
+                  <Select value={String(vatRate)} onValueChange={(v) => setVatRate(parseFloat(v))}>
+                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Без НДС</SelectItem>
+                      <SelectItem value="20">НДС 20%</SelectItem>
+                      <SelectItem value="22">НДС 22%</SelectItem>
+                      <SelectItem value="10">НДС 10%</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Действует до</Label>
