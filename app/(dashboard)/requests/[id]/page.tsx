@@ -21,6 +21,8 @@ import {
   PRIORITY_COLORS,
   OFFER_STATUS_LABELS,
   OFFER_STATUS_COLORS,
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_COLORS,
   formatDate,
   formatDateTime,
   formatCurrency,
@@ -287,6 +289,13 @@ export default function RequestDetailPage() {
                     >
                       {PRIORITY_LABELS[request.priority]}
                     </span>
+                    {request.paymentStatus && request.paymentStatus !== "NONE" && (
+                      <span
+                        className={`rounded-full px-3 py-1 text-sm font-medium ${PAYMENT_STATUS_COLORS[request.paymentStatus]}`}
+                      >
+                        {PAYMENT_STATUS_LABELS[request.paymentStatus]}
+                      </span>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -883,6 +892,24 @@ export default function RequestDetailPage() {
                             <SelectItem key={u.id} value={u.id}>
                               {u.name}
                             </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-gray-500">
+                        Оплата
+                      </p>
+                      <Select
+                        value={request.paymentStatus ?? "NONE"}
+                        onValueChange={(v) => updateField("paymentStatus", v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>{v}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

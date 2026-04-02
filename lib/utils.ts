@@ -54,6 +54,18 @@ export const PRIORITY_COLORS: Record<string, string> = {
   URGENT: "bg-red-50    text-red-600   ring-1 ring-red-200",
 };
 
+export const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  NONE:    "Без оплаты",
+  WAITING: "Ждём оплату",
+  PAID:    "Оплачено",
+};
+
+export const PAYMENT_STATUS_COLORS: Record<string, string> = {
+  NONE:    "",
+  WAITING: "bg-amber-50  text-amber-700  ring-1 ring-amber-200",
+  PAID:    "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+};
+
 export const OFFER_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Черновик",
   SENT: "Отправлено",

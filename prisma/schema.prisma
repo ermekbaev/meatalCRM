@@ -7,117 +7,81 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  ADMIN
-  MANAGER
-  EMPLOYEE
-}
-
-enum ClientType {
-  INDIVIDUAL
-  COMPANY
-}
-
-enum RequestStatus {
-  NEW
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum RequestPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-enum OfferStatus {
-  DRAFT
-  SENT
-  ACCEPTED
-  REJECTED
-}
-
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      UserRole @default(EMPLOYEE)
-  isBlocked      Boolean  @default(false)
-  telegramChatId String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  requests          Request[]       @relation("AssignedRequests")
-  comments          Comment[]
+  id                String            @id @default(cuid())
+  email             String            @unique
+  password          String
+  name              String
+  role              UserRole          @default(EMPLOYEE)
+  isBlocked         Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  telegramChatId    String?
+  phone             String?
   changeLogs        ChangeLog[]
+  comments          Comment[]
   offers            CommercialOffer[]
-  assignedTasks     Task[]          @relation("AssignedTasks")
-  createdTasks      Task[]          @relation("CreatedTasks")
-  taskComments      TaskComment[]
-  uploadedFiles     RequestFile[]
-  uploadedTaskFiles TaskFile[]
   invoices          Invoice[]
+  requests          Request[]         @relation("AssignedRequests")
+  uploadedFiles     RequestFile[]
+  assignedTasks     Task[]            @relation("AssignedTasks")
+  createdTasks      Task[]            @relation("CreatedTasks")
+  taskComments      TaskComment[]
+  uploadedTaskFiles TaskFile[]
 }
 
 model Client {
-  id             String     @id @default(cuid())
-  type           ClientType @default(INDIVIDUAL)
+  id             String            @id @default(cuid())
+  type           ClientType        @default(INDIVIDUAL)
   name           String
-  shortName      String?
-  legalAddress   String?
-  postalAddress  String?
   phone          String?
   email          String?
   inn            String?
-  kpp            String?
-  ogrn           String?
-  bankName       String?
-  bankAccount    String?
-  bankCorAccount String?
-  bankBik        String?
-  director       String?
-  website        String?
-  source         String?
   comment        String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-
-  requests  Request[]
-  tasks     Task[]
-  invoices  Invoice[]
-  offers    CommercialOffer[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  bankAccount    String?
+  bankBik        String?
+  bankCorAccount String?
+  bankName       String?
+  director       String?
+  kpp            String?
+  legalAddress   String?
+  ogrn           String?
+  postalAddress  String?
+  shortName      String?
+  source         String?
+  website        String?
+  offers         CommercialOffer[]
+  invoices       Invoice[]
+  requests       Request[]
+  tasks          Task[]
 }
 
 model Request {
-  id          String          @id @default(cuid())
-  number      Int             @unique @default(autoincrement())
-  title       String
-  description String?
-  status      RequestStatus   @default(NEW)
-  priority    RequestPriority @default(MEDIUM)
-  amount      Float?
-  vatIncluded    Boolean         @default(false)
-  paymentMethod  String?
-  services    String[]        @default([])
-
-  clientId   String
-  client     Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  assigneeId String?
-  assignee   User?   @relation("AssignedRequests", fields: [assigneeId], references: [id])
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  comments   Comment[]
-  changeLogs ChangeLog[]
-  offers     CommercialOffer[]
-  items      RequestItem[]
-  files      RequestFile[]
-  invoices   Invoice[]
+  id            String            @id @default(cuid())
+  number        Int               @unique @default(autoincrement())
+  title         String
+  description   String?
+  status        RequestStatus     @default(NEW)
+  priority      RequestPriority   @default(MEDIUM)
+  amount        Float?
+  services      String[]          @default([])
+  clientId      String
+  assigneeId    String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  vatIncluded   Boolean           @default(false)
+  paymentMethod String?
+  paymentStatus PaymentStatus     @default(NONE)
+  changeLogs    ChangeLog[]
+  comments      Comment[]
+  offers        CommercialOffer[]
+  invoices      Invoice[]
+  assignee      User?             @relation("AssignedRequests", fields: [assigneeId], references: [id])
+  client        Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  files         RequestFile[]
+  items         RequestItem[]
 }
 
 model RequestFile {
@@ -127,10 +91,10 @@ model RequestFile {
   size         Int
   mimeType     String?
   requestId    String
-  request      Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
   uploadedById String
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now())
+  request      Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
 }
 
 model RequestItem {
@@ -139,23 +103,22 @@ model RequestItem {
   quantity           Float   @default(1)
   unit               String  @default("шт")
   price              Float   @default(0)
-  purchasePrice      Float?
   discount           Float   @default(0)
   total              Float   @default(0)
+  requestId          String
   isCustomerMaterial Boolean @default(false)
-
-  requestId String
-  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  purchasePrice      Float?
+  request            Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
 model Comment {
   id        String   @id @default(cuid())
   text      String
   requestId String
-  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model ChangeLog {
@@ -164,89 +127,74 @@ model ChangeLog {
   oldValue  String?
   newValue  String?
   requestId String
-  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model CommercialOffer {
   id             String      @id @default(cuid())
   number         Int         @unique @default(autoincrement())
-  numberOverride String?
   status         OfferStatus @default(DRAFT)
-  discount    Float       @default(0)
-  vatRate     Float       @default(0)
-  total       Float       @default(0)
-  notes       String?
-  validUntil  DateTime?
-
-  requestId   String?
-  request     Request? @relation(fields: [requestId], references: [id])
-  clientId    String?
-  client      Client?  @relation(fields: [clientId], references: [id])
-  createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id])
-
-  items     OfferItem[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  discount       Float       @default(0)
+  total          Float       @default(0)
+  notes          String?
+  validUntil     DateTime?
+  requestId      String?
+  createdById    String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  clientId       String?
+  numberOverride String?
+  vatRate        Float       @default(0)
+  client         Client?     @relation(fields: [clientId], references: [id])
+  createdBy      User        @relation(fields: [createdById], references: [id])
+  request        Request?    @relation(fields: [requestId], references: [id])
+  items          OfferItem[]
 }
 
 model OfferItem {
-  id          String @id @default(cuid())
+  id          String          @id @default(cuid())
   service     String
   description String?
-  quantity    Float  @default(1)
-  unit        String @default("шт")
+  quantity    Float           @default(1)
+  unit        String          @default("шт")
   price       Float
   total       Float
-
-  offerId String
-  offer   CommercialOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
-}
-
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  DONE
-  CANCELLED
+  offerId     String
+  offer       CommercialOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
 }
 
 model Task {
-  id          String      @id @default(cuid())
+  id          String          @id @default(cuid())
   title       String
   description String?
-  status      TaskStatus  @default(TODO)
+  status      TaskStatus      @default(TODO)
   priority    RequestPriority @default(MEDIUM)
   dueDate     DateTime?
-
   assigneeId  String?
-  assignee    User?   @relation("AssignedTasks", fields: [assigneeId], references: [id])
-
   createdById String
-  createdBy   User    @relation("CreatedTasks", fields: [createdById], references: [id])
-
   clientId    String?
-  client      Client? @relation(fields: [clientId], references: [id])
-
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  checklist   ChecklistItem[]
+  assignee    User?           @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  client      Client?         @relation(fields: [clientId], references: [id])
+  createdBy   User            @relation("CreatedTasks", fields: [createdById], references: [id])
   comments    TaskComment[]
   files       TaskFile[]
-  checklist   ChecklistItem[]
-  tags        Tag[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  tags        Tag[]           @relation("TagToTask")
 }
 
 model TaskComment {
   id        String   @id @default(cuid())
   text      String
   taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model TaskFile {
@@ -256,54 +204,54 @@ model TaskFile {
   size         Int
   mimeType     String?
   taskId       String
-  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   uploadedById String
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
   createdAt    DateTime @default(now())
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
 }
 
 model Tag {
-  id    String  @id @default(cuid())
-  name  String  @unique
-  color String  @default("#6b7280")
-  tasks Task[]
+  id    String @id @default(cuid())
+  name  String @unique
+  color String @default("#6b7280")
+  tasks Task[] @relation("TagToTask")
 }
 
 model ChecklistItem {
   id          String   @id @default(cuid())
   taskId      String
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   text        String
   isCompleted Boolean  @default(false)
   order       Int      @default(0)
   createdAt   DateTime @default(now())
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 model CatalogCategory {
-  id       String            @id @default(cuid())
-  name     String
-  type     String            @default("service")
-  parentId String?
-  parent   CatalogCategory?  @relation("SubCategories", fields: [parentId], references: [id])
-  children CatalogCategory[] @relation("SubCategories")
-  items    ServiceCatalog[]
-  order    Int               @default(0)
-  createdAt DateTime         @default(now())
+  id        String            @id @default(cuid())
+  name      String
+  parentId  String?
+  order     Int               @default(0)
+  createdAt DateTime          @default(now())
+  type      String            @default("service")
+  parent    CatalogCategory?  @relation("SubCategories", fields: [parentId], references: [id])
+  children  CatalogCategory[] @relation("SubCategories")
+  items     ServiceCatalog[]
 }
 
 model ServiceCatalog {
-  id            String   @id @default(cuid())
-  type          String   @default("service")
-  name          String
-  description   String?
-  unit          String   @default("шт")
-  price         Float?
-  purchasePrice Float?
-  category      String?
-  categoryId    String?
+  id              String           @id @default(cuid())
+  name            String
+  description     String?
+  unit            String           @default("шт")
+  price           Float?
+  category        String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  type            String           @default("service")
+  categoryId      String?
+  purchasePrice   Float?
   catalogCategory CatalogCategory? @relation(fields: [categoryId], references: [id])
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
 }
 
 model MetalCatalogEntry {
@@ -332,19 +280,19 @@ model BendingCatalogEntry {
 }
 
 model CuttingCatalogEntry {
-  id             String   @id @default(cuid())
-  materialId     String
-  thickness      Float
-  minLength      Float
-  maxLength      Float?
-  pricePerMeter  Float
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  materialId    String
+  thickness     Float
+  minLength     Float
+  maxLength     Float?
+  pricePerMeter Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model CompanySettings {
-  id             String  @id @default("singleton")
-  name           String  @default("")
+  id             String   @id @default("singleton")
+  name           String   @default("")
   shortName      String?
   inn            String?
   kpp            String?
@@ -359,35 +307,30 @@ model CompanySettings {
   bankCorAccount String?
   bankBik        String?
   director       String?
-  accountantName String?
-  stampImage     String?
-  signatureImage String?
   updatedAt      DateTime @updatedAt
+  accountantName String?
+  signatureImage String?
+  stampImage     String?
 }
 
 model Invoice {
-  id             String    @id @default(cuid())
-  number         Int       @unique @default(autoincrement())
+  id             String        @id @default(cuid())
+  number         Int           @unique @default(autoincrement())
+  date           DateTime      @default(now())
+  dueDate        DateTime?
+  basis          String?       @default("Основной договор")
+  vatRate        Float         @default(0)
+  notes          String?
+  clientId       String
+  requestId      String?
+  createdById    String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   numberOverride String?
-  date        DateTime  @default(now())
-  dueDate     DateTime?
-  basis       String?   @default("Основной договор")
-  vatRate     Float     @default(0)
-  notes       String?
-
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
-
-  requestId   String?
-  request     Request? @relation(fields: [requestId], references: [id])
-
-  createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id])
-
-  items       InvoiceItem[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  client         Client        @relation(fields: [clientId], references: [id])
+  createdBy      User          @relation(fields: [createdById], references: [id])
+  request        Request?      @relation(fields: [requestId], references: [id])
+  items          InvoiceItem[]
 }
 
 model InvoiceItem {
@@ -397,7 +340,51 @@ model InvoiceItem {
   unit      String  @default("шт")
   price     Float   @default(0)
   total     Float   @default(0)
-
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum ClientType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum RequestStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  NONE
+  WAITING
+  PAID
+}
+
+enum RequestPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum OfferStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
 }

@@ -46,15 +46,15 @@ export default function UsersPage() {
 
   const openEdit = (user: any) => {
     setEditUser(user);
-    reset({ name: user.name, email: user.email, password: "", role: user.role, telegramChatId: user.telegramChatId ?? "" });
+    reset({ name: user.name, email: user.email, password: "", role: user.role, telegramChatId: user.telegramChatId ?? "", phone: user.phone ?? "" });
     setDialogOpen(true);
   };
 
   const onSubmit = async (data: any) => {
     const url = editUser ? `/api/users/${editUser.id}` : "/api/users";
     const method = editUser ? "PUT" : "POST";
-    const payload = { ...data, telegramChatId: data.telegramChatId || null };
-    const body = editUser && !data.password ? { name: data.name, email: data.email, role: data.role, telegramChatId: payload.telegramChatId } : payload;
+    const payload = { ...data, telegramChatId: data.telegramChatId || null, phone: data.phone || null };
+    const body = editUser && !data.password ? { name: data.name, email: data.email, role: data.role, telegramChatId: payload.telegramChatId, phone: payload.phone } : payload;
     await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setDialogOpen(false);
     fetchUsers();
@@ -193,6 +193,10 @@ export default function UsersPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Телефон</Label>
+              <Input {...register("phone")} placeholder="+7 (999) 000-00-00" />
             </div>
             <div className="space-y-2">
               <Label>Telegram Chat ID</Label>

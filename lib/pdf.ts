@@ -55,6 +55,8 @@ export async function generateOfferPDF(offer: any, company?: any) {
         <p style="margin:3px 0;">Дата: <strong>${formatDate(offer.createdAt)}</strong></p>
         ${offer.validUntil ? `<p style="margin:3px 0;">Действует до: <strong>${formatDate(offer.validUntil)}</strong></p>` : ""}
         ${offer.createdBy?.name ? `<p style="margin:3px 0;">Менеджер: ${offer.createdBy.name}</p>` : ""}
+        ${offer.createdBy?.phone ? `<p style="margin:3px 0;">Тел.: ${offer.createdBy.phone}</p>` : ""}
+        ${offer.createdBy?.email ? `<p style="margin:3px 0;">Email: ${offer.createdBy.email}</p>` : ""}
       </div>
     </div>
 

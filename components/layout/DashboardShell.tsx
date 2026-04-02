@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, Factory, BookOpen, X, LogOut, Calculator,
-  Layers, Scissors, Box,
+  Layers, Scissors, Box, Receipt, BarChart2,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
@@ -18,11 +18,13 @@ export const useSidebar = () => useContext(SidebarCtx);
 // Все пункты — для полноэкранного мобильного меню
 const navItems = [
   { href: "/dashboard",  label: "Главная",     mobileLabel: "Главная",  icon: LayoutDashboard },
-  { href: "/requests",   label: "Заявки",        mobileLabel: "Заявки",   icon: ClipboardList },
-  { href: "/tasks",      label: "Задачи",         mobileLabel: "Задачи",   icon: CheckSquare },
-  { href: "/clients",    label: "Контрагенты",   mobileLabel: "Клиенты",  icon: Users },
-  { href: "/offers",     label: "КП",             mobileLabel: "КП",       icon: FileText },
-  { href: "/calculator", label: "Калькулятор",   mobileLabel: "Калькул.", icon: Calculator },
+  { href: "/requests",   label: "Заявки",       mobileLabel: "Заявки",   icon: ClipboardList },
+  { href: "/tasks",      label: "Задачи",        mobileLabel: "Задачи",   icon: CheckSquare },
+  { href: "/clients",    label: "Контрагенты",  mobileLabel: "Клиенты",  icon: Users },
+  { href: "/offers",     label: "КП",            mobileLabel: "КП",       icon: FileText },
+  { href: "/invoices",   label: "Счета",         mobileLabel: "Счета",    icon: Receipt },
+  { href: "/analytics",  label: "Аналитика",    mobileLabel: "Аналит.",  icon: BarChart2 },
+  { href: "/calculator", label: "Калькулятор",  mobileLabel: "Калькул.", icon: Calculator },
 ];
 
 // Только 4 пункта — для боттом-бара

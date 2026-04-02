@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, formatCurrency } from "@/lib/utils";
+import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
 import { Plus, Search, Trash2, Eye, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -136,9 +136,16 @@ export default function RequestsPage() {
                     </TableCell>
                     <TableCell className="text-gray-600">{r.client?.name}</TableCell>
                     <TableCell>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${REQUEST_STATUS_COLORS[r.status]}`}>
-                        {REQUEST_STATUS_LABELS[r.status]}
-                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${REQUEST_STATUS_COLORS[r.status]}`}>
+                          {REQUEST_STATUS_LABELS[r.status]}
+                        </span>
+                        {r.paymentStatus && r.paymentStatus !== "NONE" && (
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_COLORS[r.paymentStatus]}`}>
+                            {PAYMENT_STATUS_LABELS[r.paymentStatus]}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_COLORS[r.priority]}`}>
