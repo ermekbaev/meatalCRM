@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
-import { Plus, Search, Trash2, Eye, Download } from "lucide-react";
+import { Plus, Search, Trash2, Eye, Download, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 
 export default function RequestsPage() {
@@ -19,6 +19,7 @@ export default function RequestsPage() {
   const [priority, setPriority] = useState("ALL");
   const [paymentStatus, setPaymentStatus] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -34,6 +35,17 @@ export default function RequestsPage() {
   }, [search, status, priority, paymentStatus]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  const handlePaymentChange = async (id: string, value: string) => {
+    setUpdatingPayment(id);
+    await fetch(`/api/requests/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentStatus: value }),
+    });
+    setRequests((prev) => prev.map((r) => r.id === id ? { ...r, paymentStatus: value } : r));
+    setUpdatingPayment(null);
+  };
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/requests/${id}`, { method: "DELETE" });
@@ -123,6 +135,7 @@ export default function RequestsPage() {
                 <TableHead>Название</TableHead>
                 <TableHead>Клиент</TableHead>
                 <TableHead>Статус</TableHead>
+                <TableHead>Оплата</TableHead>
                 <TableHead>Приоритет</TableHead>
                 <TableHead>Сумма</TableHead>
                 <TableHead>Ответственный</TableHead>
@@ -132,9 +145,9 @@ export default function RequestsPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
               ) : requests.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
+                <TableRow><TableCell colSpan={10} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
               ) : (
                 requests.map((r) => (
                   <TableRow key={r.id}>
@@ -149,16 +162,25 @@ export default function RequestsPage() {
                     </TableCell>
                     <TableCell className="text-gray-600">{r.client?.name}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${REQUEST_STATUS_COLORS[r.status]}`}>
-                          {REQUEST_STATUS_LABELS[r.status]}
-                        </span>
-                        {r.paymentStatus && r.paymentStatus !== "NONE" && (
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${PAYMENT_STATUS_COLORS[r.paymentStatus]}`}>
-                            {PAYMENT_STATUS_LABELS[r.paymentStatus]}
-                          </span>
-                        )}
-                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${REQUEST_STATUS_COLORS[r.status]}`}>
+                        {REQUEST_STATUS_LABELS[r.status]}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {updatingPayment === r.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                      ) : (
+                        <Select value={r.paymentStatus ?? "NONE"} onValueChange={(v) => handlePaymentChange(r.id, v)}>
+                          <SelectTrigger className={`h-7 w-36 text-xs border-0 shadow-none px-2.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[r.paymentStatus] || "bg-gray-100 text-gray-500"}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => (
+                              <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </TableCell>
                     <TableCell>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_COLORS[r.priority]}`}>
