@@ -17,6 +17,7 @@ export default function RequestsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
   const [priority, setPriority] = useState("ALL");
+  const [paymentStatus, setPaymentStatus] = useState("ALL");
   const [loading, setLoading] = useState(true);
 
   const fetchRequests = useCallback(async () => {
@@ -25,11 +26,12 @@ export default function RequestsPage() {
     if (search) params.set("search", search);
     if (status && status !== "ALL") params.set("status", status);
     if (priority && priority !== "ALL") params.set("priority", priority);
+    if (paymentStatus && paymentStatus !== "ALL") params.set("paymentStatus", paymentStatus);
     const res = await fetch(`/api/requests?${params}`);
     const data = await res.json();
     setRequests(data);
     setLoading(false);
-  }, [search, status, priority]);
+  }, [search, status, priority, paymentStatus]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
@@ -88,6 +90,17 @@ export default function RequestsPage() {
             <SelectContent>
               <SelectItem value="ALL">Все приоритеты</SelectItem>
               {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Оплата" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Вся оплата</SelectItem>
+              {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => (
                 <SelectItem key={k} value={k}>{v}</SelectItem>
               ))}
             </SelectContent>

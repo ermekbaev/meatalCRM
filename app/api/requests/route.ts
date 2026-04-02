@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") ?? "";
   const status = searchParams.get("status") ?? "";
   const priority = searchParams.get("priority") ?? "";
+  const paymentStatus = searchParams.get("paymentStatus") ?? "";
   const clientId = searchParams.get("clientId") ?? "";
   const minimal = searchParams.get("minimal") === "true";
 
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
         } : {},
         status ? { status: status as any } : {},
         priority ? { priority: priority as any } : {},
+        paymentStatus ? { paymentStatus: paymentStatus as any } : {},
         clientId ? { clientId } : {},
       ],
     },
