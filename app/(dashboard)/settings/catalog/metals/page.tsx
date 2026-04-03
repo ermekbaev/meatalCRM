@@ -14,7 +14,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Pencil, Loader2, Upload } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Upload, Download } from "lucide-react";
+import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import { ALL_METAL_ENTRIES } from "@/lib/metalReferenceData";
@@ -105,6 +106,48 @@ export default function MetalsReferencePage() {
     fetchItems();
   };
 
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleExport() {
+    const res = await fetch("/api/catalog/export");
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `catalog-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const res = await fetch("/api/catalog/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(json),
+      });
+      const result = await res.json();
+      if (result.errors?.length) {
+        alert("Импорт завершён с ошибками:\n" + result.errors.join("\n"));
+      } else {
+        alert(`Импорт успешен: резка — ${result.imported.cutting} диапазонов, гибка — ${result.imported.bending}, металлы — ${result.imported.metals}`);
+      }
+      await fetchItems();
+    } catch {
+      alert("Ошибка: не удалось прочитать файл");
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
+  }
+
   const seedFromGost = async () => {
     setSeeding(true);
     for (const entry of ALL_METAL_ENTRIES) {
@@ -156,6 +199,15 @@ export default function MetalsReferencePage() {
                   Загрузить ГОСТ данные
                 </Button>
               )}
+              <Button size="sm" variant="outline" onClick={handleExport}>
+                <Download className="h-4 w-4 mr-1.5" />
+                Экспорт
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => importInputRef.current?.click()} disabled={importing}>
+                {importing ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Upload className="h-4 w-4 mr-1.5" />}
+                Импорт
+              </Button>
+              <input ref={importInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
               <Button size="sm" onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-2" />
                 Добавить
