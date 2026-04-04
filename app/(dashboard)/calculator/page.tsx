@@ -1269,7 +1269,7 @@ function CuttingCalculator() {
 
   // Suggest price from DB based on metal, thickness, and total cut length (in meters)
   const totalLengthM =
-    ((parseFloat(cutLength) || 0) / 1000) * (parseInt(quantity) || 1);
+    (parseFloat(cutLength) || 0) * (parseInt(quantity) || 1);
 
   const suggestedPrice = useMemo(() => {
     const t = parseFloat(thickness);
@@ -1297,7 +1297,7 @@ function CuttingCalculator() {
     const q = parseInt(quantity) || 1;
     const cpm = parseFloat(costPerMeter) || 0;
     if (!l) return;
-    const totalLength = (l / 1000) * q;
+    const totalLength = l * q;
     const totalCost = totalLength * cpm;
     setResult({ totalLength, totalCost });
   }
@@ -1415,16 +1415,17 @@ function CuttingCalculator() {
           )}
 
           <div className="space-y-2">
-            <Label>Длина реза, мм</Label>
+            <Label>Длина реза, м</Label>
             <Input
               type="number"
               min="0"
+              step="0.01"
               value={cutLength}
               onChange={(e) => {
                 setCutLength(e.target.value);
                 setResult(null);
               }}
-              placeholder="напр. 5000"
+              placeholder="напр. 5"
             />
           </div>
 
@@ -1492,7 +1493,7 @@ function CuttingCalculator() {
                 )}
                 <ResultRow
                   label="Длина реза (1 дет.)"
-                  value={`${formatNum(parseFloat(cutLength) / 1000)} м`}
+                  value={`${formatNum(parseFloat(cutLength))} м`}
                 />
                 <ResultRow label="Кол-во деталей" value={`${quantity} шт`} />
                 <ResultRow
