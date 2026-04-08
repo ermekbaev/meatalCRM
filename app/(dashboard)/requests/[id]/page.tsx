@@ -108,15 +108,17 @@ export default function RequestDetailPage() {
   }, [fetchRequest, fetchFiles]);
 
   const uploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const fileList = Array.from(e.target.files ?? []);
+    if (!fileList.length) return;
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    await fetch(`/api/requests/${params.id}/files`, {
-      method: "POST",
-      body: fd,
-    });
+    for (const file of fileList) {
+      const fd = new FormData();
+      fd.append("file", file);
+      await fetch(`/api/requests/${params.id}/files`, {
+        method: "POST",
+        body: fd,
+      });
+    }
     await fetchFiles();
     setUploading(false);
     e.target.value = "";
@@ -737,6 +739,7 @@ export default function RequestDetailPage() {
                 <label className="cursor-pointer">
                   <input
                     type="file"
+                    multiple
                     className="hidden"
                     accept="image/*,.pdf,.dxf,.rar,.zip,.doc,.docx,.xls,.xlsx"
                     onChange={uploadFile}
