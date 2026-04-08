@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       ],
     },
     include: {
-      client: { select: { id: true, name: true, type: true } },
+      client: { select: { id: true, name: true, shortName: true, type: true } },
       assignee: { select: { id: true, name: true } },
       _count: { select: { comments: true } },
     },
