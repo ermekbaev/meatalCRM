@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS, OFFER_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
-import { ArrowLeft, FileDown, Loader2, Building2 } from "lucide-react";
+import { ArrowLeft, FileDown, Loader2, Building2, Clipboard, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 
 export default function OfferDetailPage() {
@@ -36,6 +36,7 @@ export default function OfferDetailPage() {
   };
 
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [company, setCompany] = useState<any>(null);
 
   useEffect(() => {
@@ -48,6 +49,35 @@ export default function OfferDetailPage() {
     const { generateOfferPDF } = await import("@/lib/pdf");
     await generateOfferPDF(offer, company);
     setExportingPDF(false);
+  };
+
+  const handleCopyText = () => {
+    if (!offer) return;
+    const num = offer.numberOverride ?? `#${offer.number}`;
+    const date = new Date(offer.createdAt).toLocaleDateString("ru");
+    const client = offer.request?.client ? (offer.request.client.shortName || offer.request.client.name) : offer.client ? (offer.client.shortName || offer.client.name) : null;
+    const subtotal = offer.items.reduce((s: number, i: any) => s + i.total, 0);
+    const afterDiscount = offer.discount > 0 ? subtotal * (1 - offer.discount / 100) : subtotal;
+    const vatAmount = offer.vatRate > 0 ? afterDiscount * (offer.vatRate / 100) : 0;
+    const total = afterDiscount + vatAmount;
+
+    const lines: string[] = [];
+    lines.push(`КП ${num} от ${date}`);
+    if (client) lines.push(`Клиент: ${client}`);
+    lines.push("");
+    offer.items.forEach((item: any) => {
+      lines.push(`${item.service}  ${item.quantity} ${item.unit}  Цена: ${item.price.toLocaleString("ru")}  Сумма: ${item.total.toLocaleString("ru")}`);
+    });
+    lines.push("");
+    if (offer.discount > 0) lines.push(`Скидка: ${offer.discount}%`);
+    if (offer.vatRate > 0) lines.push(`НДС ${offer.vatRate}%: ${vatAmount.toLocaleString("ru")} руб.`);
+    lines.push(`Итого: ${total.toLocaleString("ru")} руб.`);
+    if (offer.notes) { lines.push(""); lines.push(offer.notes); }
+
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   if (loading) {
@@ -76,6 +106,10 @@ export default function OfferDetailPage() {
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
           </Link>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCopyText}>
+              {copied ? <ClipboardCheck className="mr-2 h-4 w-4 text-green-500" /> : <Clipboard className="mr-2 h-4 w-4" />}
+              {copied ? "Скопировано!" : "Скопировать текст"}
+            </Button>
             <Button variant="outline" onClick={handleExportPDF} disabled={exportingPDF}>
               {exportingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
               Скачать PDF

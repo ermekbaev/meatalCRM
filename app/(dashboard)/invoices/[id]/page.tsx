@@ -5,7 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Download, Loader2, Trash2, Plus, Pencil, Check, X } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Trash2, Plus, Pencil, Check, X, Clipboard, ClipboardCheck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ export default function InvoiceDetailPage() {
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -48,6 +49,32 @@ export default function InvoiceDetailPage() {
     } finally {
       setExportingPDF(false);
     }
+  };
+
+  const handleCopyText = () => {
+    if (!invoice) return;
+    const num = invoice.numberOverride ?? invoice.number;
+    const date = new Date(invoice.date ?? invoice.createdAt).toLocaleDateString("ru");
+    const clientName = invoice.client ? (invoice.client.shortName || invoice.client.name) : null;
+    const subtotal = items.reduce((s: number, i: any) => s + (parseFloat(i.total) || 0), 0);
+    const vatAmount = invoice.vatRate > 0 ? subtotal * (invoice.vatRate / 100) : 0;
+    const total = subtotal + vatAmount;
+
+    const lines: string[] = [];
+    lines.push(`Счёт №${num} от ${date}`);
+    if (clientName) lines.push(`Клиент: ${clientName}`);
+    lines.push("");
+    items.forEach((item: any) => {
+      lines.push(`${item.name}  ${item.quantity} ${item.unit}  Цена: ${Number(item.price).toLocaleString("ru")}  Сумма: ${Number(item.total).toLocaleString("ru")}`);
+    });
+    lines.push("");
+    if (invoice.vatRate > 0) lines.push(`НДС ${invoice.vatRate}%: ${vatAmount.toLocaleString("ru")} руб.`);
+    lines.push(`Итого: ${total.toLocaleString("ru")} руб.`);
+
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const handleDelete = async () => {
@@ -108,6 +135,10 @@ export default function InvoiceDetailPage() {
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
           </Link>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleCopyText}>
+              {copied ? <ClipboardCheck className="mr-2 h-4 w-4 text-green-500" /> : <Clipboard className="mr-2 h-4 w-4" />}
+              {copied ? "Скопировано!" : "Скопировать текст"}
+            </Button>
             <Button onClick={handleExportPDF} disabled={exportingPDF} variant="outline">
               {exportingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
               Скачать PDF
