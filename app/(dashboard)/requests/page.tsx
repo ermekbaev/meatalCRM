@@ -56,7 +56,7 @@ export default function RequestsPage() {
     const rows = requests.map((r) => ({
       "№": r.number,
       "Название": r.title,
-      "Клиент": r.client?.shortName || r.client?.name ?? "",
+      "Клиент": (r.client?.shortName || r.client?.name) ?? "",
       "Статус": REQUEST_STATUS_LABELS[r.status],
       "Приоритет": PRIORITY_LABELS[r.priority],
       "Сумма": r.amount ?? "",
