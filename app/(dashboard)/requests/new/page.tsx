@@ -563,6 +563,7 @@ export default function NewRequestPage() {
                     type="file"
                     multiple
                     className="hidden"
+                    accept="image/*,.pdf,.dxf,.rar,.zip,.doc,.docx,.xls,.xlsx"
                     onChange={(e) => {
                       const files = Array.from(e.target.files ?? []);
                       setPendingFiles((prev) => [...prev, ...files]);

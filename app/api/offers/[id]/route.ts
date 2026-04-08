@@ -26,7 +26,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const { items, ...data } = await req.json();
+  const body = await req.json();
+  const { items } = body;
+
+  const data = {
+    status: body.status,
+    discount: body.discount,
+    total: body.total,
+    notes: body.notes ?? null,
+    validUntil: body.validUntil ?? null,
+    requestId: body.requestId ?? null,
+    clientId: body.clientId ?? null,
+    numberOverride: body.numberOverride ?? null,
+    vatRate: body.vatRate,
+  };
 
   const offer = await prisma.$transaction(async (tx) => {
     await tx.offerItem.deleteMany({ where: { offerId: id } });

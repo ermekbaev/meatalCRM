@@ -41,10 +41,23 @@ import {
   FileText,
   Download,
   BookOpen,
+  Archive,
+  File,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
+
+function getFileIcon(mimeType?: string, fileName?: string) {
+  const ext = fileName?.split(".").pop()?.toLowerCase();
+  if (ext === "dxf") return <File className="h-4 w-4 shrink-0 text-purple-400" />;
+  if (ext === "rar" || ext === "zip") return <Archive className="h-4 w-4 shrink-0 text-yellow-500" />;
+  if (!mimeType) return <FileText className="h-4 w-4 shrink-0 text-slate-400" />;
+  if (mimeType.startsWith("image/")) return <FileText className="h-4 w-4 shrink-0 text-blue-400" />;
+  if (mimeType === "application/pdf") return <FileText className="h-4 w-4 shrink-0 text-red-400" />;
+  if (mimeType === "application/zip" || mimeType === "application/x-zip-compressed" || mimeType === "application/vnd.rar" || mimeType === "application/x-rar-compressed") return <Archive className="h-4 w-4 shrink-0 text-yellow-500" />;
+  return <FileText className="h-4 w-4 shrink-0 text-slate-400" />;
+}
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -725,6 +738,7 @@ export default function RequestDetailPage() {
                   <input
                     type="file"
                     className="hidden"
+                    accept="image/*,.pdf,.dxf,.rar,.zip,.doc,.docx,.xls,.xlsx"
                     onChange={uploadFile}
                     disabled={uploading}
                   />
@@ -750,7 +764,7 @@ export default function RequestDetailPage() {
                         key={f.id}
                         className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
                       >
-                        <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+                        {getFileIcon(f.mimeType, f.originalName)}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-slate-700">
                             {f.originalName}

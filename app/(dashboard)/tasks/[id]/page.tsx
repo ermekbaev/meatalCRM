@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TASK_STATUS_LABELS, TASK_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, formatDateTime } from "@/lib/utils";
 import {
   ArrowLeft, Send, Loader2, Clock, Paperclip, Trash2,
-  FileText, Download, Plus, CheckSquare, Tag, X, Check
+  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File
 } from "lucide-react";
 import Link from "next/link";
 
@@ -25,10 +25,14 @@ function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
 }
 
-function getFileIcon(mimeType?: string) {
+function getFileIcon(mimeType?: string, fileName?: string) {
+  const ext = fileName?.split(".").pop()?.toLowerCase();
+  if (ext === "dxf") return <File className="h-4 w-4 text-purple-400" />;
+  if (ext === "rar" || ext === "zip") return <Archive className="h-4 w-4 text-yellow-500" />;
   if (!mimeType) return <FileText className="h-4 w-4 text-gray-400" />;
   if (mimeType.startsWith("image/")) return <FileText className="h-4 w-4 text-blue-400" />;
   if (mimeType === "application/pdf") return <FileText className="h-4 w-4 text-red-400" />;
+  if (mimeType === "application/zip" || mimeType === "application/x-zip-compressed" || mimeType === "application/vnd.rar" || mimeType === "application/x-rar-compressed") return <Archive className="h-4 w-4 text-yellow-500" />;
   return <FileText className="h-4 w-4 text-gray-400" />;
 }
 
@@ -395,6 +399,7 @@ export default function TaskDetailPage() {
                     ref={fileInputRef}
                     type="file"
                     className="hidden"
+                    accept="image/*,.pdf,.dxf,.rar,.zip,.doc,.docx,.xls,.xlsx"
                     onChange={(e) => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ""; }}
                   />
                 </div>
@@ -406,7 +411,7 @@ export default function TaskDetailPage() {
                 <div className="space-y-2">
                   {task.files?.map((file: any) => (
                     <div key={file.id} className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-2 group hover:bg-gray-50">
-                      {getFileIcon(file.mimeType)}
+                      {getFileIcon(file.mimeType, file.originalName)}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{file.originalName}</p>
                         <p className="text-xs text-gray-400">
