@@ -41,11 +41,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     vatRate: body.vatRate,
   };
 
+  const cleanItems = (items ?? []).map(({ id: _id, offerId: _offerId, ...item }: any) => item);
+
   const offer = await prisma.$transaction(async (tx) => {
     await tx.offerItem.deleteMany({ where: { offerId: id } });
     return tx.commercialOffer.update({
       where: { id },
-      data: { ...data, items: { create: items } },
+      data: { ...data, items: { create: cleanItems } },
       include: { items: true, request: { include: { client: true } }, createdBy: true },
     });
   });
