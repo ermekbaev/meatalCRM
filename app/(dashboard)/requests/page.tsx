@@ -56,7 +56,7 @@ export default function RequestsPage() {
     const rows = requests.map((r) => ({
       "№": r.number,
       "Название": r.title,
-      "Клиент": r.client?.name ?? "",
+      "Клиент": r.client?.shortName || r.client?.name ?? "",
       "Статус": REQUEST_STATUS_LABELS[r.status],
       "Приоритет": PRIORITY_LABELS[r.priority],
       "Сумма": r.amount ?? "",
@@ -160,7 +160,7 @@ export default function RequestsPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-gray-600">{r.client?.name}</TableCell>
+                    <TableCell className="text-gray-600">{r.client?.shortName || r.client?.name}</TableCell>
                     <TableCell>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${REQUEST_STATUS_COLORS[r.status]}`}>
                         {REQUEST_STATUS_LABELS[r.status]}

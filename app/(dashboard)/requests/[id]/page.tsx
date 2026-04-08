@@ -287,7 +287,7 @@ export default function RequestDetailPage() {
                         href={`/clients/${request.client?.id}`}
                         className="text-blue-600 hover:underline"
                       >
-                        {request.client?.name}
+                        {request.client?.shortName || request.client?.name}
                       </Link>
                     </p>
                   </div>
