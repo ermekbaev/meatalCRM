@@ -151,7 +151,7 @@ export default function OffersPage() {
                         )}
                         {o.request?.client && (
                           <p className="text-xs text-gray-500">
-                            {o.request.client.name}
+                            {o.request.client.shortName || o.request.client.name}
                           </p>
                         )}
                       </div>

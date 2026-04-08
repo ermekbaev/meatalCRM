@@ -163,7 +163,7 @@ function TaskCard({ task, onDelete }: { task: any; onDelete: (id: string) => voi
           <p>👤 {task.assignee.name}</p>
         )}
         {task.client && (
-          <p>🏢 {task.client.name}</p>
+          <p>🏢 {task.client.shortName || task.client.name}</p>
         )}
         {task.dueDate && (
           <p className={new Date(task.dueDate) < new Date() && task.status !== "DONE" ? "text-red-500" : ""}>

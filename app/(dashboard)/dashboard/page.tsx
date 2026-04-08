@@ -142,7 +142,7 @@ export default async function DashboardPage({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-medium text-slate-800">{req.title}</p>
-                    <p className="truncate text-[11px] text-slate-400">{req.client.name}</p>
+                    <p className="truncate text-[11px] text-slate-400">{req.client.shortName || req.client.name}</p>
                   </div>
                   <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${REQUEST_STATUS_COLORS[req.status]}`}>
                     {REQUEST_STATUS_LABELS[req.status]}

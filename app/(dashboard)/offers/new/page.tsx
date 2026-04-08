@@ -139,7 +139,7 @@ export default function NewOfferPage() {
   const selectClient = (client: any) => {
     setSelectedClientId(client.id);
     setClientInfo(client);
-    setClientQuery(client.name);
+    setClientQuery(client.shortName || client.name);
     setClientResults([]);
     setShowClientDropdown(false);
     // Сбрасываем привязку к заявке при прямом выборе контрагента
@@ -364,7 +364,7 @@ export default function NewOfferPage() {
                               >
                                 <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm text-slate-800">{c.name}</p>
+                                  <p className="truncate text-sm text-slate-800">{c.shortName || c.name}</p>
                                   {c.inn && <p className="text-[11px] text-slate-400">ИНН {c.inn}</p>}
                                 </div>
                               </button>

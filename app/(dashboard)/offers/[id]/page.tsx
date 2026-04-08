@@ -99,7 +99,7 @@ export default function OfferDetailPage() {
                     )}
                     {offer.request?.client && (
                       <p className="text-sm text-gray-500">
-                        Клиент: <Link href={`/clients/${offer.request.client.id}`} className="text-blue-600 hover:underline">{offer.request.client.name}</Link>
+                        Клиент: <Link href={`/clients/${offer.request.client.id}`} className="text-blue-600 hover:underline">{offer.request.client.shortName || offer.request.client.name}</Link>
                       </p>
                     )}
                     <p className="mt-2 text-sm text-gray-400">Создано: {formatDate(offer.createdAt)} · {offer.createdBy?.name}</p>
@@ -119,7 +119,7 @@ export default function OfferDetailPage() {
                       <Building2 className="h-3.5 w-3.5" />
                       Реквизиты контрагента
                     </div>
-                    <p className="text-sm font-medium text-slate-800">{offer.request.client.name}</p>
+                    <p className="text-sm font-medium text-slate-800">{offer.request.client.shortName || offer.request.client.name}</p>
                     {(offer.request.client.inn || offer.request.client.kpp) && (
                       <div className="flex gap-6 text-xs text-slate-500">
                         {offer.request.client.inn && <span>ИНН: <span className="font-mono text-slate-700">{offer.request.client.inn}</span></span>}

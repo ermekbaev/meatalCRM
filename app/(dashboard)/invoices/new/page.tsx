@@ -71,7 +71,7 @@ function NewInvoiceForm() {
   useEffect(() => {
     if (clientId && allClients.length > 0) {
       const client = allClients.find((c) => c.id === clientId);
-      if (client && clientQuery !== client.name) setClientQuery(client.name);
+      if (client && clientQuery !== (client.shortName || client.name)) setClientQuery(client.shortName || client.name);
     }
   }, [clientId, allClients]);
 
@@ -97,7 +97,7 @@ function NewInvoiceForm() {
 
   const selectClient = (client: any) => {
     setClientId(client.id);
-    setClientQuery(client.name);
+    setClientQuery(client.shortName || client.name);
     setShowClientDropdown(false);
     setSelectedRequestId(""); // сбрасываем заявку при смене контрагента
   };
@@ -209,7 +209,7 @@ function NewInvoiceForm() {
                           >
                             <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                             <div className="min-w-0">
-                              <p className="truncate text-sm text-slate-800">{c.name}</p>
+                              <p className="truncate text-sm text-slate-800">{c.shortName || c.name}</p>
                               {c.inn && <p className="text-[11px] text-slate-400">ИНН {c.inn}</p>}
                             </div>
                           </button>

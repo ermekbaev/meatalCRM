@@ -96,7 +96,7 @@ export default function ClientsPage() {
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full text-white text-xs font-medium ${c.type === "COMPANY" ? "bg-blue-500" : "bg-green-500"}`}>
                           {c.type === "COMPANY" ? <Building2 className="h-4 w-4" /> : <User className="h-4 w-4" />}
                         </div>
-                        <span className="font-medium text-gray-900">{c.name}</span>
+                        <span className="font-medium text-gray-900">{c.shortName || c.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>

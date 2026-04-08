@@ -283,7 +283,7 @@ export default function TaskDetailPage() {
                       <p className="mt-1 text-sm text-gray-500">
                         Контрагент:{" "}
                         <Link href={`/clients/${task.client.id}`} className="text-blue-600 hover:underline">
-                          {task.client.name}
+                          {task.client.shortName || task.client.name}
                         </Link>
                       </p>
                     )}

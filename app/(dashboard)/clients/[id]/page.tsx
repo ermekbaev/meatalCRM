@@ -38,7 +38,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div>
-      <Header title={client.name} />
+      <Header title={client.shortName || client.name} />
       <div className="p-6 space-y-5">
         <div>
           <Link href="/clients">
@@ -59,9 +59,9 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                     {client.type === "COMPANY" ? <Building2 className="h-5 w-5" /> : <User className="h-5 w-5" />}
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-800 leading-tight">{client.name}</p>
+                    <p className="font-semibold text-slate-800 leading-tight">{client.shortName || client.name}</p>
                     {client.shortName && client.shortName !== client.name && (
-                      <p className="text-xs text-slate-400 mt-0.5">{client.shortName}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{client.name}</p>
                     )}
                     <Badge variant="secondary" className="mt-1 text-[10px]">{CLIENT_TYPE_LABELS[client.type]}</Badge>
                   </div>
