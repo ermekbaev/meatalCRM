@@ -70,6 +70,10 @@ export default function TaskDetailPage() {
   const [newCheckItem, setNewCheckItem] = useState("");
   const [addingCheck, setAddingCheck] = useState(false);
 
+  // Редактирование заголовка
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState("");
+
   // Упоминания
   const [mentionQuery, setMentionQuery] = useState("");
   const [showMentions, setShowMentions] = useState(false);
@@ -278,7 +282,24 @@ export default function TaskDetailPage() {
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <h2 className="text-xl font-semibold text-gray-900">{task.title}</h2>
+                    {editingTitle ? (
+                      <input
+                        autoFocus
+                        className="w-full text-xl font-semibold text-gray-900 border-b border-orange-400 outline-none bg-transparent"
+                        value={titleValue}
+                        onChange={(e) => setTitleValue(e.target.value)}
+                        onBlur={() => { setEditingTitle(false); if (titleValue.trim() && titleValue !== task.title) updateField("title", titleValue.trim()); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); } if (e.key === "Escape") { setEditingTitle(false); setTitleValue(task.title); } }}
+                      />
+                    ) : (
+                      <h2
+                        className="text-xl font-semibold text-gray-900 cursor-pointer hover:text-orange-600 transition-colors"
+                        onClick={() => { setTitleValue(task.title); setEditingTitle(true); }}
+                        title="Нажмите для редактирования"
+                      >
+                        {task.title}
+                      </h2>
+                    )}
                     {task.client && (
                       <p className="mt-1 text-sm text-gray-500">
                         Контрагент:{" "}
