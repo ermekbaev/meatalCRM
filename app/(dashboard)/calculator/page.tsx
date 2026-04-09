@@ -151,12 +151,12 @@ const CUT_TYPES = [
   { id: "mech", label: "Механическая резка" },
 ];
 
-const BENDING_METALS = [
-  "Сталь",
-  "Нержавеющая сталь",
-  "Алюминий",
-  "Медь",
-  "Латунь",
+const BENDING_MATERIAL_OPTIONS = [
+  { id: "hot-rolled",  label: "Г/К сталь" },
+  { id: "cold-rolled", label: "Х/К сталь" },
+  { id: "galvanized",  label: "Оцинковка" },
+  { id: "stainless",   label: "Нержавейка" },
+  { id: "aluminum",    label: "Алюминий" },
 ];
 
 function formatNum(n: number, decimals = 2) {
@@ -1575,15 +1575,42 @@ function CuttingCalculator() {
 
 // ─── Таб: Гибка ──────────────────────────────────────────────────────────────
 function BendingCalculator() {
-  const [metal, setMetal] = useState("Сталь");
+  const [metalType, setMetalType] = useState("hot-rolled");
   const [thickness, setThickness] = useState("");
   const [bendCount, setBendCount] = useState("");
   const [quantity, setQuantity] = useState("1");
-  const [pricePerBend, setPricePerBend] = useState("50");
+  const [pricePerBend, setPricePerBend] = useState("");
+  const [catalogEntries, setCatalogEntries] = useState<any[]>([]);
   const [result, setResult] = useState<{
     costPerPart: number;
     totalCost: number;
   } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/catalog/bending")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setCatalogEntries);
+  }, []);
+
+  const availableThicknesses = useMemo(() =>
+    [...new Set(
+      catalogEntries.filter((e) => e.materialId === metalType).map((e) => e.thickness)
+    )].sort((a, b) => a - b),
+    [catalogEntries, metalType],
+  );
+
+  const hasDbData = availableThicknesses.length > 0;
+
+  const suggestedPrice = useMemo(() => {
+    const t = parseFloat(thickness);
+    if (!t) return null;
+    return catalogEntries.find((e) => e.materialId === metalType && e.thickness === t)?.price ?? null;
+  }, [catalogEntries, metalType, thickness]);
+
+  // Автозаполнение цены из каталога
+  useEffect(() => {
+    if (suggestedPrice != null) setPricePerBend(String(suggestedPrice));
+  }, [suggestedPrice]);
 
   function calculate() {
     const bc = parseInt(bendCount) || 0;
@@ -1602,41 +1629,58 @@ function BendingCalculator() {
           <CardTitle className="text-base">Параметры</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Материал</Label>
-            <Select
-              value={metal}
-              onValueChange={(v) => {
-                setMetal(v);
-                setResult(null);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {BENDING_METALS.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Материал</Label>
+              <Select
+                value={metalType}
+                onValueChange={(v) => {
+                  setMetalType(v);
+                  setThickness("");
+                  setPricePerBend("");
+                  setResult(null);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BENDING_MATERIAL_OPTIONS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label>Толщина, мм</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.1"
-              value={thickness}
-              onChange={(e) => {
-                setThickness(e.target.value);
-                setResult(null);
-              }}
-              placeholder="напр. 2"
-            />
+            <div className="space-y-2">
+              <Label>Толщина, мм</Label>
+              {hasDbData ? (
+                <Select
+                  value={thickness}
+                  onValueChange={(v) => { setThickness(v); setResult(null); }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выбрать" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableThicknesses.map((t) => (
+                      <SelectItem key={t} value={String(t)}>{t} мм</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={thickness}
+                  onChange={(e) => { setThickness(e.target.value); setResult(null); }}
+                  placeholder="напр. 2"
+                />
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -1646,10 +1690,7 @@ function BendingCalculator() {
                 type="number"
                 min="0"
                 value={bendCount}
-                onChange={(e) => {
-                  setBendCount(e.target.value);
-                  setResult(null);
-                }}
+                onChange={(e) => { setBendCount(e.target.value); setResult(null); }}
                 placeholder="напр. 4"
               />
             </div>
@@ -1659,24 +1700,24 @@ function BendingCalculator() {
                 type="number"
                 min="1"
                 value={quantity}
-                onChange={(e) => {
-                  setQuantity(e.target.value);
-                  setResult(null);
-                }}
+                onChange={(e) => { setQuantity(e.target.value); setResult(null); }}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Цена за гиб, ₽</Label>
+            <Label className="flex items-center gap-1.5">
+              Цена за гиб, ₽
+              {suggestedPrice != null && (
+                <span className="text-xs text-green-600 font-normal">— из каталога</span>
+              )}
+            </Label>
             <Input
               type="number"
               min="0"
               value={pricePerBend}
-              onChange={(e) => {
-                setPricePerBend(e.target.value);
-                setResult(null);
-              }}
+              onChange={(e) => { setPricePerBend(e.target.value); setResult(null); }}
+              placeholder={hasDbData ? "Выберите толщину" : "напр. 50"}
             />
           </div>
 
@@ -1698,7 +1739,7 @@ function BendingCalculator() {
           ) : (
             <div className="space-y-3">
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-3">
-                <ResultRow label="Материал" value={metal} />
+                <ResultRow label="Материал" value={BENDING_MATERIAL_OPTIONS.find((m) => m.id === metalType)?.label ?? metalType} />
                 {thickness && (
                   <ResultRow label="Толщина" value={`${thickness} мм`} />
                 )}
