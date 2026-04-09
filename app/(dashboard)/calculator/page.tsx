@@ -282,7 +282,7 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
   const [length, setLength] = useState(initSize.length);
   const [useCustomSize, setUseCustomSize] = useState(false);
   const [quantity, setQuantity] = useState("1");
-  const [pricePerTon, setPricePerTon] = useState("78000");
+  const [pricePerTon, setPricePerTon] = useState("");
   const [markupType, setMarkupType] = useState<"percent" | "fixed">("percent");
   const [markupValue, setMarkupValue] = useState("");
   const [weightMode, setWeightMode] = useState<"auto" | "invoice">("auto");
