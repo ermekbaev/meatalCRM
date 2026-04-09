@@ -44,7 +44,34 @@ export default function MetalsReferencePage() {
   const [editItem, setEditItem] = useState<any>(null);
   const [seeding, setSeeding] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<FormData>();
+  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting } } = useForm<FormData>();
+
+  const watchedWidth = watch("width");
+  const watchedLength = watch("length");
+  const watchedSheetMass = watch("sheetMass");
+  const watchedMassPerSqM = watch("massPerSqM");
+
+  // Автовычисление кг/м² при изменении массы листа
+  useEffect(() => {
+    const w = parseFloat(watchedWidth);
+    const l = parseFloat(watchedLength);
+    const m = parseFloat(watchedSheetMass);
+    if (w > 0 && l > 0 && m > 0) {
+      const area = (w / 1000) * (l / 1000);
+      setValue("massPerSqM", String(parseFloat((m / area).toFixed(4))), { shouldDirty: false });
+    }
+  }, [watchedSheetMass, watchedWidth, watchedLength, setValue]);
+
+  // Автовычисление массы листа при изменении кг/м²
+  useEffect(() => {
+    const w = parseFloat(watchedWidth);
+    const l = parseFloat(watchedLength);
+    const mpsm = parseFloat(watchedMassPerSqM);
+    if (w > 0 && l > 0 && mpsm > 0 && !watchedSheetMass) {
+      const area = (w / 1000) * (l / 1000);
+      setValue("sheetMass", String(parseFloat((mpsm * area).toFixed(2))), { shouldDirty: false });
+    }
+  }, [watchedMassPerSqM, watchedWidth, watchedLength, watchedSheetMass, setValue]);
 
   const fetchItems = async () => {
     setLoading(true);
@@ -84,18 +111,23 @@ export default function MetalsReferencePage() {
       massPerSqM: parseFloat(data.massPerSqM),
       sheetMass: parseFloat(data.sheetMass),
     };
+    let res: Response;
     if (editItem) {
-      await fetch(`/api/catalog/metals/${editItem.id}`, {
+      res = await fetch(`/api/catalog/metals/${editItem.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
     } else {
-      await fetch("/api/catalog/metals", {
+      res = await fetch("/api/catalog/metals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+    }
+    if (!res.ok) {
+      alert("Ошибка при сохранении записи");
+      return;
     }
     setDialogOpen(false);
     fetchItems();
@@ -305,10 +337,6 @@ export default function MetalsReferencePage() {
                 <Input {...register("thickness", { required: true })} placeholder="4.0" type="number" step="0.1" />
               </div>
               <div className="space-y-1.5">
-                <Label>кг/м²</Label>
-                <Input {...register("massPerSqM", { required: true })} placeholder="31.4" type="number" step="0.001" />
-              </div>
-              <div className="space-y-1.5">
                 <Label>Ширина, мм</Label>
                 <Input {...register("width", { required: true })} placeholder="1500" type="number" />
               </div>
@@ -319,6 +347,13 @@ export default function MetalsReferencePage() {
               <div className="col-span-2 space-y-1.5">
                 <Label>Масса листа, кг</Label>
                 <Input {...register("sheetMass", { required: true })} placeholder="282.6" type="number" step="0.01" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  кг/м²
+                  <span className="text-xs text-slate-400 font-normal">— рассчитывается автоматически</span>
+                </Label>
+                <Input {...register("massPerSqM", { required: true })} placeholder="рассчитается из массы" type="number" step="0.0001" className="bg-slate-50" />
               </div>
             </div>
             <DialogFooter>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ import {
   findMetalEntry,
   getThicknessesForMaterial,
   getSizesForMaterial,
+  ALL_METAL_ENTRIES,
 } from "@/lib/metalReferenceData";
 
 // ─── Типы материалов ────────────────────────────────────────────────────────
@@ -284,9 +285,7 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
   const [pricePerTon, setPricePerTon] = useState("78000");
   const [markupType, setMarkupType] = useState<"percent" | "fixed">("percent");
   const [markupValue, setMarkupValue] = useState("");
-  const [weightMode, setWeightMode] = useState<"auto" | "invoice" | "formula">(
-    "auto",
-  );
+  const [weightMode, setWeightMode] = useState<"auto" | "invoice">("auto");
   const [invoiceMass, setInvoiceMass] = useState("");
   const [invoiceMassEdited, setInvoiceMassEdited] = useState(false);
   const [vatEnabled, setVatEnabled] = useState(false);
@@ -313,10 +312,11 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
     fromTable: boolean;
     warning?: string;
     refMass?: number;
-    weightMode: "auto" | "invoice" | "formula";
+    weightMode: "auto" | "invoice";
   } | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [dbEntries, setDbEntries] = useState<any[]>([]);
 
   useEffect(() => {
     try {
@@ -325,15 +325,71 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    fetch("/api/catalog/metals")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setDbEntries(data); })
+      .catch(() => {});
+  }, []);
+
+  // Ищет запись сначала в БД, потом в хардкодных данных
+  const findEntry = useCallback(
+    (matId: string, t: number, w: number, l: number) => {
+      const fromDb = dbEntries.find(
+        (e) => e.materialId === matId && e.thickness === t && e.width === w && e.length === l,
+      );
+      return fromDb ?? findMetalEntry(matId, t, w, l);
+    },
+    [dbEntries],
+  );
+
+  // Ищет любую запись для материала + толщины (для получения massPerSqM)
+  const findBaseEntry = useCallback(
+    (matId: string, t: number) => {
+      const fromDb = dbEntries.find((e) => e.materialId === matId && e.thickness === t);
+      if (fromDb) return fromDb;
+      return ALL_METAL_ENTRIES.find((e) => e.materialId === matId && e.thickness === t);
+    },
+    [dbEntries],
+  );
+
+  // Толщины: объединяем БД + хардкод, убираем дубли
+  const getThicknesses = useCallback(
+    (matId: string) => {
+      const dbT = dbEntries.filter((e) => e.materialId === matId).map((e) => e.thickness);
+      const staticT = getThicknessesForMaterial(matId);
+      return [...new Set([...dbT, ...staticT])].sort((a, b) => a - b);
+    },
+    [dbEntries],
+  );
+
+  // Размеры: объединяем БД + хардкод, убираем дубли
+  const getSizes = useCallback(
+    (matId: string, t: number) => {
+      const dbS = dbEntries
+        .filter((e) => e.materialId === matId && e.thickness === t)
+        .map((e) => ({ width: e.width, length: e.length }));
+      const staticS = getSizesForMaterial(matId, t);
+      const seen = new Set<string>();
+      return [...dbS, ...staticS].filter((s) => {
+        const key = `${s.width}x${s.length}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    },
+    [dbEntries],
+  );
+
   const material = MATERIALS.find((m) => m.id === materialId)!;
   const hasDensityOpts = !!DENSITY_OPTIONS[materialId];
   const tableThicknesses = useMemo(
-    () => getThicknessesForMaterial(materialId),
-    [materialId],
+    () => getThicknesses(materialId),
+    [getThicknesses, materialId],
   );
   const tableSizes = useMemo(
-    () => (thickness > 0 ? getSizesForMaterial(materialId, thickness) : []),
-    [materialId, thickness],
+    () => (thickness > 0 ? getSizes(materialId, thickness) : []),
+    [getSizes, materialId, thickness],
   );
   const displaySizes =
     tableSizes.length > 0
@@ -346,18 +402,29 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
           { width: 2000, length: 6000 },
         ];
 
-  // Запись из справочника для текущего выбора
+  // Точная запись из справочника (materialId + thickness + width + length)
   const refEntry = useMemo(
-    () => findMetalEntry(materialId, thickness, width, length),
-    [materialId, thickness, width, length],
+    () => findEntry(materialId, thickness, width, length),
+    [findEntry, materialId, thickness, width, length],
+  );
+
+  // Базовая запись для толщины (любой размер) — для получения massPerSqM
+  const baseEntry = useMemo(
+    () => findBaseEntry(materialId, thickness),
+    [findBaseEntry, materialId, thickness],
   );
 
   // Автозаполнение массы из справочника в режиме "из накладной"
   useEffect(() => {
-    if (weightMode === "invoice" && !invoiceMassEdited && refEntry) {
-      setInvoiceMass(String(refEntry.sheetMass));
+    if (weightMode === "invoice" && !invoiceMassEdited) {
+      if (refEntry) {
+        setInvoiceMass(String(refEntry.sheetMass));
+      } else if (baseEntry && width && length) {
+        const area = (width / 1000) * (length / 1000);
+        setInvoiceMass(String(parseFloat((baseEntry.massPerSqM * area).toFixed(2))));
+      }
     }
-  }, [refEntry, weightMode, invoiceMassEdited]);
+  }, [refEntry, baseEntry, weightMode, invoiceMassEdited, width, length]);
 
   useEffect(() => {
     if (mode !== "counterparty" || clientQuery.length < 2) {
@@ -381,11 +448,11 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
     setMaterialId(id);
     const mat = MATERIALS.find((m) => m.id === id)!;
     setDensity(mat.density);
-    const thicknesses = getThicknessesForMaterial(id);
+    const thicknesses = getThicknesses(id);
     const t = thicknesses[0] ?? 0;
     setThickness(t);
     if (t > 0) {
-      const sizes = getSizesForMaterial(id, t);
+      const sizes = getSizes(id, t);
       if (sizes[0]) {
         setWidth(sizes[0].width);
         setLength(sizes[0].length);
@@ -398,7 +465,7 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
   function handleThicknessChange(val: number) {
     setThickness(val);
     if (!useCustomSize) {
-      const sizes = getSizesForMaterial(materialId, val);
+      const sizes = getSizes(materialId, val);
       if (sizes[0]) {
         setWidth(sizes[0].width);
         setLength(sizes[0].length);
@@ -408,7 +475,7 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
     setResult(null);
   }
 
-  function handleWeightModeChange(m: "auto" | "invoice" | "formula") {
+  function handleWeightModeChange(m: "auto" | "invoice") {
     setWeightMode(m);
     setInvoiceMassEdited(false);
     if (m === "invoice" && refEntry) setInvoiceMass(String(refEntry.sheetMass));
@@ -473,18 +540,21 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
       massPerSheet = parseFloat(invoiceMass) || 0;
       if (!massPerSheet) return;
       fromTable = !invoiceMassEdited && !!refEntry;
-    } else if (weightMode === "formula") {
-      if (!thickness) return;
-      massPerSheet = density * (thickness / 1000) * area;
     } else {
-      // auto — из справочника, при отсутствии — формула
       if (refEntry) {
+        // Точное совпадение — берём вес напрямую
         massPerSheet = refEntry.sheetMass;
         fromTable = true;
+      } else if (baseEntry) {
+        // Нестандартный размер, но толщина есть в справочнике —
+        // пересчитываем пропорционально через massPerSqM
+        massPerSheet = baseEntry.massPerSqM * area;
+        fromTable = true;
+        warning = `Размер нестандартный — вес пересчитан по ${baseEntry.massPerSqM} кг/м² из справочника`;
       } else {
         if (!thickness) return;
         massPerSheet = density * (thickness / 1000) * area;
-        warning = "Нестандартный размер — расчёт по формуле";
+        warning = "Толщина не найдена в справочнике — расчёт по плотности";
       }
     }
 
@@ -557,11 +627,6 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
           {weightMode === "invoice" && (
             <span className="ml-2 text-xs text-orange-600 font-medium">
               · вес из накладной
-            </span>
-          )}
-          {weightMode === "formula" && (
-            <span className="ml-2 text-xs text-blue-600 font-medium">
-              · расчёт по плотности
             </span>
           )}
         </div>
@@ -772,16 +837,11 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
               <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 gap-0.5">
                 {(
                   [
-                    { id: "auto", label: "Справочник", hint: "Авто из ГОСТ" },
+                    { id: "auto", label: "Из справочника", hint: "Авто из ГОСТ" },
                     {
                       id: "invoice",
                       label: "Из накладной",
                       hint: "Фактический вес",
-                    },
-                    {
-                      id: "formula",
-                      label: "По плотности",
-                      hint: "Ручной расчёт",
                     },
                   ] as const
                 ).map((m) => (
@@ -807,7 +867,7 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
             {weightMode !== "invoice" && (
               <div className="space-y-1.5">
                 <Label>Толщина, мм</Label>
-                {tableThicknesses.length > 0 && weightMode !== "formula" ? (
+                {tableThicknesses.length > 0 ? (
                   <Select
                     value={String(thickness)}
                     onValueChange={(v) => handleThicknessChange(parseFloat(v))}
@@ -1121,14 +1181,6 @@ function MetalCalculator({ mode }: { mode: CalcMode }) {
                     Фактический вес из накладной: {invoiceMass} кг
                     {result.refMass
                       ? ` (справочник: ${result.refMass} кг)`
-                      : ""}
-                  </div>
-                ) : result.weightMode === "formula" ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-                    <Info className="h-3.5 w-3.5 shrink-0" />
-                    Расчёт по плотности {density} кг/м³
-                    {result.refMass
-                      ? ` · Справочник: ${result.refMass} кг`
                       : ""}
                   </div>
                 ) : result.fromTable ? (

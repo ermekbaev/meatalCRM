@@ -20,6 +20,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const data = await req.json();
-  const item = await prisma.metalCatalogEntry.create({ data });
+  const { materialId, thickness, width, length, massPerSqM, sheetMass } = data;
+  const item = await prisma.metalCatalogEntry.upsert({
+    where: { materialId_thickness_width_length: { materialId, thickness, width, length } },
+    update: { massPerSqM, sheetMass },
+    create: { materialId, thickness, width, length, massPerSqM, sheetMass },
+  });
   return NextResponse.json(item, { status: 201 });
 }

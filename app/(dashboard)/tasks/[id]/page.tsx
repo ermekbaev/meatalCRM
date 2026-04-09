@@ -74,6 +74,10 @@ export default function TaskDetailPage() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
 
+  // Редактирование описания
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionValue, setDescriptionValue] = useState("");
+
   // Упоминания
   const [mentionQuery, setMentionQuery] = useState("");
   const [showMentions, setShowMentions] = useState(false);
@@ -333,11 +337,55 @@ export default function TaskDetailPage() {
                   </div>
                 </div>
               </CardHeader>
-              {task.description && (
-                <CardContent>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.description}</p>
-                </CardContent>
-              )}
+              <CardContent>
+                {editingDescription ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      autoFocus
+                      value={descriptionValue}
+                      onChange={(e) => setDescriptionValue(e.target.value)}
+                      rows={4}
+                      className="text-sm resize-none"
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") { setEditingDescription(false); setDescriptionValue(task.description ?? ""); }
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                          setEditingDescription(false);
+                          if (descriptionValue !== (task.description ?? "")) updateField("description", descriptionValue);
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => { setEditingDescription(false); if (descriptionValue !== (task.description ?? "")) updateField("description", descriptionValue); }}
+                      >
+                        <Check className="h-3 w-3 mr-1" /> Сохранить
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs"
+                        onClick={() => { setEditingDescription(false); setDescriptionValue(task.description ?? ""); }}
+                      >
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="group relative cursor-pointer rounded-md p-1 -m-1 hover:bg-gray-50 transition-colors"
+                    onClick={() => { setDescriptionValue(task.description ?? ""); setEditingDescription(true); }}
+                    title="Нажмите для редактирования"
+                  >
+                    {task.description ? (
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{task.description}</p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">Добавить описание...</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
             </Card>
 
             {/* Чек-лист */}
