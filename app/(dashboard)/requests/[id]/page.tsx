@@ -325,10 +325,11 @@ export default function RequestDetailPage() {
 
             {/* Позиции */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-base">Позиции</CardTitle>
                 {!isEmployee && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       size="sm"
@@ -360,6 +361,7 @@ export default function RequestDetailPage() {
                     </Button>
                   </div>
                 )}
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 {items.length === 0 ? (
@@ -389,7 +391,7 @@ export default function RequestDetailPage() {
                 ) : (
                   <>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full min-w-[700px] text-sm">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50">
                             <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[30%]">

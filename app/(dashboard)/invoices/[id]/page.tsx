@@ -229,7 +229,8 @@ export default function InvoiceDetailPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-xs text-gray-500">
                   <th className="pb-2 text-left font-medium w-8">№</th>
@@ -280,6 +281,7 @@ export default function InvoiceDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {editing && (
               <Button size="sm" variant="ghost" className="mt-2 text-gray-500"
