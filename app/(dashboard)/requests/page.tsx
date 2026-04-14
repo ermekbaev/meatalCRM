@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
 import { Plus, Search, Trash2, Eye, Download, Loader2 } from "lucide-react";
+import Link from "next/link";
 import * as XLSX from "xlsx";
 
 export default function RequestsPage() {
@@ -72,7 +73,7 @@ export default function RequestsPage() {
   return (
     <div>
       <Header title="Заявки" />
-      <div className="p-6 space-y-4">
+      <div className="p-4 lg:p-6 space-y-4">
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -127,7 +128,7 @@ export default function RequestsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
@@ -154,7 +155,9 @@ export default function RequestsPage() {
                     <TableCell className="font-mono text-gray-500">#{r.number}</TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-gray-900">{r.title}</p>
+                        <Link href={`/requests/${r.id}`} className="font-medium text-gray-900 hover:text-orange-600 transition-colors">
+                          {r.title}
+                        </Link>
                         {r._count?.comments > 0 && (
                           <p className="text-xs text-gray-400">{r._count.comments} комм.</p>
                         )}

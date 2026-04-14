@@ -22,12 +22,12 @@ function ItemRow({ item, onEdit, onDelete, noun }: any) {
   return (
     <TableRow>
       <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
-      <TableCell className="text-slate-400 text-[13px]">{item.description ?? "—"}</TableCell>
-      <TableCell className="text-slate-500 text-[13px]">{item.unit}</TableCell>
-      <TableCell className="font-medium text-slate-700 text-[13px]">
+      <TableCell className="hidden md:table-cell text-slate-400 text-[13px]">{item.description ?? "—"}</TableCell>
+      <TableCell className="text-slate-500 text-[13px] w-20">{item.unit}</TableCell>
+      <TableCell className="font-medium text-slate-700 text-[13px] w-32">
         {item.price ? `${item.price.toLocaleString("ru")} ₽ / ${item.unit}` : "—"}
       </TableCell>
-      <TableCell className="text-slate-500 text-[13px]">
+      <TableCell className="hidden sm:table-cell text-slate-500 text-[13px] w-32">
         {item.purchasePrice ? `${item.purchasePrice.toLocaleString("ru")} ₽` : "—"}
       </TableCell>
       <TableCell>
@@ -60,23 +60,15 @@ function ItemRow({ item, onEdit, onDelete, noun }: any) {
 
 function ItemsTable({ rows, onEdit, onDelete, noun }: any) {
   return (
-    <Table className="table-fixed">
-      <colgroup>
-        <col style={{ width: "28%" }} />
-        <col />
-        <col style={{ width: "80px" }} />
-        <col style={{ width: "130px" }} />
-        <col style={{ width: "130px" }} />
-        <col style={{ width: "80px" }} />
-      </colgroup>
+    <Table>
       <TableHeader>
         <TableRow className="bg-slate-50">
           <TableHead>Название</TableHead>
-          <TableHead>Описание</TableHead>
-          <TableHead>Ед. изм.</TableHead>
-          <TableHead>Цена продажи</TableHead>
-          <TableHead>Закуп. цена</TableHead>
-          <TableHead>Действия</TableHead>
+          <TableHead className="hidden md:table-cell">Описание</TableHead>
+          <TableHead className="w-20">Ед. изм.</TableHead>
+          <TableHead className="w-32">Цена продажи</TableHead>
+          <TableHead className="hidden sm:table-cell w-32">Закуп. цена</TableHead>
+          <TableHead className="w-20">Действия</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -301,7 +293,7 @@ export default function CatalogPage() {
   return (
     <div>
       <Header title="Справочник" />
-      <div className="p-6 space-y-4">
+      <div className="p-4 lg:p-6 space-y-4">
         {/* Вкладки */}
         <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit">
           {TABS.map(({ key, label, icon: Icon }) => (
@@ -319,9 +311,9 @@ export default function CatalogPage() {
           ))}
         </div>
 
-        <div className="flex gap-5 items-start">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           {/* Панель категорий */}
-          <div className="w-56 shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="w-full lg:w-56 shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
               <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wide">Папки</span>
               <button
@@ -377,7 +369,7 @@ export default function CatalogPage() {
             {loading ? (
               <div className="flex h-32 items-center justify-center text-slate-400 text-[13px]">Загрузка...</div>
             ) : selectedCatId === "__none__" ? (
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
                 <ItemsTable rows={uncategorizedItems} noun={noun} onEdit={openEdit} onDelete={handleDelete} />
               </div>
             ) : selectedCatId !== null ? (
@@ -386,7 +378,7 @@ export default function CatalogPage() {
                   Нет позиций в этой папке
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
                   <ItemsTable rows={visibleItems} noun={noun} onEdit={openEdit} onDelete={handleDelete} />
                 </div>
               )
@@ -402,7 +394,7 @@ export default function CatalogPage() {
                     const catItems = filtered.filter((i) => i.categoryId === cat.id);
                     if (!catItems.length) return null;
                     return (
-                      <div key={cat.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                      <div key={cat.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
                         <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 border-b border-slate-200">
                           {"  ".repeat(cat.depth)}
                           <Folder className="h-4 w-4 text-orange-400 shrink-0" />
@@ -414,7 +406,7 @@ export default function CatalogPage() {
                     );
                   })}
                   {uncategorizedItems.length > 0 && (
-                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
                       <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 border-b border-slate-200">
                         <Folder className="h-4 w-4 text-slate-300 shrink-0" />
                         <span className="text-[13px] font-semibold text-slate-500 italic">Без папки</span>

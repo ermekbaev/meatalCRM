@@ -79,13 +79,13 @@ export default function UsersPage() {
   return (
     <div>
       <Header title="Пользователи" />
-      <div className="p-6 space-y-4">
+      <div className="p-4 lg:p-6 space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">{users.length} пользователей</p>
           <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Добавить</Button>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">

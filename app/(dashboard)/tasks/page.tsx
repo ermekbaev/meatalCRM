@@ -39,16 +39,17 @@ export default function TasksPage() {
   };
 
   const statusGroups: Record<string, any[]> = {
-    TODO: tasks.filter((t) => t.status === "TODO"),
-    IN_PROGRESS: tasks.filter((t) => t.status === "IN_PROGRESS"),
-    DONE: tasks.filter((t) => t.status === "DONE"),
-    CANCELLED: tasks.filter((t) => t.status === "CANCELLED"),
+    TODO:             tasks.filter((t) => t.status === "TODO"),
+    PENDING_APPROVAL: tasks.filter((t) => t.status === "PENDING_APPROVAL"),
+    IN_PROGRESS:      tasks.filter((t) => t.status === "IN_PROGRESS"),
+    DONE:             tasks.filter((t) => t.status === "DONE"),
+    CANCELLED:        tasks.filter((t) => t.status === "CANCELLED"),
   };
 
   return (
     <div>
       <Header title="Задачи" />
-      <div className="p-6 space-y-4">
+      <div className="p-4 lg:p-6 space-y-4">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -89,7 +90,7 @@ export default function TasksPage() {
           </div>
         ) : status === "ALL" ? (
           /* Kanban-style grouped view */
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
             {Object.entries(statusGroups).map(([st, items]) => (
               <div key={st}>
                 <div className="mb-3 flex items-center justify-between">

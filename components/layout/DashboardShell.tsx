@@ -194,7 +194,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1 flex-col overflow-hidden lg:ml-60">
           {children}
           {/* Spacer so content isn't hidden under bottom tab bar */}
-          <div className="h-15 shrink-0 lg:hidden" />
+          <div className="h-16 shrink-0 lg:hidden" />
         </div>
       </div>
 

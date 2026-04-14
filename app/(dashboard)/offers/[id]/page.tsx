@@ -122,7 +122,7 @@ export default function OfferDetailPage() {
           <div className="lg:col-span-3 space-y-6">
             {/* Header block */}
             <Card>
-              <CardContent className="p-6 space-y-4">
+              <CardContent className="p-4 lg:p-6 space-y-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">Коммерческое предложение {offer.numberOverride ?? `#${offer.number}`}</h2>

@@ -357,6 +357,7 @@ enum ClientType {
 
 enum RequestStatus {
   NEW
+  PENDING_APPROVAL
   IN_PROGRESS
   COMPLETED
   CANCELLED
@@ -384,6 +385,7 @@ enum OfferStatus {
 
 enum TaskStatus {
   TODO
+  PENDING_APPROVAL
   IN_PROGRESS
   DONE
   CANCELLED

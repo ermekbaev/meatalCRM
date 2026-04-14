@@ -248,7 +248,7 @@ export default function MetalsReferencePage() {
           </div>
 
           {/* Table */}
-          <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
+          <div className="rounded-xl border border-slate-200 overflow-x-auto bg-white shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
