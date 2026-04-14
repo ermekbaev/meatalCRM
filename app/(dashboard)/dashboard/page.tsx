@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { formatCurrency, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS } from "@/lib/utils";
-import { Inbox, Loader, CheckCircle2, XCircle } from "lucide-react";
+import { Inbox, Loader, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { DashboardCharts } from "./DashboardCharts";
 import { DashboardStats } from "./DashboardStats";
 import { PopularItemsCard } from "./PopularItemsCard";
@@ -92,10 +92,11 @@ export default async function DashboardPage({
   }));
 
   const statusBlocks: Record<string, { icon: any; iconBg: string; iconColor: string; hoverShadow: string }> = {
-    NEW:         { icon: Inbox,        iconBg: "bg-blue-100",    iconColor: "text-blue-500",    hoverShadow: "hover:shadow-blue-200   hover:shadow-lg" },
-    IN_PROGRESS: { icon: Loader,       iconBg: "bg-amber-100",   iconColor: "text-amber-500",   hoverShadow: "hover:shadow-amber-200  hover:shadow-lg" },
-    COMPLETED:   { icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "text-emerald-500", hoverShadow: "hover:shadow-emerald-200 hover:shadow-lg" },
-    CANCELLED:   { icon: XCircle,      iconBg: "bg-red-100",     iconColor: "text-red-500",     hoverShadow: "hover:shadow-red-200    hover:shadow-lg" },
+    NEW:              { icon: Inbox,        iconBg: "bg-blue-100",    iconColor: "text-blue-500",    hoverShadow: "hover:shadow-blue-200   hover:shadow-lg" },
+    PENDING_APPROVAL: { icon: Clock,        iconBg: "bg-purple-100",  iconColor: "text-purple-500",  hoverShadow: "hover:shadow-blue-200   hover:shadow-lg" },
+    IN_PROGRESS:      { icon: Loader,       iconBg: "bg-amber-100",   iconColor: "text-amber-500",   hoverShadow: "hover:shadow-amber-200  hover:shadow-lg" },
+    COMPLETED:        { icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "text-emerald-500", hoverShadow: "hover:shadow-emerald-200 hover:shadow-lg" },
+    CANCELLED:        { icon: XCircle,      iconBg: "bg-red-100",     iconColor: "text-red-500",     hoverShadow: "hover:shadow-red-200    hover:shadow-lg" },
   };
 
   return (
