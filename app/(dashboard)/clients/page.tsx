@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { CLIENT_TYPE_LABELS, formatDate } from "@/lib/utils";
 import { Plus, Search, Trash2, Eye, Building2, User } from "lucide-react";
+import Link from "next/link";
 import { ClientDialog } from "./ClientDialog";
 
 export default function ClientsPage() {
@@ -96,7 +97,7 @@ export default function ClientsPage() {
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full text-white text-xs font-medium ${c.type === "COMPANY" ? "bg-blue-500" : "bg-green-500"}`}>
                           {c.type === "COMPANY" ? <Building2 className="h-4 w-4" /> : <User className="h-4 w-4" />}
                         </div>
-                        <span className="font-medium text-gray-900">{c.shortName || c.name}</span>
+                        <Link href={`/clients/${c.id}`} className="font-medium text-gray-900 hover:text-orange-600 transition-colors">{c.shortName || c.name}</Link>
                       </div>
                     </TableCell>
                     <TableCell>
