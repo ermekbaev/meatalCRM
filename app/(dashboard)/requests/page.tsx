@@ -22,8 +22,6 @@ export default function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState<string | null>(null);
-  const [titleValue, setTitleValue] = useState("");
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -62,17 +60,6 @@ export default function RequestsPage() {
     setUpdatingStatus(null);
   };
 
-  const handleTitleSave = async (id: string) => {
-    const req = requests.find((r) => r.id === id);
-    if (!titleValue.trim() || titleValue === req?.title) { setEditingTitle(null); return; }
-    await fetch(`/api/requests/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: titleValue.trim() }),
-    });
-    setRequests((prev) => prev.map((r) => r.id === id ? { ...r, title: titleValue.trim() } : r));
-    setEditingTitle(null);
-  };
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/requests/${id}`, { method: "DELETE" });
@@ -181,27 +168,9 @@ export default function RequestsPage() {
                     <TableCell className="font-mono text-gray-500">#{r.number}</TableCell>
                     <TableCell>
                       <div>
-                        {editingTitle === r.id ? (
-                          <input
-                            autoFocus
-                            className="w-full rounded border border-orange-300 px-2 py-0.5 text-sm font-medium text-gray-900 outline-none focus:ring-1 focus:ring-orange-400"
-                            value={titleValue}
-                            onChange={(e) => setTitleValue(e.target.value)}
-                            onBlur={() => handleTitleSave(r.id)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") e.currentTarget.blur();
-                              if (e.key === "Escape") setEditingTitle(null);
-                            }}
-                          />
-                        ) : (
-                          <span
-                            className="font-medium text-gray-900 hover:text-orange-600 transition-colors cursor-pointer"
-                            onClick={() => { setTitleValue(r.title); setEditingTitle(r.id); }}
-                            title="Нажмите для редактирования"
-                          >
-                            {r.title}
-                          </span>
-                        )}
+                        <Link href={`/requests/${r.id}`} className="font-medium text-gray-900 hover:text-orange-600 transition-colors">
+                          {r.title}
+                        </Link>
                         {r._count?.comments > 0 && (
                           <p className="text-xs text-gray-400">{r._count.comments} комм.</p>
                         )}

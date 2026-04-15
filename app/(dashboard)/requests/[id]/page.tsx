@@ -65,6 +65,8 @@ export default function RequestDetailPage() {
   const [request, setRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState("");
   const [comment, setComment] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
@@ -280,9 +282,30 @@ export default function RequestDetailPage() {
                     <p className="text-xs font-mono text-gray-400 mb-1">
                       #{request.number}
                     </p>
-                    <h2 className="text-xl font-semibold text-gray-900">
-                      {request.title}
-                    </h2>
+                    {editingTitle ? (
+                      <input
+                        autoFocus
+                        className="text-xl font-semibold text-gray-900 w-full rounded border border-orange-300 px-2 py-0.5 outline-none focus:ring-1 focus:ring-orange-400"
+                        value={titleValue}
+                        onChange={(e) => setTitleValue(e.target.value)}
+                        onBlur={() => {
+                          setEditingTitle(false);
+                          if (titleValue.trim() && titleValue !== request.title) updateField("title", titleValue.trim());
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                          if (e.key === "Escape") { setEditingTitle(false); setTitleValue(request.title); }
+                        }}
+                      />
+                    ) : (
+                      <h2
+                        className="text-xl font-semibold text-gray-900 cursor-pointer hover:text-orange-600 transition-colors"
+                        onClick={() => { setTitleValue(request.title); setEditingTitle(true); }}
+                        title="Нажмите для редактирования"
+                      >
+                        {request.title}
+                      </h2>
+                    )}
                     <p className="mt-1 text-sm text-gray-500">
                       Клиент:{" "}
                       <Link
