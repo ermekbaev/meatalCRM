@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ClientSearchInput } from "@/components/ClientSearchInput";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -226,21 +227,11 @@ export default function NewRequestPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Контрагент *</Label>
-                  <Select
+                  <ClientSearchInput
                     value={selectedClient}
-                    onValueChange={(v) => setValue("clientId", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите контрагента" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(v) => setValue("clientId", v)}
+                    existingClients={clients}
+                  />
                 </div>
               </CardContent>
             </Card>
