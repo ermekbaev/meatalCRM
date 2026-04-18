@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -11,21 +11,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Plus, Trash2, Loader2, Building2, ClipboardCheck, X, BookOpen, Search, FileDown } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2, Building2, X, BookOpen, Search, FileDown } from "lucide-react";
 import Link from "next/link";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 
-export default function NewOfferPage() {
+export default function EditOfferPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const requestId = searchParams.get("requestId");
+  const params = useParams();
+  const id = params.id as string;
 
   const [requests, setRequests] = useState<any[]>([]);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [clientInfo, setClientInfo] = useState<any>(null);
-  const [importedRequest, setImportedRequest] = useState<{ number: number; title: string } | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [vatRate, setVatRate] = useState(0);
   const [managerMode, setManagerMode] = useState<"user" | "custom">("user");
@@ -33,18 +31,18 @@ export default function NewOfferPage() {
   const [managerCustom, setManagerCustom] = useState("");
   const [company, setCompany] = useState<any>(null);
   const [previewingPDF, setPreviewingPDF] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  // Прямой поиск контрагента
   const [clientQuery, setClientQuery] = useState("");
+  const [allClients, setAllClients] = useState<any[]>([]);
   const [clientResults, setClientResults] = useState<any[]>([]);
-  const [clientLoading, setClientLoading] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const clientRef = useRef<HTMLDivElement>(null);
 
-  const { register, handleSubmit, setValue, watch, control, formState: { isSubmitting } } = useForm({
+  const { register, handleSubmit, setValue, watch, control, reset, formState: { isSubmitting } } = useForm({
     defaultValues: {
-      requestId: requestId ?? "",
+      requestId: "",
       numberOverride: "",
       status: "DRAFT",
       discount: 0,
@@ -57,51 +55,68 @@ export default function NewOfferPage() {
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
-  const addFromCatalog = (item: any) => {
-    append({
-      service: item.name,
-      description: item.description ?? "",
-      quantity: 1,
-      unit: item.unit ?? "шт",
-      price: item.price ?? 0,
-      total: item.price ?? 0,
-    });
-  };
-
-  const [allClients, setAllClients] = useState<any[]>([]);
-
+  // Загрузка начальных данных
   useEffect(() => {
     Promise.all([
+      fetch(`/api/offers/${id}`).then((r) => r.json()),
       fetch("/api/requests?minimal=true").then((r) => r.json()),
       fetch("/api/catalog").then((r) => r.json()),
       fetch("/api/clients").then((r) => r.json()),
       fetch("/api/users").then((r) => r.json()),
       fetch("/api/settings/company").then((r) => r.json()).catch(() => null),
-    ]).then(([reqs, cat, cls, usr, comp]) => {
-      setCompany(comp);
+    ]).then(([offer, reqs, cat, cls, usr, comp]) => {
       setRequests(reqs);
       setCatalog(cat);
+      setCompany(comp);
       const list = Array.isArray(cls) ? cls : cls.clients ?? [];
       setAllClients(list);
       setClientResults(list);
       const userList = Array.isArray(usr) ? usr : usr.users ?? [];
       setUsers(userList);
+
+      // Предзаполнение формы
+      reset({
+        requestId: offer.requestId ?? "",
+        numberOverride: offer.numberOverride ?? "",
+        status: offer.status ?? "DRAFT",
+        discount: offer.discount ?? 0,
+        notes: offer.notes ?? "",
+        validUntil: offer.validUntil ? offer.validUntil.substring(0, 10) : "",
+        deliveryTerms: offer.deliveryTerms ?? "",
+        items: offer.items.map((item: any) => ({
+          service: item.service,
+          description: item.description ?? "",
+          quantity: item.quantity,
+          unit: item.unit,
+          price: item.price,
+          total: item.total,
+        })),
+      });
+      setVatRate(offer.vatRate ?? 0);
+
+      // Клиент
+      const client = offer.client || offer.request?.client;
+      if (client) {
+        setClientInfo(client);
+        if (offer.clientId) {
+          setSelectedClientId(offer.clientId);
+          setClientQuery(client.shortName || client.name);
+        }
+      }
+
+      // Менеджер
+      if (offer.managerId) {
+        setManagerMode("user");
+        setSelectedManagerId(offer.managerId);
+      } else if (offer.managerCustom) {
+        setManagerMode("custom");
+        setManagerCustom(offer.managerCustom);
+      }
+
+      setInitialLoading(false);
     });
-  }, []);
+  }, [id]);
 
-  // Поиск контрагентов
-  useEffect(() => {
-    if (!clientQuery.trim()) {
-      setClientResults(allClients);
-      return;
-    }
-    const q = clientQuery.toLowerCase();
-    setClientResults(allClients.filter((c) =>
-      c.name.toLowerCase().includes(q) || c.inn?.includes(q)
-    ));
-  }, [clientQuery, allClients]);
-
-  // Закрытие дропдауна при клике вне
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (clientRef.current && !clientRef.current.contains(e.target as Node)) {
@@ -112,51 +127,34 @@ export default function NewOfferPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    if (!clientQuery.trim()) { setClientResults(allClients); return; }
+    const q = clientQuery.toLowerCase();
+    setClientResults(allClients.filter((c) => c.name.toLowerCase().includes(q) || c.inn?.includes(q)));
+  }, [clientQuery, allClients]);
+
   const items = watch("items");
   const discount = watch("discount");
   const selectedRequest = watch("requestId");
   const selectedStatus = watch("status");
 
-  // При выборе заявки — подтягиваем контрагента и позиции
-  useEffect(() => {
-    if (!selectedRequest) {
-      // Не сбрасываем clientInfo если выбран прямой контрагент
-      if (!selectedClientId) setClientInfo(null);
-      return;
-    }
-    fetch(`/api/requests/${selectedRequest}`)
-      .then((r) => r.json())
-      .then((req) => {
-        setClientInfo(req.client ?? null);
-        if (req.client) {
-          setSelectedClientId(null); // сбрасываем прямой выбор, используем клиента из заявки
-          setClientQuery("");
-        }
-        // Всегда импортируем позиции при выборе заявки
-        if (req.items?.length > 0) {
-          setValue("items", req.items.map((item: any) => ({
-            service: item.name,
-            description: "",
-            quantity: item.quantity ?? 1,
-            unit: item.unit ?? "шт",
-            price: item.price ?? 0,
-            total: item.total ?? 0,
-          })));
-          setImportedRequest({ number: req.number, title: req.title });
-        }
-      })
-      .catch(() => setClientInfo(null));
-  }, [selectedRequest]);
+  const subtotal = items.reduce((sum: number, item: any) =>
+    sum + (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0), 0);
+  const afterDiscount = subtotal * (1 - (parseFloat(String(discount)) || 0) / 100);
+  const vatAmount = afterDiscount * (vatRate / 100);
+  const total = afterDiscount + vatAmount;
+
+  const updateItemTotal = (index: number) => {
+    const item = items[index];
+    setValue(`items.${index}.total`, (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0));
+  };
 
   const selectClient = (client: any) => {
     setSelectedClientId(client.id);
     setClientInfo(client);
     setClientQuery(client.shortName || client.name);
-    setClientResults([]);
     setShowClientDropdown(false);
-    // Сбрасываем привязку к заявке при прямом выборе контрагента
     setValue("requestId", "");
-    setImportedRequest(null);
   };
 
   const clearClient = () => {
@@ -165,17 +163,8 @@ export default function NewOfferPage() {
     setClientQuery("");
   };
 
-  const subtotal = items.reduce((sum: number, item: any) => {
-    return sum + (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0);
-  }, 0);
-  const afterDiscount = subtotal * (1 - (parseFloat(String(discount)) || 0) / 100);
-  const vatAmount = afterDiscount * (vatRate / 100);
-  const total = afterDiscount + vatAmount;
-
-  const updateItemTotal = (index: number) => {
-    const item = items[index];
-    const t = (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0);
-    setValue(`items.${index}.total`, t);
+  const addFromCatalog = (item: any) => {
+    append({ service: item.name, description: item.description ?? "", quantity: 1, unit: item.unit ?? "шт", price: item.price ?? 0, total: item.price ?? 0 });
   };
 
   const handlePreviewPDF = async () => {
@@ -228,22 +217,32 @@ export default function NewOfferPage() {
         total: (parseFloat(String(item.quantity)) || 0) * (parseFloat(String(item.price)) || 0),
       })),
     };
-    const res = await fetch("/api/offers", {
-      method: "POST",
+    const res = await fetch(`/api/offers/${id}`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) { alert("Ошибка при создании КП."); return; }
-    const created = await res.json();
-    router.push(`/offers/${created.id}`);
+    if (!res.ok) { alert("Ошибка при сохранении КП."); return; }
+    router.push(`/offers/${id}`);
+  }
+
+  if (initialLoading) {
+    return (
+      <div>
+        <Header title="Редактирование КП" />
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      </div>
+    );
   }
 
   return (
     <div>
-      <Header title="Новое КП" />
+      <Header title="Редактирование КП" />
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
-          <Link href="/offers">
+          <Link href={`/offers/${id}`}>
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
           </Link>
           <Button type="button" variant="outline" size="sm" onClick={handlePreviewPDF} disabled={previewingPDF}>
@@ -251,28 +250,6 @@ export default function NewOfferPage() {
             Предпросмотр PDF
           </Button>
         </div>
-
-        {importedRequest && (
-          <div className="mb-4 flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <ClipboardCheck className="h-5 w-5 shrink-0 text-green-600" />
-              <div>
-                <p className="text-sm font-medium text-green-800">Позиции импортированы из заявки #{importedRequest.number}</p>
-                <p className="text-xs text-green-600">{importedRequest.title} · {fields.length} поз.</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setValue("items", [{ service: "", description: "", quantity: 1, unit: "шт", price: 0, total: 0 }]);
-                setImportedRequest(null);
-              }}
-              className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              <X className="h-3.5 w-3.5" /> Начать с чистого листа
-            </button>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           <div className="lg:col-span-3 space-y-6">
@@ -379,7 +356,7 @@ export default function NewOfferPage() {
               <CardHeader><CardTitle className="text-base">Параметры КП</CardTitle></CardHeader>
               <CardContent className="space-y-4">
 
-                {/* Прямой выбор контрагента */}
+                {/* Контрагент */}
                 <div className="space-y-2">
                   <Label>Контрагент</Label>
                   <div className="relative" ref={clientRef}>
@@ -405,12 +382,9 @@ export default function NewOfferPage() {
                         {showClientDropdown && clientResults.length > 0 && (
                           <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-56 overflow-y-auto">
                             {clientResults.map((c: any) => (
-                              <button
-                                key={c.id}
-                                type="button"
+                              <button key={c.id} type="button"
                                 className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 text-left"
-                                onMouseDown={() => selectClient(c)}
-                              >
+                                onMouseDown={() => selectClient(c)}>
                                 <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                                 <div className="min-w-0">
                                   <p className="truncate text-sm text-slate-800">{c.shortName || c.name}</p>
@@ -423,20 +397,6 @@ export default function NewOfferPage() {
                       </>
                     )}
                   </div>
-                </div>
-
-                {/* Заявка (опционально) */}
-                <div className="space-y-2">
-                  <Label>Заявка <span className="text-slate-400 font-normal">(необязательно)</span></Label>
-                  <Select value={selectedRequest} onValueChange={(v) => setValue("requestId", v === "none" ? "" : v)}>
-                    <SelectTrigger><SelectValue placeholder="Не привязано" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Не привязано</SelectItem>
-                      {requests.map((r: any) => (
-                        <SelectItem key={r.id} value={r.id}>#{r.number} {r.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 {/* Карточка контрагента */}
@@ -456,11 +416,8 @@ export default function NewOfferPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>Менеджер</Label>
-                    <button
-                      type="button"
-                      onClick={() => setManagerMode(managerMode === "user" ? "custom" : "user")}
-                      className="text-xs text-blue-600 hover:underline"
-                    >
+                    <button type="button" onClick={() => setManagerMode(managerMode === "user" ? "custom" : "user")}
+                      className="text-xs text-blue-600 hover:underline">
                       {managerMode === "user" ? "Написать вручную" : "Выбрать из списка"}
                     </button>
                   </div>
@@ -469,17 +426,11 @@ export default function NewOfferPage() {
                       <SelectTrigger><SelectValue placeholder="По умолчанию (автор)" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">По умолчанию (автор)</SelectItem>
-                        {users.map((u: any) => (
-                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                        ))}
+                        {users.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input
-                      value={managerCustom}
-                      onChange={(e) => setManagerCustom(e.target.value)}
-                      placeholder="Имя менеджера..."
-                    />
+                    <Input value={managerCustom} onChange={(e) => setManagerCustom(e.target.value)} placeholder="Имя менеджера..." />
                   )}
                 </div>
 
@@ -505,10 +456,12 @@ export default function NewOfferPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Скидка (%)</Label>
                   <Input {...register("discount")} type="number" min="0" max="100" step="0.1" />
                 </div>
+
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-medium text-gray-700">НДС</p>
@@ -524,6 +477,7 @@ export default function NewOfferPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Действует до</Label>
                   <Input {...register("validUntil")} type="date" />
@@ -533,7 +487,7 @@ export default function NewOfferPage() {
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Создать КП
+              Сохранить изменения
             </Button>
           </div>
         </form>

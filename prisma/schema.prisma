@@ -20,7 +20,8 @@ model User {
   phone             String?
   changeLogs        ChangeLog[]
   comments          Comment[]
-  offers            CommercialOffer[]
+  offers            CommercialOffer[]  @relation("OfferCreatedBy")
+  managedOffers     CommercialOffer[]  @relation("OfferManager")
   invoices          Invoice[]
   requests          Request[]         @relation("AssignedRequests")
   uploadedFiles     RequestFile[]
@@ -148,8 +149,12 @@ model CommercialOffer {
   clientId       String?
   numberOverride String?
   vatRate        Float       @default(0)
+  managerId      String?
+  managerCustom  String?
+  deliveryTerms  String?
   client         Client?     @relation(fields: [clientId], references: [id])
-  createdBy      User        @relation(fields: [createdById], references: [id])
+  createdBy      User        @relation("OfferCreatedBy", fields: [createdById], references: [id])
+  manager        User?       @relation("OfferManager", fields: [managerId], references: [id])
   request        Request?    @relation(fields: [requestId], references: [id])
   items          OfferItem[]
 }
@@ -311,6 +316,7 @@ model CompanySettings {
   accountantName String?
   signatureImage String?
   stampImage     String?
+  logoImage      String?
 }
 
 model Invoice {

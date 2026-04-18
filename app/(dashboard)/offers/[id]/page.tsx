@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS, OFFER_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
-import { ArrowLeft, FileDown, Loader2, Building2, Clipboard, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, FileDown, Loader2, Building2, Clipboard, ClipboardCheck, Pencil } from "lucide-react";
 import Link from "next/link";
 
 export default function OfferDetailPage() {
@@ -114,6 +114,9 @@ export default function OfferDetailPage() {
               {exportingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
               Скачать PDF
             </Button>
+            <Link href={`/offers/${params.id}/edit`}>
+              <Button><Pencil className="mr-2 h-4 w-4" /> Редактировать</Button>
+            </Link>
           </div>
         </div>
 

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const type = formData.get("type") as string | null; // "stamp" | "signature"
 
   if (!file) return NextResponse.json({ error: "Файл не передан" }, { status: 400 });
-  if (!["stamp", "signature"].includes(type ?? "")) {
+  if (!["stamp", "signature", "logo"].includes(type ?? "")) {
     return NextResponse.json({ error: "Неверный тип" }, { status: 400 });
   }
   if (file.size > MAX_SIZE) return NextResponse.json({ error: "Файл слишком большой (макс. 5 МБ)" }, { status: 400 });
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const { key } = await uploadFile(buffer, file.name, file.type || "image/png", "company");
 
-  const field = type === "stamp" ? "stampImage" : "signatureImage";
+  const field = type === "stamp" ? "stampImage" : type === "logo" ? "logoImage" : "signatureImage";
 
   const settings = await prisma.companySettings.upsert({
     where: { id: "singleton" },

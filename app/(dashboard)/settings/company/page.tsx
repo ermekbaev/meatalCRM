@@ -6,17 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Save, CheckCircle, Upload, Stamp, PenLine, X } from "lucide-react";
+import { Loader2, Save, CheckCircle, Upload, Stamp, PenLine, X, Image } from "lucide-react";
 
 export default function CompanySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [stampUrl, setStampUrl] = useState<string | null>(null);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const stampRef = useRef<HTMLInputElement>(null);
   const signatureRef = useRef<HTMLInputElement>(null);
+  const logoRef = useRef<HTMLInputElement>(null);
 
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm({
     defaultValues: {
@@ -33,13 +36,14 @@ export default function CompanySettingsPage() {
         reset(data);
         setStampUrl(data.stampImage ? `/api/files?key=${encodeURIComponent(data.stampImage)}&view=1` : null);
         setSignatureUrl(data.signatureImage ? `/api/files?key=${encodeURIComponent(data.signatureImage)}&view=1` : null);
+        setLogoUrl(data.logoImage ? `/api/files?key=${encodeURIComponent(data.logoImage)}&view=1` : null);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [reset]);
 
-  const uploadImage = async (file: File, type: "stamp" | "signature") => {
-    const setter = type === "stamp" ? setUploadingStamp : setUploadingSignature;
+  const uploadImage = async (file: File, type: "stamp" | "signature" | "logo") => {
+    const setter = type === "stamp" ? setUploadingStamp : type === "logo" ? setUploadingLogo : setUploadingSignature;
     setter(true);
     const fd = new FormData();
     fd.append("file", file);
@@ -49,24 +53,27 @@ export default function CompanySettingsPage() {
       const { path } = await res.json();
       const viewUrl = `/api/files?key=${encodeURIComponent(path)}&view=1`;
       if (type === "stamp") setStampUrl(viewUrl);
+      else if (type === "logo") setLogoUrl(viewUrl);
       else setSignatureUrl(viewUrl);
     }
     setter(false);
   };
 
-  const clearImage = async (type: "stamp" | "signature") => {
+  const clearImage = async (type: "stamp" | "signature" | "logo") => {
+    const field = type === "stamp" ? "stampImage" : type === "logo" ? "logoImage" : "signatureImage";
     await fetch("/api/settings/company", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [type === "stamp" ? "stampImage" : "signatureImage"]: null }),
+      body: JSON.stringify({ [field]: null }),
     });
     if (type === "stamp") setStampUrl(null);
+    else if (type === "logo") setLogoUrl(null);
     else setSignatureUrl(null);
   };
 
   async function onSubmit(data: any) {
-    // Не отправляем stampImage/signatureImage — они управляются отдельно через uploadImage/clearImage
-    const { stampImage: _s, signatureImage: _sig, ...fields } = data;
+    // stampImage/signatureImage/logoImage управляются отдельно через uploadImage/clearImage
+    const { stampImage: _s, signatureImage: _sig, logoImage: _l, ...fields } = data;
     await fetch("/api/settings/company", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -179,6 +186,40 @@ export default function CompanySettingsPage() {
               <div className="space-y-2">
                 <Label>Корреспондентский счёт</Label>
                 <Input {...register("bankCorAccount")} placeholder="30101810400000000225" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Логотип */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Логотип компании</CardTitle>
+              <p className="text-xs text-gray-500 mt-1">Отображается в шапке PDF-документов (КП, счета). PNG/JPG с прозрачным фоном.</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Image className="h-4 w-4 text-gray-500" />
+                  <Label>Логотип</Label>
+                </div>
+                {logoUrl ? (
+                  <div className="relative inline-block">
+                    <img src={logoUrl} alt="Логотип" className="h-16 rounded border border-gray-200 object-contain bg-gray-50 p-2" />
+                    <button type="button" onClick={() => clearImage("logo")} className="absolute -top-2 -right-2 rounded-full bg-red-500 text-white p-0.5 hover:bg-red-600">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => logoRef.current?.click()}
+                    className="flex h-16 w-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-colors"
+                  >
+                    {uploadingLogo ? <Loader2 className="h-5 w-5 animate-spin text-gray-400" /> : <Upload className="h-5 w-5 text-gray-400" />}
+                    <span className="text-xs text-gray-500">{uploadingLogo ? "Загрузка..." : "Нажмите для загрузки"}</span>
+                  </div>
+                )}
+                <input ref={logoRef} type="file" accept="image/*" className="hidden"
+                  onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], "logo")} />
               </div>
             </CardContent>
           </Card>

@@ -14,6 +14,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       items: true,
       request: { include: { client: true } }, client: true,
       createdBy: true,
+      manager: { select: { id: true, name: true, phone: true, email: true } },
     },
   });
 
@@ -39,6 +40,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     clientId: body.clientId ?? null,
     numberOverride: body.numberOverride ?? null,
     vatRate: body.vatRate,
+    managerId: body.managerId ?? null,
+    managerCustom: body.managerCustom?.trim() ?? null,
+    deliveryTerms: body.deliveryTerms?.trim() ?? null,
   };
 
   const cleanItems = (items ?? []).map(({ id: _id, offerId: _offerId, ...item }: any) => item);
@@ -48,7 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return tx.commercialOffer.update({
       where: { id },
       data: { ...data, items: { create: cleanItems } },
-      include: { items: true, request: { include: { client: true } }, createdBy: true },
+      include: { items: true, request: { include: { client: true } }, createdBy: true, manager: true },
     });
   });
 

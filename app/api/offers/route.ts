@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
       request: { include: { client: true } },
       client: true,
       createdBy: { select: { id: true, name: true } },
+      manager: { select: { id: true, name: true, phone: true, email: true } },
       items: true,
     },
     orderBy: { createdAt: "desc" },
@@ -54,6 +55,9 @@ export async function POST(req: NextRequest) {
     clientId: data.clientId || null,
     numberOverride: data.numberOverride?.trim() || null,
     validUntil: data.validUntil ? new Date(data.validUntil) : null,
+    managerId: data.managerId || null,
+    managerCustom: data.managerCustom?.trim() || null,
+    deliveryTerms: data.deliveryTerms?.trim() || null,
     createdById: userId,
   };
 
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest) {
         ...cleanData,
         items: { create: cleanItems },
       },
-      include: { items: true, request: { include: { client: true } }, client: true, createdBy: true },
+      include: { items: true, request: { include: { client: true } }, client: true, createdBy: true, manager: true },
     });
     await sendTelegram(
       `📄 <b>Новое КП №${offer.numberOverride ?? offer.number}</b>\n` +
