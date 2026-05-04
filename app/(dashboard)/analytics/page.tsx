@@ -8,6 +8,7 @@ import {
   CartesianGrid, Tooltip, PieChart, Pie, Cell,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { Package } from "lucide-react";
 
 const MONTH_NAMES: Record<string, string> = {
   "01": "Янв", "02": "Фев", "03": "Мар", "04": "Апр",
@@ -159,7 +160,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  const { summary, byStatus, byPriority, revenueChart, topClients, managers, funnel } = data;
+  const { summary, byStatus, byPriority, revenueChart, topClients, managers, topServices, funnel } = data;
 
   const statusData = byStatus.map((s: any) => ({
     name: STATUS_LABELS[s.status] ?? s.status,
@@ -406,6 +407,83 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Выручка по услугам */}
+        {topServices && topServices.length > 0 && (
+          <Card className="border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">
+                Выручка по услугам
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400 w-8">#</th>
+                      <th className="text-left py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Услуга / Позиция</th>
+                      <th className="text-right py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400 whitespace-nowrap">Кол-во в заявках</th>
+                      <th className="text-right py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Выручка</th>
+                      <th className="text-right py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Прибыль</th>
+                      <th className="text-right py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Маржа</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topServices.map((s: any, i: number) => {
+                      const maxRevenue = topServices[0]?.revenue ?? 1;
+                      const barWidth = maxRevenue > 0 ? (s.revenue / maxRevenue) * 100 : 0;
+                      return (
+                        <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 transition-colors">
+                          <td className="py-2.5 px-4 text-[11px] font-semibold text-slate-300 text-right">{i + 1}</td>
+                          <td className="py-2.5 px-4">
+                            <div className="space-y-1">
+                              <p className="font-medium text-slate-700 leading-tight">{s.name}</p>
+                              <div className="h-1 rounded-full bg-slate-100 overflow-hidden w-full max-w-50">
+                                <div
+                                  className="h-full rounded-full bg-orange-400 transition-all"
+                                  style={{ width: `${barWidth}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-slate-500 tabular-nums whitespace-nowrap">
+                            {s.orders} <span className="text-slate-300">зак.</span>
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums whitespace-nowrap">
+                            {fmt(s.revenue)}
+                          </td>
+                          <td className="py-2.5 px-4 text-right tabular-nums whitespace-nowrap">
+                            {s.profit != null
+                              ? <span className={s.profit >= 0 ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold"}>{fmt(s.profit)}</span>
+                              : <span className="text-slate-300">—</span>
+                            }
+                          </td>
+                          <td className="py-2.5 px-4 text-right tabular-nums whitespace-nowrap">
+                            {s.margin != null
+                              ? (
+                                <span className={cn(
+                                  "font-semibold",
+                                  s.margin > 30 ? "text-emerald-600" : s.margin > 10 ? "text-amber-500" : "text-red-500"
+                                )}>
+                                  {s.margin.toFixed(1)}%
+                                </span>
+                              )
+                              : <span className="text-slate-300">—</span>
+                            }
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="px-4 py-2.5 text-[11px] text-slate-400 border-t border-slate-100">
+                Прибыль и маржа рассчитываются только по позициям с указанной закупочной ценой
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Топ клиентов + Менеджеры */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

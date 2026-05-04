@@ -119,6 +119,32 @@ export async function GET(req: NextRequest) {
     _count: { id: true },
   });
 
+  // 8. Выручка по услугам (позиции завершённых заявок)
+  const serviceItems = await prisma.requestItem.findMany({
+    where: { request: { ...where, status: "COMPLETED" } },
+    select: { name: true, quantity: true, total: true, purchasePrice: true },
+  });
+
+  const serviceMap: Record<string, { name: string; revenue: number; quantity: number; cost: number; orders: number }> = {};
+  serviceItems.forEach((item) => {
+    const key = item.name;
+    if (!serviceMap[key]) serviceMap[key] = { name: key, revenue: 0, quantity: 0, cost: 0, orders: 0 };
+    serviceMap[key].revenue += item.total ?? 0;
+    serviceMap[key].quantity += item.quantity;
+    serviceMap[key].orders += 1;
+    if (item.purchasePrice != null) {
+      serviceMap[key].cost += item.purchasePrice * item.quantity;
+    }
+  });
+  const topServices = Object.values(serviceMap)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 20)
+    .map((s) => ({
+      ...s,
+      profit: s.cost > 0 ? s.revenue - s.cost : null,
+      margin: s.cost > 0 && s.revenue > 0 ? ((s.revenue - s.cost) / s.revenue) * 100 : null,
+    }));
+
   return NextResponse.json({
     summary: { totalRequests: totalRequestsCount, totalRevenue, totalClients, totalOffers, totalProfit, totalCost, margin },
     byStatus,
@@ -126,6 +152,7 @@ export async function GET(req: NextRequest) {
     revenueChart,
     topClients,
     managers,
+    topServices,
     funnel: [
       { label: "Заявки", value: requestsCount },
       { label: "КП выставлено", value: offersCount },
