@@ -1,0 +1,26 @@
+{
+  "name": "ORIENT-LASER CRM",
+  "short_name": "ORIENT-LASER",
+  "description": "CRM ORIENT-LASER — задачи и производство",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#ea580c",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/public/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/public/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

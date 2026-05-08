@@ -1,6 +1,7 @@
 "use client";
 import { Search, Menu } from "lucide-react";
 import { useSidebar } from "./DashboardShell";
+import { NotificationsBell } from "./NotificationsBell";
 
 interface HeaderProps {
   title: string;
@@ -27,6 +28,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       </div>
       <div className="flex items-center gap-3">
         {actions}
+        <NotificationsBell />
         <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input

@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const comment = await prisma.comment.create({
     data: { text, requestId: id, userId },
-    include: { user: { select: { id: true, name: true } } },
+    include: { user: { select: { id: true, name: true, position: true } } },
   });
 
   const request = await prisma.request.findUnique({ where: { id }, select: { number: true, title: true } });

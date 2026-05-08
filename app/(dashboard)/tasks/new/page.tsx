@@ -17,6 +17,7 @@ export default function NewTaskPage() {
   const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [workshops, setWorkshops] = useState<any[]>([]);
 
   const { register, handleSubmit, setValue, watch, formState: { isSubmitting } } = useForm({
     defaultValues: {
@@ -27,6 +28,7 @@ export default function NewTaskPage() {
       dueDate: "",
       assigneeId: "",
       clientId: "",
+      workshopId: "",
     },
   });
 
@@ -34,7 +36,8 @@ export default function NewTaskPage() {
     Promise.all([
       fetch("/api/users").then((r) => r.json()).catch(() => []),
       fetch("/api/clients").then((r) => r.json()),
-    ]).then(([u, c]) => { setUsers(u); setClients(c); });
+      fetch("/api/workshops").then((r) => r.json()).catch(() => []),
+    ]).then(([u, c, w]) => { setUsers(u); setClients(c); setWorkshops(Array.isArray(w) ? w : []); });
   }, []);
 
   async function onSubmit(data: any) {
@@ -45,6 +48,7 @@ export default function NewTaskPage() {
         ...data,
         assigneeId: data.assigneeId || null,
         clientId: data.clientId || null,
+        workshopId: data.workshopId || null,
         dueDate: data.dueDate || null,
       }),
     });
@@ -118,6 +122,18 @@ export default function NewTaskPage() {
                     <SelectContent>
                       {users.map((u: any) => (
                         <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Цех</Label>
+                  <Select value={watch("workshopId") || "none"} onValueChange={(v) => setValue("workshopId", v === "none" ? "" : v)}>
+                    <SelectTrigger><SelectValue placeholder="Без цеха" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Без цеха</SelectItem>
+                      {workshops.map((w: any) => (
+                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

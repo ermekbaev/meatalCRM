@@ -18,11 +18,11 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       items: { orderBy: { id: "asc" } },
       comments: {
         orderBy: { createdAt: "asc" },
-        include: { user: { select: { id: true, name: true } } },
+        include: { user: { select: { id: true, name: true, position: true } } },
       },
       changeLogs: {
         orderBy: { createdAt: "desc" },
-        include: { user: { select: { id: true, name: true } } },
+        include: { user: { select: { id: true, name: true, position: true } } },
       },
       offers: {
         orderBy: { createdAt: "desc" },

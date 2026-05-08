@@ -1,23 +1,57 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { TASK_STATUS_LABELS, TASK_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate } from "@/lib/utils";
-import { Plus, Search, Trash2, Eye, MessageSquare, CalendarClock } from "lucide-react";
+import { Building2, Check, Loader2, Plus, Search, Settings, Trash2, Eye, Users, GripVertical } from "lucide-react";
 import Link from "next/link";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+
+type Workshop = {
+  id: string;
+  name: string;
+  order: number;
+  members?: Array<{ id: string; name: string; role: string; position?: string | null }>;
+  _count?: { tasks: number };
+};
 
 export default function TasksPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === "ADMIN";
   const [tasks, setTasks] = useState<any[]>([]);
+  const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
   const [priority, setPriority] = useState("ALL");
+  const [activeWorkshopId, setActiveWorkshopId] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [workshopsOpen, setWorkshopsOpen] = useState(false);
+  const [newWorkshopName, setNewWorkshopName] = useState("");
+  const [savingWorkshop, setSavingWorkshop] = useState(false);
+  const [activeDragTask, setActiveDragTask] = useState<any>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -25,17 +59,96 @@ export default function TasksPage() {
     if (search) params.set("search", search);
     if (status !== "ALL") params.set("status", status);
     if (priority !== "ALL") params.set("priority", priority);
+    if (activeWorkshopId !== "ALL") params.set("workshopId", activeWorkshopId);
     const res = await fetch(`/api/tasks?${params}`);
     const data = await res.json();
     setTasks(data);
     setLoading(false);
-  }, [search, status, priority]);
+  }, [search, status, priority, activeWorkshopId]);
+
+  const fetchWorkshops = useCallback(async () => {
+    const data = await fetch("/api/workshops").then((r) => r.json()).catch(() => []);
+    setWorkshops(Array.isArray(data) ? data : []);
+  }, []);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
+  useEffect(() => {
+    fetchWorkshops();
+    fetch("/api/users").then((r) => r.json()).then((data) => setUsers(Array.isArray(data) ? data : [])).catch(() => {});
+  }, [fetchWorkshops]);
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
     fetchTasks();
+  };
+
+  const createWorkshop = async () => {
+    const name = newWorkshopName.trim();
+    if (!name) return;
+    setSavingWorkshop(true);
+    const res = await fetch("/api/workshops", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, order: workshops.length }),
+    });
+    if (res.ok) {
+      setNewWorkshopName("");
+      await fetchWorkshops();
+    }
+    setSavingWorkshop(false);
+  };
+
+  const updateWorkshopMembers = async (workshop: Workshop, userId: string, checked: boolean) => {
+    const currentIds = workshop.members?.map((m) => m.id) ?? [];
+    const memberIds = checked ? [...currentIds, userId] : currentIds.filter((id) => id !== userId);
+    const res = await fetch(`/api/workshops/${workshop.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberIds }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setWorkshops((prev) => prev.map((w) => w.id === workshop.id ? updated : w));
+    }
+  };
+
+  const deleteWorkshop = async (id: string) => {
+    const res = await fetch(`/api/workshops/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      if (activeWorkshopId === id) setActiveWorkshopId("ALL");
+      await fetchWorkshops();
+      fetchTasks();
+    }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const task = tasks.find((t) => t.id === event.active.id);
+    if (task) setActiveDragTask(task);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragTask(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const taskId = String(active.id);
+    const newStatus = String(over.id);
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
+
+    const prevStatus = task.status;
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...task, status: newStatus }),
+      });
+      if (!res.ok) throw new Error("status update failed");
+    } catch {
+      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: prevStatus } : t));
+    }
   };
 
   const statusGroups: Record<string, any[]> = {
@@ -50,6 +163,60 @@ export default function TasksPage() {
     <div>
       <Header title="Задачи" />
       <div className="p-4 lg:p-6 space-y-4">
+        <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200 pb-2">
+          <button
+            type="button"
+            onClick={() => setActiveWorkshopId("ALL")}
+            className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
+              activeWorkshopId === "ALL"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Building2 className="h-4 w-4" /> Все
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveWorkshopId("none")}
+            className={`inline-flex h-8 shrink-0 items-center border-b-2 px-3 text-sm font-medium transition-colors ${
+              activeWorkshopId === "none"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Без цеха
+          </button>
+          {workshops.map((workshop) => (
+            <button
+              key={workshop.id}
+              type="button"
+              onClick={() => setActiveWorkshopId(workshop.id)}
+              className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
+                activeWorkshopId === workshop.id
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {workshop.name}
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                {workshop._count?.tasks ?? 0}
+              </span>
+            </button>
+          ))}
+          {isAdmin && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="ml-auto shrink-0"
+              onClick={() => setWorkshopsOpen(true)}
+              title="Управление цехами"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -89,24 +256,25 @@ export default function TasksPage() {
             </Button>
           </div>
         ) : status === "ALL" ? (
-          /* Kanban-style grouped view */
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-            {Object.entries(statusGroups).map(([st, items]) => (
-              <div key={st}>
-                <div className="mb-3 flex items-center justify-between">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${TASK_STATUS_COLORS[st]}`}>
-                    {TASK_STATUS_LABELS[st]}
-                  </span>
-                  <span className="text-xs text-slate-400">{items.length}</span>
-                </div>
-                <div className="space-y-2">
+          /* Kanban-style grouped view (с drag & drop) */
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+              {Object.entries(statusGroups).map(([st, items]) => (
+                <KanbanColumn key={st} status={st} count={items.length}>
                   {items.map((task) => (
-                    <TaskCard key={task.id} task={task} onDelete={handleDelete} />
+                    <DraggableTaskCard key={task.id} task={task} onDelete={handleDelete} />
                   ))}
+                </KanbanColumn>
+              ))}
+            </div>
+            <DragOverlay>
+              {activeDragTask ? (
+                <div className="rotate-2 opacity-90">
+                  <TaskCard task={activeDragTask} onDelete={() => {}} />
                 </div>
-              </div>
-            ))}
-          </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         ) : (
           /* Filtered list view */
           <div className="space-y-2">
@@ -116,11 +284,152 @@ export default function TasksPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={workshopsOpen} onOpenChange={(open) => setWorkshopsOpen(open)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Управление цехами</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="flex flex-wrap gap-2">
+              <Input
+                value={newWorkshopName}
+                onChange={(e) => setNewWorkshopName(e.target.value)}
+                placeholder="Название цеха"
+                className="flex-1 min-w-[220px]"
+                onKeyDown={(e) => { if (e.key === "Enter") createWorkshop(); }}
+              />
+              <Button onClick={createWorkshop} disabled={savingWorkshop || !newWorkshopName.trim()}>
+                {savingWorkshop ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                Создать
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {workshops.length === 0 && (
+                <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+                  Цеха ещё не созданы
+                </div>
+              )}
+              {workshops.map((workshop) => (
+                <div key={workshop.id} className="rounded-lg border border-slate-200 p-4">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">{workshop.name}</h3>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                        <Users className="h-3 w-3" />
+                        {workshop.members?.length ?? 0} участников · {workshop._count?.tasks ?? 0} задач
+                      </p>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Удалить цех?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Задачи останутся в системе, но будут отвязаны от этого цеха.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Отмена</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteWorkshop(workshop.id)} className="bg-red-600 hover:bg-red-700">
+                            Удалить
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {users.map((user) => {
+                      const checked = Boolean(workshop.members?.some((member) => member.id === user.id));
+                      return (
+                        <Label
+                          key={user.id}
+                          className="flex cursor-pointer items-center gap-2 rounded-md border border-slate-100 px-3 py-2 text-sm hover:bg-slate-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => updateWorkshopMembers(workshop, user.id, e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                          <span className="flex-1 min-w-0">
+                            <span className="block truncate text-slate-800">{user.name}</span>
+                            {user.position && <span className="block truncate text-xs text-slate-400">{user.position}</span>}
+                          </span>
+                          {checked && <Check className="h-4 w-4 text-green-600" />}
+                        </Label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWorkshopsOpen(false)}>Закрыть</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function KanbanColumn({ status, count, children }: { status: string; count: number; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: status });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-lg transition-colors ${isOver ? "bg-orange-50/60 ring-2 ring-orange-300" : ""}`}
+    >
+      <div className="mb-3 flex items-center justify-between px-1">
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${TASK_STATUS_COLORS[status]}`}>
+          {TASK_STATUS_LABELS[status]}
+        </span>
+        <span className="text-xs text-slate-400">{count}</span>
+      </div>
+      <div className="space-y-2 min-h-[60px] p-1">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DraggableTaskCard({ task, onDelete }: { task: any; onDelete: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`relative ${isDragging ? "opacity-30" : ""}`}
+    >
+      <button
+        type="button"
+        {...listeners}
+        {...attributes}
+        className="absolute left-1 top-1 z-10 cursor-grab active:cursor-grabbing rounded p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-500 transition-colors"
+        title="Перетащить"
+        aria-label="Перетащить задачу"
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
+      <div className="pl-5">
+        <TaskCard task={task} onDelete={onDelete} />
+      </div>
     </div>
   );
 }
 
 function TaskCard({ task, onDelete }: { task: any; onDelete: (id: string) => void }) {
+  const subtasksTotal = task.subtasks?.length ?? 0;
+  const subtasksDone = task.subtasks?.filter((s: any) => s.status === "DONE").length ?? 0;
+
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 hover:shadow-sm transition-shadow">
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -153,26 +462,63 @@ function TaskCard({ task, onDelete }: { task: any; onDelete: (id: string) => voi
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 mb-2">
+      {/* Теги */}
+      {task.tags?.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {task.tags.map((tag: any) => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+              style={{ backgroundColor: tag.color }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORITY_COLORS[task.priority]}`}>
           {PRIORITY_LABELS[task.priority]}
         </span>
+        {subtasksTotal > 0 && (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              subtasksDone === subtasksTotal
+                ? "bg-green-100 text-green-700"
+                : "bg-slate-100 text-slate-600"
+            }`}
+            title="Подзадачи"
+          >
+            ✓ {subtasksDone}/{subtasksTotal}
+          </span>
+        )}
       </div>
 
-      <div className="space-y-1 text-[11px] text-slate-400">
+      <div className="flex items-end justify-between gap-2">
+        <div className="space-y-1 text-[11px] text-slate-400 flex-1 min-w-0">
+          {task.client && (
+            <p className="truncate">🏢 {task.client.shortName || task.client.name}</p>
+          )}
+          {task.workshop && (
+            <p className="truncate">Цех: {task.workshop.name}</p>
+          )}
+          {task.dueDate && (
+            <p className={new Date(task.dueDate) < new Date() && task.status !== "DONE" ? "text-red-500" : ""}>
+              📅 до {formatDate(task.dueDate)}
+            </p>
+          )}
+          {task._count?.comments > 0 && (
+            <p>💬 {task._count.comments}</p>
+          )}
+        </div>
         {task.assignee && (
-          <p>👤 {task.assignee.name}</p>
-        )}
-        {task.client && (
-          <p>🏢 {task.client.shortName || task.client.name}</p>
-        )}
-        {task.dueDate && (
-          <p className={new Date(task.dueDate) < new Date() && task.status !== "DONE" ? "text-red-500" : ""}>
-            📅 до {formatDate(task.dueDate)}
-          </p>
-        )}
-        {task._count?.comments > 0 && (
-          <p>💬 {task._count.comments}</p>
+          <div
+            className="h-7 w-7 shrink-0 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[11px] font-medium"
+            title={task.assignee.name}
+          >
+            {task.assignee.name.charAt(0).toUpperCase()}
+          </div>
         )}
       </div>
     </div>

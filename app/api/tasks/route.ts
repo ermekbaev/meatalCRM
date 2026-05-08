@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
   const status   = searchParams.get("status") ?? "";
   const priority = searchParams.get("priority") ?? "";
   const assigneeId = searchParams.get("assigneeId") ?? "";
+  const workshopId = searchParams.get("workshopId") ?? "";
+  const role = (session.user as any).role;
+  const userId = (session.user as any).id;
+  const canSeeAllWorkshops = role === "ADMIN" || role === "MANAGER";
 
   const tasks = await prisma.task.findMany({
     where: {
@@ -25,12 +29,22 @@ export async function GET(req: NextRequest) {
         status     ? { status: status as any }     : {},
         priority   ? { priority: priority as any } : {},
         assigneeId ? { assigneeId }                : {},
+        workshopId === "none" ? { workshopId: null } : workshopId ? { workshopId } : {},
+        canSeeAllWorkshops ? {} : {
+          OR: [
+            { workshopId: null },
+            { workshop: { members: { some: { id: userId } } } },
+          ],
+        },
       ],
     },
     include: {
       assignee:  { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
+      workshop:  { select: { id: true, name: true, order: true } },
+      subtasks:  { select: { id: true, status: true } },
+      tags:      true,
       _count:    { select: { comments: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -55,12 +69,14 @@ export async function POST(req: NextRequest) {
       dueDate:     data.dueDate ? new Date(data.dueDate) : null,
       assigneeId:  data.assigneeId || null,
       clientId:    data.clientId || null,
+      workshopId:  data.workshopId || null,
       createdById: userId,
     },
     include: {
       assignee:  { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
+      workshop:  { select: { id: true, name: true, order: true } },
     },
   });
 

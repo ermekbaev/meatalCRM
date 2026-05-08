@@ -40,21 +40,23 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setEditUser(null);
-    reset({ name: "", email: "", password: "", role: "EMPLOYEE", telegramChatId: "" });
+    reset({ name: "", email: "", password: "", role: "EMPLOYEE", telegramChatId: "", position: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (user: any) => {
     setEditUser(user);
-    reset({ name: user.name, email: user.email, password: "", role: user.role, telegramChatId: user.telegramChatId ?? "", phone: user.phone ?? "" });
+    reset({ name: user.name, email: user.email, password: "", role: user.role, telegramChatId: user.telegramChatId ?? "", phone: user.phone ?? "", position: user.position ?? "" });
     setDialogOpen(true);
   };
 
   const onSubmit = async (data: any) => {
     const url = editUser ? `/api/users/${editUser.id}` : "/api/users";
     const method = editUser ? "PUT" : "POST";
-    const payload = { ...data, telegramChatId: data.telegramChatId || null, phone: data.phone || null };
-    const body = editUser && !data.password ? { name: data.name, email: data.email, role: data.role, telegramChatId: payload.telegramChatId, phone: payload.phone } : payload;
+    const payload = { ...data, telegramChatId: data.telegramChatId || null, phone: data.phone || null, position: data.position || null };
+    const body = editUser && !data.password
+      ? { name: data.name, email: data.email, role: data.role, telegramChatId: payload.telegramChatId, phone: payload.phone, position: payload.position }
+      : payload;
     await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setDialogOpen(false);
     fetchUsers();
@@ -110,7 +112,12 @@ export default function UsersPage() {
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700">
                             {u.name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-medium text-gray-900">{u.name}</span>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-900">{u.name}</span>
+                            {u.position && (
+                              <span className="text-xs text-gray-500">{u.position}</span>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-gray-600">{u.email}</TableCell>
@@ -193,6 +200,10 @@ export default function UsersPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Должность</Label>
+              <Input {...register("position")} placeholder="Мастер цеха, Оператор ЧПУ..." />
             </div>
             <div className="space-y-2">
               <Label>Телефон</Label>

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TASK_STATUS_LABELS, TASK_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, formatDateTime } from "@/lib/utils";
 import {
   ArrowLeft, Send, Loader2, Clock, Paperclip, Trash2,
-  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File
+  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File, Printer
 } from "lucide-react";
 import Link from "next/link";
 
@@ -18,6 +18,8 @@ const TAG_COLORS = [
   "#ef4444", "#f97316", "#eab308", "#22c55e",
   "#3b82f6", "#8b5cf6", "#ec4899", "#6b7280",
 ];
+
+type TaskDetailTab = "description" | "subtasks" | "chat" | "history";
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} Б`;
@@ -36,6 +38,21 @@ function getFileIcon(mimeType?: string, fileName?: string) {
   return <FileText className="h-4 w-4 text-gray-400" />;
 }
 
+function formatDateInput(value?: string | Date | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function isSubTaskOverdue(item: any) {
+  if (!item.dueDate || item.status === "DONE") return false;
+  const due = new Date(item.dueDate);
+  if (Number.isNaN(due.getTime())) return false;
+  due.setHours(23, 59, 59, 999);
+  return due < new Date();
+}
+
 // Парсим @упоминания в тексте и подсвечиваем
 function renderCommentText(text: string) {
   const parts = text.split(/(@\w+)/g);
@@ -49,11 +66,13 @@ function renderCommentText(text: string) {
 export default function TaskDetailPage() {
   const params = useParams();
   const [task, setTask] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<TaskDetailTab>("description");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [comment, setComment] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [workshops, setWorkshops] = useState<any[]>([]);
 
   // Файлы
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -66,9 +85,18 @@ export default function TaskDetailPage() {
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[5]);
   const [creatingTag, setCreatingTag] = useState(false);
 
-  // Чек-лист
+  // Чек-лист (legacy — оставлен для совместимости, миграция перенесла данные в subtasks)
   const [newCheckItem, setNewCheckItem] = useState("");
   const [addingCheck, setAddingCheck] = useState(false);
+
+  // Подзадачи
+  const [newSubTitle, setNewSubTitle] = useState("");
+  const [newSubQty, setNewSubQty] = useState("");
+  const [newSubUnit, setNewSubUnit] = useState("шт");
+  const [newSubPriority, setNewSubPriority] = useState("MEDIUM");
+  const [newSubAssignee, setNewSubAssignee] = useState<string>("");
+  const [newSubDueDate, setNewSubDueDate] = useState("");
+  const [addingSub, setAddingSub] = useState(false);
 
   // Редактирование заголовка
   const [editingTitle, setEditingTitle] = useState(false);
@@ -94,6 +122,7 @@ export default function TaskDetailPage() {
     fetchTask();
     fetch("/api/users").then((r) => r.json()).then(setUsers).catch(() => {});
     fetch("/api/tags").then((r) => r.json()).then(setAllTags).catch(() => {});
+    fetch("/api/workshops").then((r) => r.json()).then((data) => setWorkshops(Array.isArray(data) ? data : [])).catch(() => {});
   }, [fetchTask]);
 
   const updateField = async (field: string, value: any) => {
@@ -172,6 +201,15 @@ export default function TaskDetailPage() {
     setCreatingTag(false);
   };
 
+  const deleteTagGlobal = async (tagId: string) => {
+    if (!confirm("Удалить тег полностью? Он отвяжется от всех задач.")) return;
+    const res = await fetch(`/api/tags/${tagId}`, { method: "DELETE" });
+    if (res.ok) {
+      setAllTags((prev) => prev.filter((t) => t.id !== tagId));
+      setTask((prev: any) => ({ ...prev, tags: prev.tags.filter((t: any) => t.id !== tagId) }));
+    }
+  };
+
   // --- Чек-лист ---
   const addCheckItem = async () => {
     if (!newCheckItem.trim()) return;
@@ -218,6 +256,70 @@ export default function TaskDetailPage() {
     setTask((prev: any) => ({ ...prev, checklist: prev.checklist.filter((i: any) => i.id !== itemId) }));
   };
 
+  // --- Подзадачи ---
+  const addSubTask = async () => {
+    if (!newSubTitle.trim()) return;
+    setAddingSub(true);
+    const res = await fetch(`/api/tasks/${params.id}/subtasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: newSubTitle.trim(),
+        quantity: newSubQty ? Number(newSubQty) : null,
+        unit: newSubUnit.trim() || null,
+        priority: newSubPriority,
+        assigneeId: newSubAssignee || null,
+        dueDate: newSubDueDate || null,
+      }),
+    });
+    if (res.ok) {
+      const item = await res.json();
+      setTask((prev: any) => ({ ...prev, subtasks: [...(prev.subtasks ?? []), item] }));
+      setNewSubTitle(""); setNewSubQty(""); setNewSubAssignee(""); setNewSubDueDate("");
+    }
+    setAddingSub(false);
+  };
+
+  const updateSubTask = async (subId: string, patch: any) => {
+    setTask((prev: any) => ({
+      ...prev,
+      subtasks: prev.subtasks.map((s: any) => s.id === subId ? { ...s, ...patch } : s),
+    }));
+    const res = await fetch(`/api/tasks/${params.id}/subtasks/${subId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setTask((prev: any) => ({
+        ...prev,
+        subtasks: prev.subtasks.map((s: any) => s.id === subId ? updated : s),
+      }));
+    }
+  };
+
+  const toggleSubTaskDone = (subId: string, current: string) => {
+    updateSubTask(subId, { status: current === "DONE" ? "TODO" : "DONE" });
+  };
+
+  const deleteSubTask = async (subId: string) => {
+    await fetch(`/api/tasks/${params.id}/subtasks/${subId}`, { method: "DELETE" });
+    setTask((prev: any) => ({ ...prev, subtasks: prev.subtasks.filter((s: any) => s.id !== subId) }));
+  };
+
+  const [printing, setPrinting] = useState(false);
+  const printProductionTask = async () => {
+    setPrinting(true);
+    try {
+      const company = await fetch("/api/settings/company").then((r) => r.ok ? r.json() : null).catch(() => null);
+      const { generateProductionPDF } = await import("@/lib/production-pdf");
+      await generateProductionPDF(task, company);
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   // --- Упоминания ---
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -246,8 +348,15 @@ export default function TaskDetailPage() {
     u.name.toLowerCase().includes(mentionQuery.toLowerCase())
   );
 
-  const doneCount = task?.checklist?.filter((i: any) => i.isCompleted).length ?? 0;
-  const totalCount = task?.checklist?.length ?? 0;
+  const doneCount = task?.subtasks?.filter((s: any) => s.status === "DONE").length ?? 0;
+  const totalCount = task?.subtasks?.length ?? 0;
+  const commentCount = task?.comments?.length ?? 0;
+  const taskTabs: Array<{ key: TaskDetailTab; label: string }> = [
+    { key: "description", label: "Описание" },
+    { key: "subtasks", label: `Подзадачи${totalCount ? ` ${doneCount}/${totalCount}` : ""}` },
+    { key: "chat", label: `Чат${commentCount ? ` ${commentCount}` : ""}` },
+    { key: "history", label: "История" },
+  ];
 
   if (loading) {
     return (
@@ -266,15 +375,27 @@ export default function TaskDetailPage() {
     <div>
       <Header title={task.title} />
       <div className="p-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <Link href="/tasks">
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
           </Link>
-          {saving && (
-            <span className="flex items-center gap-1 text-xs text-gray-400">
-              <Loader2 className="h-3 w-3 animate-spin" /> Сохранение...
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {saving && (
+              <span className="flex items-center gap-1 text-xs text-gray-400">
+                <Loader2 className="h-3 w-3 animate-spin" /> Сохранение...
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={printProductionTask}
+              disabled={printing}
+              title="Распечатать производственное задание"
+            >
+              {printing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+              Печать задания
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -337,7 +458,32 @@ export default function TaskDetailPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+            </Card>
+
+            {/* Вкладки */}
+            <div className="overflow-x-auto border-b border-gray-200">
+              <div className="flex min-w-max gap-1">
+                {taskTabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                      activeTab === tab.key
+                        ? "border-orange-500 text-orange-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {activeTab === "description" && (
+              <div className="space-y-6">
+                <Card>
+                  <CardContent className="pt-6">
                 {editingDescription ? (
                   <div className="space-y-2">
                     <Textarea
@@ -385,15 +531,18 @@ export default function TaskDetailPage() {
                     )}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
-            {/* Чек-лист */}
+            {/* Подзадачи */}
+            {activeTab === "subtasks" && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <CheckSquare className="h-4 w-4" /> Чек-лист
+                    <CheckSquare className="h-4 w-4" /> Подзадачи
                   </CardTitle>
                   {totalCount > 0 && (
                     <span className="text-xs text-gray-500">{doneCount} / {totalCount}</span>
@@ -409,45 +558,145 @@ export default function TaskDetailPage() {
                 )}
               </CardHeader>
               <CardContent className="space-y-2">
-                {task.checklist?.map((item: any) => (
-                  <div key={item.id} className="flex items-center gap-2 group">
+                {task.subtasks?.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className={`flex flex-wrap items-center gap-2 group rounded-lg border px-2 py-1.5 ${
+                      isSubTaskOverdue(item)
+                        ? "border-red-200 bg-red-50 hover:bg-red-50"
+                        : "border-gray-100 hover:bg-gray-50"
+                    }`}
+                  >
                     <button
-                      onClick={() => toggleCheckItem(item.id, item.isCompleted)}
+                      onClick={() => toggleSubTaskDone(item.id, item.status)}
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                        item.isCompleted
+                        item.status === "DONE"
                           ? "border-green-500 bg-green-500 text-white"
                           : "border-gray-300 hover:border-green-400"
                       }`}
                     >
-                      {item.isCompleted && <Check className="h-3 w-3" />}
+                      {item.status === "DONE" && <Check className="h-3 w-3" />}
                     </button>
-                    <span className={`flex-1 text-sm ${item.isCompleted ? "line-through text-gray-400" : "text-gray-700"}`}>
-                      {item.text}
+
+                    <span className={`flex-1 min-w-0 text-sm ${item.status === "DONE" ? "line-through text-gray-400" : "text-gray-800"}`}>
+                      {item.title}
+                      {item.quantity != null && (
+                        <span className="ml-1 text-gray-500">
+                          {item.quantity} {item.unit || "шт"}
+                        </span>
+                      )}
                     </span>
+
+                    <Select value={item.status} onValueChange={(v) => updateSubTask(item.id, { status: v })}>
+                      <SelectTrigger className="h-7 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={item.priority} onValueChange={(v) => updateSubTask(item.id, { priority: v })}>
+                      <SelectTrigger className="h-7 w-[100px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={item.assigneeId ?? "none"}
+                      onValueChange={(v) => updateSubTask(item.id, { assigneeId: v === "none" ? null : v })}
+                    >
+                      <SelectTrigger className="h-7 w-[140px] text-xs"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Не назначен</SelectItem>
+                        {users.map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="date"
+                        value={formatDateInput(item.dueDate)}
+                        onChange={(e) => updateSubTask(item.id, { dueDate: e.target.value || null })}
+                        className={`h-7 w-[135px] text-xs ${
+                          isSubTaskOverdue(item) ? "border-red-300 bg-white text-red-600" : ""
+                        }`}
+                        title={isSubTaskOverdue(item) ? "Просрочено" : "Срок подзадачи"}
+                      />
+                      {isSubTaskOverdue(item) && (
+                        <span className="text-xs font-medium text-red-600">просрочено</span>
+                      )}
+                    </div>
+
                     <button
-                      onClick={() => deleteCheckItem(item.id)}
+                      onClick={() => deleteSubTask(item.id)}
                       className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))}
-                <div className="flex gap-2 pt-1">
+
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
                   <Input
-                    value={newCheckItem}
-                    onChange={(e) => setNewCheckItem(e.target.value)}
-                    placeholder="Добавить пункт..."
-                    className="flex-1 h-8 text-sm"
-                    onKeyDown={(e) => { if (e.key === "Enter") addCheckItem(); }}
+                    value={newSubTitle}
+                    onChange={(e) => setNewSubTitle(e.target.value)}
+                    placeholder="Название (напр. МС-1)"
+                    className="flex-1 min-w-[160px] h-8 text-sm"
+                    onKeyDown={(e) => { if (e.key === "Enter") addSubTask(); }}
                   />
-                  <Button size="sm" onClick={addCheckItem} disabled={addingCheck || !newCheckItem.trim()} className="h-8">
-                    {addingCheck ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                  <Input
+                    value={newSubQty}
+                    onChange={(e) => setNewSubQty(e.target.value)}
+                    placeholder="Кол-во"
+                    type="number"
+                    className="w-20 h-8 text-sm"
+                  />
+                  <Input
+                    value={newSubUnit}
+                    onChange={(e) => setNewSubUnit(e.target.value)}
+                    placeholder="ед."
+                    className="w-16 h-8 text-sm"
+                  />
+                  <Select value={newSubPriority} onValueChange={setNewSubPriority}>
+                    <SelectTrigger className="h-8 w-[110px] text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={newSubAssignee || "none"} onValueChange={(v) => setNewSubAssignee(v === "none" ? "" : v)}>
+                    <SelectTrigger className="h-8 w-[150px] text-sm"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Не назначен</SelectItem>
+                      {users.map((u: any) => (
+                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={newSubDueDate}
+                    onChange={(e) => setNewSubDueDate(e.target.value)}
+                    type="date"
+                    className="h-8 w-[145px] text-sm"
+                    title="Срок подзадачи"
+                  />
+                  <Button size="sm" onClick={addSubTask} disabled={addingSub || !newSubTitle.trim()} className="h-8">
+                    {addingSub ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
                   </Button>
                 </div>
               </CardContent>
             </Card>
+            )}
 
             {/* Файлы */}
+            {activeTab === "description" && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -502,8 +751,10 @@ export default function TaskDetailPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
 
             {/* Комментарии */}
+            {activeTab === "chat" && (
             <Card>
               <CardHeader><CardTitle className="text-base">Комментарии</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -517,8 +768,11 @@ export default function TaskDetailPage() {
                         {c.user?.name?.charAt(0)}
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-sm font-medium text-gray-900">{c.user?.name}</span>
+                          {c.user?.position && (
+                            <span className="text-xs text-gray-500">· {c.user.position}</span>
+                          )}
                           <span className="text-xs text-gray-400">{formatDateTime(c.createdAt)}</span>
                         </div>
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">{renderCommentText(c.text)}</p>
@@ -562,6 +816,17 @@ export default function TaskDetailPage() {
                 </div>
               </CardContent>
             </Card>
+            )}
+
+            {activeTab === "history" && (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-gray-400">
+                    История изменений будет реализована вместе с задачей #7.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -602,6 +867,21 @@ export default function TaskDetailPage() {
                       <SelectItem value="none">Не назначен</SelectItem>
                       {users.map((u: any) => (
                         <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-500">Цех</p>
+                  <Select
+                    value={task.workshopId ?? "none"}
+                    onValueChange={(v) => updateField("workshopId", v === "none" ? null : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Без цеха" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Без цеха</SelectItem>
+                      {workshops.map((workshop: any) => (
+                        <SelectItem key={workshop.id} value={workshop.id}>{workshop.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -667,11 +947,19 @@ export default function TaskDetailPage() {
                       {allTags.filter((t) => !task.tags?.find((tt: any) => tt.id === t.id)).map((tag) => (
                         <span
                           key={tag.id}
-                          className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium text-white cursor-pointer hover:opacity-80"
+                          className="group inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
                           style={{ backgroundColor: tag.color }}
-                          onClick={() => toggleTag(tag.id, false)}
                         >
-                          {tag.name}
+                          <span className="cursor-pointer hover:opacity-80" onClick={() => toggleTag(tag.id, false)}>
+                            {tag.name}
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteTagGlobal(tag.id); }}
+                            className="opacity-60 hover:opacity-100"
+                            title="Удалить тег полностью"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
                         </span>
                       ))}
                     </div>
