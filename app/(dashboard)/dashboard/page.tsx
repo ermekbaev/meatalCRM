@@ -8,6 +8,9 @@ import { PopularItemsCard } from "./PopularItemsCard";
 import { PeriodFilter } from "./PeriodFilter";
 import Link from "next/link";
 import { Suspense } from "react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 const MONTH_NAMES = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
 
@@ -25,6 +28,9 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
+  const session = await getServerSession(authOptions);
+  if ((session?.user as any)?.role === "FOREMAN") redirect("/tasks");
+
   const { period = "month" } = await searchParams;
   const since = getPeriodStart(period);
   const dateFilter = since ? { createdAt: { gte: since } } : {};

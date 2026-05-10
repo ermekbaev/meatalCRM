@@ -8,17 +8,11 @@ export const canManageTasks = (role: Role) => role === "ADMIN" || role === "MANA
 export const canManageSubtasks = (role: Role) =>
   role === "ADMIN" || role === "MANAGER" || role === "FOREMAN";
 
-// Проверяет, что FOREMAN/MANAGER/ADMIN имеет доступ к подзадачам этой задачи.
-// FOREMAN — только если состоит в цехе задачи (или задача без цеха).
+// FOREMAN имеет доступ к подзадачам только тех задач, где он ответственный.
 export async function canForemanAccessTask(taskId: string, userId: string) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    select: {
-      workshopId: true,
-      workshop: { select: { members: { where: { id: userId }, select: { id: true } } } },
-    },
+    select: { assigneeId: true },
   });
-  if (!task) return false;
-  if (!task.workshopId) return true;
-  return (task.workshop?.members.length ?? 0) > 0;
+  return task?.assigneeId === userId;
 }

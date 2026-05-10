@@ -13,12 +13,12 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const role = (session.user as any).role;
   const userId = (session.user as any).id;
-  const canSeeAllWorkshops = role === "ADMIN" || role === "MANAGER";
+  const canSeeAll = role === "ADMIN" || role === "MANAGER";
 
   const task = await prisma.task.findFirst({
     where: {
       id,
-      ...(canSeeAllWorkshops ? {} : {
+      ...(canSeeAll ? {} : role === "FOREMAN" ? { assigneeId: userId } : {
         OR: [
           { workshopId: null },
           { workshop: { members: { some: { id: userId } } } },

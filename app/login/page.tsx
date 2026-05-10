@@ -30,7 +30,7 @@ export default function LoginPage() {
     if (res?.error) {
       setError("Неверный логин или пароль");
     } else {
-      router.push("/dashboard");
+      router.push("/");
     }
   }
 

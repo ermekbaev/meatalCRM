@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,6 +66,9 @@ function renderCommentText(text: string) {
 
 export default function TaskDetailPage() {
   const params = useParams();
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role;
+  const canEditTask = role === "ADMIN" || role === "MANAGER";
   const [task, setTask] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<TaskDetailTab>("description");
   const [loading, setLoading] = useState(true);
@@ -407,7 +411,7 @@ export default function TaskDetailPage() {
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    {editingTitle ? (
+                    {editingTitle && canEditTask ? (
                       <input
                         autoFocus
                         className="w-full text-xl font-semibold text-gray-900 border-b border-orange-400 outline-none bg-transparent"
@@ -418,9 +422,9 @@ export default function TaskDetailPage() {
                       />
                     ) : (
                       <h2
-                        className="text-xl font-semibold text-gray-900 cursor-pointer hover:text-orange-600 transition-colors"
-                        onClick={() => { setTitleValue(task.title); setEditingTitle(true); }}
-                        title="Нажмите для редактирования"
+                        className={`text-xl font-semibold text-gray-900 ${canEditTask ? "cursor-pointer hover:text-orange-600 transition-colors" : ""}`}
+                        onClick={canEditTask ? () => { setTitleValue(task.title); setEditingTitle(true); } : undefined}
+                        title={canEditTask ? "Нажмите для редактирования" : undefined}
                       >
                         {task.title}
                       </h2>
@@ -836,7 +840,7 @@ export default function TaskDetailPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gray-500">Статус</p>
-                  <Select value={task.status} onValueChange={(v) => updateField("status", v)}>
+                  <Select value={task.status} onValueChange={(v) => updateField("status", v)} disabled={!canEditTask}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
@@ -847,7 +851,7 @@ export default function TaskDetailPage() {
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gray-500">Приоритет</p>
-                  <Select value={task.priority} onValueChange={(v) => updateField("priority", v)}>
+                  <Select value={task.priority} onValueChange={(v) => updateField("priority", v)} disabled={!canEditTask}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
@@ -861,6 +865,7 @@ export default function TaskDetailPage() {
                   <Select
                     value={task.assigneeId ?? "none"}
                     onValueChange={(v) => updateField("assigneeId", v === "none" ? null : v)}
+                    disabled={!canEditTask}
                   >
                     <SelectTrigger><SelectValue placeholder="Не назначен" /></SelectTrigger>
                     <SelectContent>
@@ -876,6 +881,7 @@ export default function TaskDetailPage() {
                   <Select
                     value={task.workshopId ?? "none"}
                     onValueChange={(v) => updateField("workshopId", v === "none" ? null : v)}
+                    disabled={!canEditTask}
                   >
                     <SelectTrigger><SelectValue placeholder="Без цеха" /></SelectTrigger>
                     <SelectContent>

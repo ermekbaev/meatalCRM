@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const workshopId = searchParams.get("workshopId") ?? "";
   const role = (session.user as any).role;
   const userId = (session.user as any).id;
-  const canSeeAllWorkshops = role === "ADMIN" || role === "MANAGER";
+  const canSeeAll = role === "ADMIN" || role === "MANAGER";
 
   const tasks = await prisma.task.findMany({
     where: {
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         priority   ? { priority: priority as any } : {},
         assigneeId ? { assigneeId }                : {},
         workshopId === "none" ? { workshopId: null } : workshopId ? { workshopId } : {},
-        canSeeAllWorkshops ? {} : {
+        canSeeAll ? {} : role === "FOREMAN" ? { assigneeId: userId } : {
           OR: [
             { workshopId: null },
             { workshop: { members: { some: { id: userId } } } },

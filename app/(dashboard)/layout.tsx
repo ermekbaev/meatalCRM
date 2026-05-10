@@ -10,6 +10,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const role = (session.user as any).role;
   if (role === "EMPLOYEE") redirect("/operator");
 
+  if (role === "FOREMAN") {
+    return (
+      <div className="flex h-screen flex-col bg-gray-50">
+        <main className="flex-1 overflow-y-auto">{children}</main>
+      </div>
+    );
+  }
+
   return (
     <DashboardShell>
       <main className="flex-1 overflow-y-auto">{children}</main>

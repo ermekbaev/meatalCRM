@@ -35,7 +35,10 @@ type Workshop = {
 export default function TasksPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const role = (session?.user as any)?.role;
+  const isAdmin = role === "ADMIN";
+  const isForeman = role === "FOREMAN";
+  const canManageTasks = role === "ADMIN" || role === "MANAGER";
   const [tasks, setTasks] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -306,11 +309,13 @@ export default function TasksPage() {
                   <span className="hidden sm:inline">Выбрать для печати</span>
                   <span className="sm:hidden">Печать</span>
                 </Button>
-                <Button className="flex-1 sm:flex-none" onClick={() => router.push("/tasks/new")}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Создать задачу</span>
-                  <span className="sm:hidden">Создать</span>
-                </Button>
+                {canManageTasks && (
+                  <Button className="flex-1 sm:flex-none" onClick={() => router.push("/tasks/new")}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Создать задачу</span>
+                    <span className="sm:hidden">Создать</span>
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -321,9 +326,11 @@ export default function TasksPage() {
         ) : tasks.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-3 text-slate-400">
             <p className="text-sm">Задач пока нет</p>
-            <Button variant="outline" size="sm" onClick={() => router.push("/tasks/new")}>
-              <Plus className="mr-1 h-4 w-4" /> Создать первую задачу
-            </Button>
+            {canManageTasks && (
+              <Button variant="outline" size="sm" onClick={() => router.push("/tasks/new")}>
+                <Plus className="mr-1 h-4 w-4" /> Создать первую задачу
+              </Button>
+            )}
           </div>
         ) : status === "ALL" ? (
           <>
@@ -347,6 +354,7 @@ export default function TasksPage() {
                           selectMode={selectMode}
                           selected={selectedIds.has(task.id)}
                           onToggleSelect={toggleSelect}
+                          canDelete={canManageTasks}
                         />
                       ))}
                     </div>
@@ -369,6 +377,8 @@ export default function TasksPage() {
                           selectMode={selectMode}
                           selected={selectedIds.has(task.id)}
                           onToggleSelect={toggleSelect}
+                          canDelete={canManageTasks}
+                          canDrag={canManageTasks}
                         />
                       ))}
                     </KanbanColumn>
@@ -395,6 +405,7 @@ export default function TasksPage() {
                 selectMode={selectMode}
                 selected={selectedIds.has(task.id)}
                 onToggleSelect={toggleSelect}
+                canDelete={canManageTasks}
               />
             ))}
           </div>
@@ -524,19 +535,21 @@ type CardProps = {
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  canDelete?: boolean;
+  canDrag?: boolean;
 };
 
-function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelect }: CardProps) {
+function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDelete, canDrag = true }: CardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
-    disabled: selectMode,
+    disabled: selectMode || !canDrag,
   });
   return (
     <div
       ref={setNodeRef}
       className={`relative ${isDragging ? "opacity-30" : ""}`}
     >
-      {!selectMode && (
+      {!selectMode && canDrag && (
         <button
           type="button"
           {...listeners}
@@ -548,20 +561,21 @@ function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelec
           <GripVertical className="h-3.5 w-3.5" />
         </button>
       )}
-      <div className={selectMode ? "" : "pl-5"}>
+      <div className={selectMode || !canDrag ? "" : "pl-5"}>
         <TaskCard
           task={task}
           onDelete={onDelete}
           selectMode={selectMode}
           selected={selected}
           onToggleSelect={onToggleSelect}
+          canDelete={canDelete}
         />
       </div>
     </div>
   );
 }
 
-function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect }: CardProps) {
+function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDelete }: CardProps) {
   const subtasksTotal = task.subtasks?.length ?? 0;
   const subtasksDone = task.subtasks?.filter((s: any) => s.status === "DONE").length ?? 0;
 
@@ -607,23 +621,25 @@ function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect }: Card
                 <Eye className="h-3.5 w-3.5" />
               </button>
             </Link>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button className="text-slate-300 hover:text-red-500 transition-colors p-0.5">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Удалить задачу?</AlertDialogTitle>
-                  <AlertDialogDescription>Это действие нельзя отменить.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onDelete(task.id)} className="bg-red-600 hover:bg-red-700">Удалить</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {canDelete && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="text-slate-300 hover:text-red-500 transition-colors p-0.5">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Удалить задачу?</AlertDialogTitle>
+                    <AlertDialogDescription>Это действие нельзя отменить.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onDelete(task.id)} className="bg-red-600 hover:bg-red-700">Удалить</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         )}
       </div>
