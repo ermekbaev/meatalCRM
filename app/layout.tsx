@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { NextAuthProvider } from "@/components/providers/session-provider";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { IosInstallHint } from "@/components/IosInstallHint";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -16,8 +17,11 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
@@ -34,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.className} antialiased bg-gray-50`} suppressHydrationWarning>
         <NextAuthProvider>{children}</NextAuthProvider>
         <ServiceWorkerRegistrar />
+        <IosInstallHint />
       </body>
     </html>
   );

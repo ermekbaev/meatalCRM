@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff, Loader2, Share } from "lucide-react";
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -11,12 +11,30 @@ function urlBase64ToUint8Array(base64String: string) {
   return out;
 }
 
+function isIos() {
+  if (typeof window === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as any).MSStream;
+}
+
+function isStandalone() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as any).standalone === true
+  );
+}
+
 export function PushSubscribeButton({ compact = false }: { compact?: boolean }) {
-  const [state, setState] = useState<"loading" | "supported" | "subscribed" | "denied" | "unsupported">("loading");
+  const [state, setState] = useState<"loading" | "supported" | "subscribed" | "denied" | "unsupported" | "ios-needs-install">("loading");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // iOS поддерживает Web Push только в установленном PWA (iOS 16.4+).
+    if (isIos() && !isStandalone()) {
+      setState("ios-needs-install");
+      return;
+    }
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setState("unsupported");
       return;
@@ -81,6 +99,17 @@ export function PushSubscribeButton({ compact = false }: { compact?: boolean }) 
   const cls = compact
     ? "inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs"
     : "inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50";
+
+  if (state === "ios-needs-install") {
+    return (
+      <span
+        className={`${cls} text-slate-500`}
+        title="На iPhone сначала добавьте сайт на главный экран через [Поделиться] → На экран «Домой»"
+      >
+        <Share className="h-3.5 w-3.5" /> Установите для push
+      </span>
+    );
+  }
 
   if (state === "denied") {
     return (

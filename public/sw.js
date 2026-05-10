@@ -1,20 +1,61 @@
-// Минимальный service worker: установка + push.
-// Кеширование намеренно простое — Next.js сам отдаёт edge-кеш и HTTP-cache headers.
+// Service worker: install + push + lightweight offline cache.
 
-const SW_VERSION = "v1";
+const SW_VERSION = "v2";
+const RUNTIME_CACHE = `runtime-${SW_VERSION}`;
+const OFFLINE_URL = "/offline";
+const PRECACHE = [OFFLINE_URL, "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
-  // Сразу активируем новую версию
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(RUNTIME_CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== RUNTIME_CACHE).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
 });
 
-// Заглушка fetch — без кастомного кеша, всё идёт в сеть.
-// Это нужно лишь для того, чтобы браузер считал PWA «installable».
-self.addEventListener("fetch", () => {});
+// Network-first for navigations (with offline fallback).
+// Cache-first for same-origin static assets (Next.js _next/static, images, fonts).
+// API calls always go to network.
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return;
+
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req).catch(() => caches.match(OFFLINE_URL).then((r) => r || new Response("Offline", { status: 503 })))
+    );
+    return;
+  }
+
+  const isStatic =
+    url.pathname.startsWith("/_next/static/") ||
+    /\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|ttf|otf|css|js)$/i.test(url.pathname);
+
+  if (!isStatic) return;
+
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req).then((res) => {
+        if (res.ok && res.type === "basic") {
+          const copy = res.clone();
+          caches.open(RUNTIME_CACHE).then((cache) => cache.put(req, copy));
+        }
+        return res;
+      }).catch(() => cached);
+    })
+  );
+});
 
 // Web Push
 self.addEventListener("push", (event) => {
@@ -29,8 +70,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: payload.body,
-    icon: "/logo.png",
-    badge: "/logo.png",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
     data: { link: payload.link ?? "/" },
     tag: payload.tag ?? undefined,
   };
