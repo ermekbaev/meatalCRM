@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { TASK_STATUS_LABELS, TASK_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate } from "@/lib/utils";
-import { Building2, Check, Loader2, Plus, Search, Settings, Trash2, Eye, Users, GripVertical } from "lucide-react";
+import { Building2, Check, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X } from "lucide-react";
 import Link from "next/link";
 import {
   DndContext,
@@ -48,6 +48,9 @@ export default function TasksPage() {
   const [newWorkshopName, setNewWorkshopName] = useState("");
   const [savingWorkshop, setSavingWorkshop] = useState(false);
   const [activeDragTask, setActiveDragTask] = useState<any>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [printingBulk, setPrintingBulk] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -118,6 +121,39 @@ export default function TasksPage() {
       if (activeWorkshopId === id) setActiveWorkshopId("ALL");
       await fetchWorkshops();
       fetchTasks();
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const printSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setPrintingBulk(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const [company, ...fullTasks] = await Promise.all([
+        fetch("/api/settings/company").then((r) => r.ok ? r.json() : null).catch(() => null),
+        ...ids.map((id) => fetch(`/api/tasks/${id}`).then((r) => r.ok ? r.json() : null).catch(() => null)),
+      ]);
+      const tasksToPrint = fullTasks.filter(Boolean);
+      if (tasksToPrint.length === 0) return;
+      const { generateProductionBulkPDF } = await import("@/lib/production-pdf");
+      await generateProductionBulkPDF(tasksToPrint, company);
+      exitSelectMode();
+    } finally {
+      setPrintingBulk(false);
     }
   };
 
@@ -241,9 +277,38 @@ export default function TasksPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button className="ml-auto" onClick={() => router.push("/tasks/new")}>
-            <Plus className="mr-2 h-4 w-4" /> Создать задачу
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            {selectMode ? (
+              <>
+                <span className="text-xs text-slate-500">
+                  Выбрано: {selectedIds.size}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={printSelected}
+                  disabled={printingBulk || selectedIds.size === 0}
+                >
+                  {printingBulk
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <Printer className="mr-2 h-4 w-4" />
+                  }
+                  Печать ({selectedIds.size})
+                </Button>
+                <Button variant="ghost" size="icon" onClick={exitSelectMode} title="Отменить выбор">
+                  <X className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setSelectMode(true)}>
+                  <Printer className="mr-2 h-4 w-4" /> Выбрать для печати
+                </Button>
+                <Button onClick={() => router.push("/tasks/new")}>
+                  <Plus className="mr-2 h-4 w-4" /> Создать задачу
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -262,7 +327,14 @@ export default function TasksPage() {
               {Object.entries(statusGroups).map(([st, items]) => (
                 <KanbanColumn key={st} status={st} count={items.length}>
                   {items.map((task) => (
-                    <DraggableTaskCard key={task.id} task={task} onDelete={handleDelete} />
+                    <DraggableTaskCard
+                      key={task.id}
+                      task={task}
+                      onDelete={handleDelete}
+                      selectMode={selectMode}
+                      selected={selectedIds.has(task.id)}
+                      onToggleSelect={toggleSelect}
+                    />
                   ))}
                 </KanbanColumn>
               ))}
@@ -279,7 +351,14 @@ export default function TasksPage() {
           /* Filtered list view */
           <div className="space-y-2">
             {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} onDelete={handleDelete} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                onDelete={handleDelete}
+                selectMode={selectMode}
+                selected={selectedIds.has(task.id)}
+                onToggleSelect={toggleSelect}
+              />
             ))}
           </div>
         )}
@@ -402,64 +481,114 @@ function KanbanColumn({ status, count, children }: { status: string; count: numb
   );
 }
 
-function DraggableTaskCard({ task, onDelete }: { task: any; onDelete: (id: string) => void }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+type CardProps = {
+  task: any;
+  onDelete: (id: string) => void;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
+};
+
+function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelect }: CardProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.id,
+    disabled: selectMode,
+  });
   return (
     <div
       ref={setNodeRef}
       className={`relative ${isDragging ? "opacity-30" : ""}`}
     >
-      <button
-        type="button"
-        {...listeners}
-        {...attributes}
-        className="absolute left-1 top-1 z-10 cursor-grab active:cursor-grabbing rounded p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-500 transition-colors"
-        title="Перетащить"
-        aria-label="Перетащить задачу"
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </button>
-      <div className="pl-5">
-        <TaskCard task={task} onDelete={onDelete} />
+      {!selectMode && (
+        <button
+          type="button"
+          {...listeners}
+          {...attributes}
+          className="absolute left-1 top-1 z-10 cursor-grab active:cursor-grabbing rounded p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-500 transition-colors"
+          title="Перетащить"
+          aria-label="Перетащить задачу"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      )}
+      <div className={selectMode ? "" : "pl-5"}>
+        <TaskCard
+          task={task}
+          onDelete={onDelete}
+          selectMode={selectMode}
+          selected={selected}
+          onToggleSelect={onToggleSelect}
+        />
       </div>
     </div>
   );
 }
 
-function TaskCard({ task, onDelete }: { task: any; onDelete: (id: string) => void }) {
+function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect }: CardProps) {
   const subtasksTotal = task.subtasks?.length ?? 0;
   const subtasksDone = task.subtasks?.filter((s: any) => s.status === "DONE").length ?? 0;
 
+  const cardClass = `rounded-lg border bg-white p-4 transition-shadow ${
+    selectMode
+      ? selected
+        ? "border-orange-400 ring-2 ring-orange-200 cursor-pointer"
+        : "border-slate-200 cursor-pointer hover:border-orange-300"
+      : "border-slate-200 hover:shadow-sm"
+  }`;
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (!selectMode) return;
+    e.preventDefault();
+    onToggleSelect?.(task.id);
+  };
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 hover:shadow-sm transition-shadow">
+    <div className={cardClass} onClick={handleCardClick}>
       <div className="flex items-start justify-between gap-2 mb-2">
-        <Link href={`/tasks/${task.id}`} className="text-sm font-medium text-slate-800 hover:text-slate-600 leading-tight">
-          {task.title}
-        </Link>
-        <div className="flex gap-1 shrink-0">
-          <Link href={`/tasks/${task.id}`}>
-            <button className="text-slate-300 hover:text-slate-600 transition-colors p-0.5">
-              <Eye className="h-3.5 w-3.5" />
-            </button>
-          </Link>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button className="text-slate-300 hover:text-red-500 transition-colors p-0.5">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Удалить задачу?</AlertDialogTitle>
-                <AlertDialogDescription>Это действие нельзя отменить.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Отмена</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(task.id)} className="bg-red-600 hover:bg-red-700">Удалить</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+        <div className="flex items-start gap-2 flex-1 min-w-0">
+          {selectMode && (
+            <input
+              type="checkbox"
+              checked={!!selected}
+              onChange={() => onToggleSelect?.(task.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-orange-500"
+            />
+          )}
+          {selectMode ? (
+            <span className="text-sm font-medium text-slate-800 leading-tight">{task.title}</span>
+          ) : (
+            <Link href={`/tasks/${task.id}`} className="text-sm font-medium text-slate-800 hover:text-slate-600 leading-tight">
+              {task.title}
+            </Link>
+          )}
         </div>
+        {!selectMode && (
+          <div className="flex gap-1 shrink-0">
+            <Link href={`/tasks/${task.id}`}>
+              <button className="text-slate-300 hover:text-slate-600 transition-colors p-0.5">
+                <Eye className="h-3.5 w-3.5" />
+              </button>
+            </Link>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button className="text-slate-300 hover:text-red-500 transition-colors p-0.5">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Удалить задачу?</AlertDialogTitle>
+                  <AlertDialogDescription>Это действие нельзя отменить.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(task.id)} className="bg-red-600 hover:bg-red-700">Удалить</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
 
       {/* Теги */}

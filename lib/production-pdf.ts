@@ -9,23 +9,18 @@ function fmtDate(d: Date | string | null | undefined) {
   });
 }
 
-export async function generateProductionPDF(task: any, company: any) {
+function escapeHtml(s: string) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildTaskHtml(task: any, company: any): string {
   const subtasks = (task.subtasks ?? []) as any[];
   const client = task.client;
   const workshop = task.workshop;
-
-  const container = document.createElement("div");
-  container.style.cssText = [
-    "position:fixed",
-    "top:-9999px",
-    "left:-9999px",
-    "width:794px",
-    "background:white",
-    "font-family:Arial,Helvetica,sans-serif",
-    "color:#000",
-    "font-size:11px",
-    "line-height:1.4",
-  ].join(";");
 
   const rowsHtml = subtasks.length === 0
     ? `<tr><td colspan="7" style="border:1px solid #000;padding:12px;text-align:center;color:#666;">Нет подзадач</td></tr>`
@@ -40,7 +35,7 @@ export async function generateProductionPDF(task: any, company: any) {
           <td style="border:1px solid #000;padding:6px;text-align:center;">${fmtDate(s.dueDate)}</td>
         </tr>`).join("");
 
-  container.innerHTML = `<div style="padding:28px 40px 40px 40px;">
+  return `<div style="padding:28px 40px 40px 40px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:14px;">
       <div>
         <h1 style="font-size:18px;font-weight:700;margin:0 0 4px 0;">Производственное задание</h1>
@@ -119,15 +114,27 @@ export async function generateProductionPDF(task: any, company: any) {
       </div>
     </div>
   </div>`;
+}
 
+async function renderTaskToPdf(pdf: any, html: string, isFirstPage: boolean) {
+  const { default: html2canvas } = await import("html2canvas");
+
+  const container = document.createElement("div");
+  container.style.cssText = [
+    "position:fixed",
+    "top:-9999px",
+    "left:-9999px",
+    "width:794px",
+    "background:white",
+    "font-family:Arial,Helvetica,sans-serif",
+    "color:#000",
+    "font-size:11px",
+    "line-height:1.4",
+  ].join(";");
+  container.innerHTML = html;
   document.body.appendChild(container);
 
   try {
-    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-      import("html2canvas"),
-      import("jspdf"),
-    ]);
-
     const canvas = await html2canvas(container, {
       scale: 2,
       useCORS: true,
@@ -135,17 +142,18 @@ export async function generateProductionPDF(task: any, company: any) {
       logging: false,
     });
 
-    const pdf = new jsPDF("p", "mm", "a4");
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const imgW = pageW;
     const imgH = (canvas.height * pageW) / canvas.width;
 
     if (imgH <= pageH) {
+      if (!isFirstPage) pdf.addPage();
       pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, imgW, imgH);
     } else {
       const pxPerPage = (canvas.width * pageH) / pageW;
       let offsetPx = 0;
+      let firstSlice = true;
       while (offsetPx < canvas.height) {
         const sliceH = Math.min(pxPerPage, canvas.height - offsetPx);
         const sliceCanvas = document.createElement("canvas");
@@ -153,22 +161,31 @@ export async function generateProductionPDF(task: any, company: any) {
         sliceCanvas.height = sliceH;
         sliceCanvas.getContext("2d")!.drawImage(canvas, 0, -offsetPx);
         const sliceMm = (sliceH * pageW) / canvas.width;
-        if (offsetPx > 0) pdf.addPage();
+        if (!isFirstPage || !firstSlice) pdf.addPage();
         pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", 0, 0, imgW, sliceMm);
         offsetPx += pxPerPage;
+        firstSlice = false;
       }
     }
-
-    pdf.save(`Задание-${task.title?.slice(0, 40) ?? task.id}.pdf`);
   } finally {
     document.body.removeChild(container);
   }
 }
 
-function escapeHtml(s: string) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+export async function generateProductionPDF(task: any, company: any) {
+  const { default: jsPDF } = await import("jspdf");
+  const pdf = new jsPDF("p", "mm", "a4");
+  await renderTaskToPdf(pdf, buildTaskHtml(task, company), true);
+  pdf.save(`Задание-${task.title?.slice(0, 40) ?? task.id}.pdf`);
+}
+
+export async function generateProductionBulkPDF(tasks: any[], company: any) {
+  if (tasks.length === 0) return;
+  const { default: jsPDF } = await import("jspdf");
+  const pdf = new jsPDF("p", "mm", "a4");
+  for (let i = 0; i < tasks.length; i++) {
+    await renderTaskToPdf(pdf, buildTaskHtml(tasks[i], company), i === 0);
+  }
+  const dateStr = new Date().toISOString().slice(0, 10);
+  pdf.save(`Задания-${tasks.length}шт-${dateStr}.pdf`);
 }
