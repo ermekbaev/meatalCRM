@@ -34,7 +34,7 @@ export default function NewTaskPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/users").then((r) => r.json()).catch(() => []),
+      fetch("/api/users?role=FOREMAN").then((r) => r.json()).catch(() => []),
       fetch("/api/clients").then((r) => r.json()),
       fetch("/api/workshops").then((r) => r.json()).catch(() => []),
     ]).then(([u, c, w]) => { setUsers(u); setClients(c); setWorkshops(Array.isArray(w) ? w : []); });

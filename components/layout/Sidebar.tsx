@@ -10,10 +10,12 @@ import {
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 
-const navItems = [
+type NavItem = { href: string; label: string; icon: any; foreman?: boolean };
+
+const navItems: NavItem[] = [
   { href: "/dashboard",  label: "Главная",     icon: LayoutDashboard },
   { href: "/requests",   label: "Заявки",       icon: ClipboardList },
-  { href: "/tasks",      label: "Задачи",        icon: CheckSquare },
+  { href: "/tasks",      label: "Задачи",        icon: CheckSquare, foreman: true },
   { href: "/clients",    label: "Контрагенты",  icon: Users },
   { href: "/offers",     label: "КП",            icon: FileText },
   { href: "/invoices",   label: "Счета",         icon: Receipt },
@@ -33,7 +35,10 @@ const settingsItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const role = (session?.user as any)?.role;
+  const isAdmin = role === "ADMIN";
+  const isForeman = role === "FOREMAN";
+  const visibleNav = isForeman ? navItems.filter((i) => i.foreman) : navItems;
 
   return (
     <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-slate-50 border-r border-slate-200">
@@ -51,7 +56,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        {navItems.map((item) => {
+        {visibleNav.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

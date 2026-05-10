@@ -387,6 +387,7 @@ model InvoiceItem {
 enum UserRole {
   ADMIN
   MANAGER
+  FOREMAN
   EMPLOYEE
 }
 

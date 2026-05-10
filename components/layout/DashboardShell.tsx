@@ -16,10 +16,12 @@ const SidebarCtx = createContext({ isOpen: false, toggle: () => {}, close: () =>
 export const useSidebar = () => useContext(SidebarCtx);
 
 // Все пункты — для полноэкранного мобильного меню
-const navItems = [
+type NavItem = { href: string; label: string; mobileLabel: string; icon: any; foreman?: boolean };
+
+const navItems: NavItem[] = [
   { href: "/dashboard",  label: "Главная",     mobileLabel: "Главная",  icon: LayoutDashboard },
   { href: "/requests",   label: "Заявки",       mobileLabel: "Заявки",   icon: ClipboardList },
-  { href: "/tasks",      label: "Задачи",        mobileLabel: "Задачи",   icon: CheckSquare },
+  { href: "/tasks",      label: "Задачи",        mobileLabel: "Задачи",   icon: CheckSquare, foreman: true },
   { href: "/clients",    label: "Контрагенты",  mobileLabel: "Клиенты",  icon: Users },
   { href: "/offers",     label: "КП",            mobileLabel: "КП",       icon: FileText },
   { href: "/invoices",   label: "Счета",         mobileLabel: "Счета",    icon: Receipt },
@@ -42,7 +44,10 @@ const settingsItems = [
 function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const role = (session?.user as any)?.role;
+  const isAdmin = role === "ADMIN";
+  const isForeman = role === "FOREMAN";
+  const visibleNav = isForeman ? navItems.filter((i) => i.foreman) : navItems;
 
   return (
     <div
@@ -73,7 +78,7 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
@@ -151,11 +156,14 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
 
 function BottomTabBar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isForeman = (session?.user as any)?.role === "FOREMAN";
+  const items = isForeman ? navItems.filter((i) => i.foreman) : bottomTabItems;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-slate-200 bg-white safe-area-inset-bottom">
       <div className="flex items-stretch justify-around">
-        {bottomTabItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

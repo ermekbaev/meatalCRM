@@ -85,7 +85,8 @@ export const OFFER_STATUS_COLORS: Record<string, string> = {
 export const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Администратор",
   MANAGER: "Менеджер",
-  EMPLOYEE: "Сотрудник",
+  FOREMAN: "Мастер цеха",
+  EMPLOYEE: "Оператор",
 };
 
 export const CLIENT_TYPE_LABELS: Record<string, string> = {

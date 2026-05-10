@@ -612,7 +612,7 @@ export default function TaskDetailPage() {
                       <SelectTrigger className="h-7 w-[140px] text-xs"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Не назначен</SelectItem>
-                        {users.map((u: any) => (
+                        {users.filter((u: any) => u.role === "EMPLOYEE").map((u: any) => (
                           <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -675,7 +675,7 @@ export default function TaskDetailPage() {
                     <SelectTrigger className="h-8 w-[150px] text-sm"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Не назначен</SelectItem>
-                      {users.map((u: any) => (
+                      {users.filter((u: any) => u.role === "EMPLOYEE").map((u: any) => (
                         <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -865,7 +865,7 @@ export default function TaskDetailPage() {
                     <SelectTrigger><SelectValue placeholder="Не назначен" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Не назначен</SelectItem>
-                      {users.map((u: any) => (
+                      {users.filter((u: any) => u.role === "FOREMAN").map((u: any) => (
                         <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                       ))}
                     </SelectContent>
