@@ -43,9 +43,9 @@ export default function InvoicesPage() {
   return (
     <div>
       <Header title="Счета" />
-      <div className="p-6 space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
+      <div className="p-4 lg:p-6 space-y-5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:flex-1 sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               value={search}
@@ -54,8 +54,8 @@ export default function InvoicesPage() {
               className="pl-9"
             />
           </div>
-          <Link href="/invoices/new">
-            <Button><Plus className="mr-2 h-4 w-4" /> Новый счёт</Button>
+          <Link href="/invoices/new" className="w-full sm:w-auto sm:ml-auto">
+            <Button className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" /> Новый счёт</Button>
           </Link>
         </div>
 
@@ -74,7 +74,47 @@ export default function InvoicesPage() {
             )}
           </div>
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-x-auto">
+          <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
+            {filtered.map((inv) => {
+              const total = inv.items?.reduce((s: number, i: any) => s + i.total, 0) ?? 0;
+              const overdue = inv.dueDate && new Date(inv.dueDate) < new Date();
+              return (
+                <Link key={inv.id} href={`/invoices/${inv.id}`} className="block rounded-xl border border-gray-200 bg-white p-3">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <p className="font-medium text-gray-900 text-sm truncate flex-1 min-w-0">{inv.client?.name}</p>
+                    <span className="font-mono text-[11px] text-gray-400 shrink-0">#{inv.numberOverride ?? inv.number}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs text-gray-500 min-w-0 flex-1">
+                      <span>{formatDate(inv.date)}</span>
+                      {inv.request && <><span className="mx-1.5">·</span><span>заявка #{inv.request.number}</span></>}
+                      {inv.dueDate && <><span className="mx-1.5">·</span><span className={overdue ? "text-red-500 font-medium" : ""}>до {formatDate(inv.dueDate)}</span></>}
+                    </div>
+                    <span className="font-bold text-gray-800 tabular-nums shrink-0">{fmt(total)} ₽</span>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      onClick={(e) => handleExport(e, inv)}
+                      disabled={exportingId === inv.id}
+                    >
+                      {exportingId === inv.id
+                        ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        : <Download className="mr-1.5 h-3.5 w-3.5" />}
+                      PDF
+                    </Button>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block rounded-xl border border-gray-200 bg-white shadow-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
@@ -135,6 +175,7 @@ export default function InvoicesPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

@@ -35,9 +35,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-hidden">
+    <div className="relative min-h-screen flex items-center justify-center py-8 overflow-hidden">
       {/* Градиентный фон */}
-      <div className="absolute inset-0 bg-linear-to-br from-slate-950 via-slate-800 to-slate-900" />
+      <div className="fixed inset-0 bg-linear-to-br from-slate-950 via-slate-800 to-slate-900" />
 
       {/* Частицы */}
       <ParticlesBackground />

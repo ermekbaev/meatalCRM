@@ -83,12 +83,72 @@ export default function UsersPage() {
     <div>
       <Header title="Пользователи" />
       <div className="p-4 lg:p-6 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-gray-500">{users.length} пользователей</p>
           <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" /> Добавить</Button>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2">
+          {loading ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Загрузка...</div>
+          ) : users.map((u) => {
+            const RoleIcon = ROLE_ICONS[u.role] ?? User;
+            return (
+              <div key={u.id} className="rounded-xl border border-gray-200 bg-white p-3">
+                <div className="flex items-start gap-2 mb-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700">
+                    {u.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 text-sm truncate">{u.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                    {u.position && <p className="text-xs text-gray-400 truncate">{u.position}</p>}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => openEdit(u)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 hover:text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
+                          <AlertDialogDescription>Это действие необратимо.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Отмена</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(u.id)}>Удалить</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-700">
+                    <RoleIcon className="h-3.5 w-3.5 text-gray-400" />
+                    <span>{ROLE_LABELS[u.role]}</span>
+                    <span className="text-gray-300">·</span>
+                    <span className="text-gray-400">{formatDate(u.createdAt)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Switch checked={!u.isBlocked} onCheckedChange={() => toggleBlock(u)} />
+                    <span className={`text-[11px] ${u.isBlocked ? "text-red-500" : "text-green-600"}`}>
+                      {u.isBlocked ? "Заблок." : "Активен"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block rounded-xl border border-gray-200 bg-white overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">

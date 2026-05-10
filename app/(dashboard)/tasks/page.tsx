@@ -254,13 +254,13 @@ export default function TasksPage() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input placeholder="Поиск задач..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Статус" /></SelectTrigger>
+            <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0"><SelectValue placeholder="Статус" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Все статусы</SelectItem>
               {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
@@ -269,7 +269,7 @@ export default function TasksPage() {
             </SelectContent>
           </Select>
           <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="Приоритет" /></SelectTrigger>
+            <SelectTrigger className="flex-1 sm:flex-none sm:w-36 min-w-0"><SelectValue placeholder="Приоритет" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Все</SelectItem>
               {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
@@ -277,7 +277,7 @@ export default function TasksPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex w-full sm:w-auto sm:ml-auto items-center gap-2">
             {selectMode ? (
               <>
                 <span className="text-xs text-slate-500">
@@ -285,6 +285,7 @@ export default function TasksPage() {
                 </span>
                 <Button
                   variant="outline"
+                  className="flex-1 sm:flex-none"
                   onClick={printSelected}
                   disabled={printingBulk || selectedIds.size === 0}
                 >
@@ -300,11 +301,15 @@ export default function TasksPage() {
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setSelectMode(true)}>
-                  <Printer className="mr-2 h-4 w-4" /> Выбрать для печати
+                <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setSelectMode(true)}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Выбрать для печати</span>
+                  <span className="sm:hidden">Печать</span>
                 </Button>
-                <Button onClick={() => router.push("/tasks/new")}>
-                  <Plus className="mr-2 h-4 w-4" /> Создать задачу
+                <Button className="flex-1 sm:flex-none" onClick={() => router.push("/tasks/new")}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Создать задачу</span>
+                  <span className="sm:hidden">Создать</span>
                 </Button>
               </>
             )}
@@ -321,32 +326,64 @@ export default function TasksPage() {
             </Button>
           </div>
         ) : status === "ALL" ? (
-          /* Kanban-style grouped view (с drag & drop) */
-          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+          <>
+            {/* Mobile: grouped list, no DnD */}
+            <div className="md:hidden space-y-5">
               {Object.entries(statusGroups).map(([st, items]) => (
-                <KanbanColumn key={st} status={st} count={items.length}>
-                  {items.map((task) => (
-                    <DraggableTaskCard
-                      key={task.id}
-                      task={task}
-                      onDelete={handleDelete}
-                      selectMode={selectMode}
-                      selected={selectedIds.has(task.id)}
-                      onToggleSelect={toggleSelect}
-                    />
-                  ))}
-                </KanbanColumn>
+                items.length === 0 ? null : (
+                  <div key={st}>
+                    <div className="mb-2 flex items-center justify-between px-1">
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${TASK_STATUS_COLORS[st]}`}>
+                        {TASK_STATUS_LABELS[st]}
+                      </span>
+                      <span className="text-xs text-slate-400">{items.length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {items.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onDelete={handleDelete}
+                          selectMode={selectMode}
+                          selected={selectedIds.has(task.id)}
+                          onToggleSelect={toggleSelect}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
               ))}
             </div>
-            <DragOverlay>
-              {activeDragTask ? (
-                <div className="rotate-2 opacity-90">
-                  <TaskCard task={activeDragTask} onDelete={() => {}} />
+
+            {/* Desktop: Kanban with DnD */}
+            <div className="hidden md:block">
+              <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+                  {Object.entries(statusGroups).map(([st, items]) => (
+                    <KanbanColumn key={st} status={st} count={items.length}>
+                      {items.map((task) => (
+                        <DraggableTaskCard
+                          key={task.id}
+                          task={task}
+                          onDelete={handleDelete}
+                          selectMode={selectMode}
+                          selected={selectedIds.has(task.id)}
+                          onToggleSelect={toggleSelect}
+                        />
+                      ))}
+                    </KanbanColumn>
+                  ))}
                 </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+                <DragOverlay>
+                  {activeDragTask ? (
+                    <div className="rotate-2 opacity-90">
+                      <TaskCard task={activeDragTask} onDelete={() => {}} />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            </div>
+          </>
         ) : (
           /* Filtered list view */
           <div className="space-y-2">

@@ -88,8 +88,8 @@ export default function RequestsPage() {
       <Header title="Заявки" />
       <div className="p-4 lg:p-6 space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Поиск..."
@@ -99,7 +99,7 @@ export default function RequestsPage() {
             />
           </div>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0">
               <SelectValue placeholder="Статус" />
             </SelectTrigger>
             <SelectContent>
@@ -110,7 +110,7 @@ export default function RequestsPage() {
             </SelectContent>
           </Select>
           <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0">
               <SelectValue placeholder="Приоритет" />
             </SelectTrigger>
             <SelectContent>
@@ -121,7 +121,7 @@ export default function RequestsPage() {
             </SelectContent>
           </Select>
           <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0">
               <SelectValue placeholder="Оплата" />
             </SelectTrigger>
             <SelectContent>
@@ -131,17 +131,82 @@ export default function RequestsPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="ml-auto flex gap-2">
-            <Button variant="outline" onClick={handleExport}>
+          <div className="flex w-full sm:w-auto sm:ml-auto gap-2">
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" /> Excel
             </Button>
-            <Button onClick={() => router.push("/requests/new")}>
+            <Button className="flex-1 sm:flex-none" onClick={() => router.push("/requests/new")}>
               <Plus className="mr-2 h-4 w-4" /> Создать
             </Button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2">
+          {loading ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Загрузка...</div>
+          ) : requests.length === 0 ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Заявки не найдены</div>
+          ) : requests.map((r) => (
+            <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-3">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/requests/${r.id}`} className="font-medium text-gray-900 text-sm block truncate">
+                    {r.title}
+                  </Link>
+                  <p className="text-xs text-gray-500 truncate">{r.client?.shortName || r.client?.name}</p>
+                </div>
+                <span className="font-mono text-[11px] text-gray-400 shrink-0">#{r.number}</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${REQUEST_STATUS_COLORS[r.status]}`}>
+                  {REQUEST_STATUS_LABELS[r.status]}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORITY_COLORS[r.priority]}`}>
+                  {PRIORITY_LABELS[r.priority]}
+                </span>
+                {r.paymentStatus && r.paymentStatus !== "NONE" && (
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PAYMENT_STATUS_COLORS[r.paymentStatus]}`}>
+                    {PAYMENT_STATUS_LABELS[r.paymentStatus]}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-gray-500 min-w-0 flex-1">
+                  <span className="font-medium text-gray-800">{r.amount ? formatCurrency(r.amount) : "—"}</span>
+                  <span className="mx-1.5">·</span>
+                  <span>{formatDate(r.createdAt)}</span>
+                  {r.assignee?.name && <><span className="mx-1.5">·</span><span className="truncate">{r.assignee.name}</span></>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => router.push(`/requests/${r.id}`)}>
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
+                        <AlertDialogDescription>Это действие необратимо.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(r.id)}>Удалить</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block rounded-xl border border-gray-200 bg-white overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
