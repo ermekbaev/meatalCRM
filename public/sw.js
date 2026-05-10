@@ -29,8 +29,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: payload.body,
-    icon: "/public/logo.png",
-    badge: "/public/logo.png",
+    icon: "/logo.png",
+    badge: "/logo.png",
     data: { link: payload.link ?? "/" },
     tag: payload.tag ?? undefined,
   };

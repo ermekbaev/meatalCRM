@@ -45,7 +45,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex h-18 items-center px-4 border-b border-slate-200">
         <Image
-          src="/public/logo.svg"
+          src="/logo.svg"
           alt="ORIENT-LASER"
           width={200}
           height={52}

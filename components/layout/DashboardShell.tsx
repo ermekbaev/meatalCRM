@@ -61,7 +61,7 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
           <div className="flex items-center gap-3" suppressHydrationWarning>
             <Image
-              src="/public/logo.svg"
+              src="/logo.svg"
               alt="ORIENT-LASER"
               width={180}
               height={46}

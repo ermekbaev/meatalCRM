@@ -49,7 +49,7 @@ export default function LoginPage() {
           <div className="px-8 py-6 text-center border-b border-slate-100">
             <div className="flex justify-center mb-4">
               <Image
-                src="/public/logo.svg"
+                src="/logo.svg"
                 alt="ORIENT-LASER"
                 width={220}
                 height={57}
