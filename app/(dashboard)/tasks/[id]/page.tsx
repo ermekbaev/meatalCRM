@@ -69,6 +69,7 @@ export default function TaskDetailPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const canEditTask = role === "ADMIN" || role === "MANAGER";
+  const canChangeStatus = canEditTask || role === "FOREMAN";
   const [task, setTask] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<TaskDetailTab>("description");
   const [loading, setLoading] = useState(true);
@@ -840,7 +841,7 @@ export default function TaskDetailPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gray-500">Статус</p>
-                  <Select value={task.status} onValueChange={(v) => updateField("status", v)} disabled={!canEditTask}>
+                  <Select value={task.status} onValueChange={(v) => updateField("status", v)} disabled={!canChangeStatus}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (

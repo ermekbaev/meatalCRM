@@ -56,18 +56,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const role = (session.user as any).role;
-  if (role !== "ADMIN" && role !== "MANAGER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const currentUserId = (session.user as any).id;
 
   const { id } = await params;
   const data = await req.json();
 
   const old = await prisma.task.findUnique({ where: { id }, select: { status: true, assigneeId: true } });
+  if (!old) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const task = await prisma.task.update({
-    where: { id },
-    data: {
+  let updateData: any;
+  if (role === "ADMIN" || role === "MANAGER") {
+    updateData = {
       title:       data.title,
       description: data.description ?? null,
       status:      data.status,
@@ -76,7 +75,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       assigneeId:  data.assigneeId ?? null,
       clientId:    data.clientId ?? null,
       workshopId:  data.workshopId === undefined ? undefined : data.workshopId || null,
-    },
+    };
+  } else if (role === "FOREMAN") {
+    // FOREMAN: только смена статуса своей задачи
+    if (old.assigneeId !== currentUserId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (data.status === undefined) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    updateData = { status: data.status };
+  } else {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const task = await prisma.task.update({
+    where: { id },
+    data: updateData,
     include: {
       assignee:  { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
@@ -84,8 +99,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       workshop:  { select: { id: true, name: true, order: true } },
     },
   });
-
-  const currentUserId = (session.user as any).id;
 
   if (old && old.status !== task.status) {
     await sendTelegram(

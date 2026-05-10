@@ -411,7 +411,7 @@ export default function TasksPage() {
                           selected={selectedIds.has(task.id)}
                           onToggleSelect={toggleSelect}
                           canDelete={canManageTasks}
-                          canDrag={canManageTasks}
+                          canDrag={canManageTasks || isForeman}
                         />
                       ))}
                     </KanbanColumn>
