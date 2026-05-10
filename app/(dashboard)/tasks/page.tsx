@@ -65,12 +65,13 @@ export default function TasksPage() {
     if (search) params.set("search", search);
     if (status !== "ALL") params.set("status", status);
     if (priority !== "ALL") params.set("priority", priority);
-    if (activeWorkshopId !== "ALL") params.set("workshopId", activeWorkshopId);
+    // Для FOREMAN фильтр по цеху делаем на клиенте, чтобы счётчики на табах оставались валидными
+    if (!isForeman && activeWorkshopId !== "ALL") params.set("workshopId", activeWorkshopId);
     const res = await fetch(`/api/tasks?${params}`);
     const data = await res.json();
     setTasks(data);
     setLoading(false);
-  }, [search, status, priority, activeWorkshopId]);
+  }, [search, status, priority, activeWorkshopId, isForeman]);
 
   const fetchWorkshops = useCallback(async () => {
     const data = await fetch("/api/workshops").then((r) => r.json()).catch(() => []);
@@ -190,12 +191,18 @@ export default function TasksPage() {
     }
   };
 
+  const displayTasks = !isForeman || activeWorkshopId === "ALL"
+    ? tasks
+    : activeWorkshopId === "none"
+      ? tasks.filter((t) => !t.workshopId)
+      : tasks.filter((t) => t.workshopId === activeWorkshopId);
+
   const statusGroups: Record<string, any[]> = {
-    TODO:             tasks.filter((t) => t.status === "TODO"),
-    PENDING_APPROVAL: tasks.filter((t) => t.status === "PENDING_APPROVAL"),
-    IN_PROGRESS:      tasks.filter((t) => t.status === "IN_PROGRESS"),
-    DONE:             tasks.filter((t) => t.status === "DONE"),
-    CANCELLED:        tasks.filter((t) => t.status === "CANCELLED"),
+    TODO:             displayTasks.filter((t) => t.status === "TODO"),
+    PENDING_APPROVAL: displayTasks.filter((t) => t.status === "PENDING_APPROVAL"),
+    IN_PROGRESS:      displayTasks.filter((t) => t.status === "IN_PROGRESS"),
+    DONE:             displayTasks.filter((t) => t.status === "DONE"),
+    CANCELLED:        displayTasks.filter((t) => t.status === "CANCELLED"),
   };
 
   return (
@@ -203,45 +210,71 @@ export default function TasksPage() {
       <Header title="Задачи" />
       <div className="p-4 lg:p-6 space-y-4">
         <div className="flex items-center gap-2 overflow-x-auto border-b border-slate-200 pb-2">
-          <button
-            type="button"
-            onClick={() => setActiveWorkshopId("ALL")}
-            className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
-              activeWorkshopId === "ALL"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            <Building2 className="h-4 w-4" /> Все
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveWorkshopId("none")}
-            className={`inline-flex h-8 shrink-0 items-center border-b-2 px-3 text-sm font-medium transition-colors ${
-              activeWorkshopId === "none"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Без цеха
-          </button>
-          {workshops.map((workshop) => (
-            <button
-              key={workshop.id}
-              type="button"
-              onClick={() => setActiveWorkshopId(workshop.id)}
-              className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
-                activeWorkshopId === workshop.id
-                  ? "border-orange-500 text-orange-600"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {workshop.name}
-              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                {workshop._count?.tasks ?? 0}
-              </span>
-            </button>
-          ))}
+          {(() => {
+            const taskCountByWs = new Map<string, number>();
+            let noWsCount = 0;
+            for (const t of tasks) {
+              if (t.workshopId) taskCountByWs.set(t.workshopId, (taskCountByWs.get(t.workshopId) ?? 0) + 1);
+              else noWsCount++;
+            }
+            const visibleWorkshops = isForeman
+              ? workshops.filter((w) => (taskCountByWs.get(w.id) ?? 0) > 0)
+              : workshops;
+            const showNoWsTab = !isForeman || noWsCount > 0;
+            const showAllTab = !isForeman || (visibleWorkshops.length + (showNoWsTab ? 1 : 0)) > 1;
+            return (
+              <>
+                {showAllTab && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveWorkshopId("ALL")}
+                    className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
+                      activeWorkshopId === "ALL"
+                        ? "border-orange-500 text-orange-600"
+                        : "border-transparent text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    <Building2 className="h-4 w-4" /> Все
+                  </button>
+                )}
+                {showNoWsTab && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveWorkshopId("none")}
+                    className={`inline-flex h-8 shrink-0 items-center border-b-2 px-3 text-sm font-medium transition-colors ${
+                      activeWorkshopId === "none"
+                        ? "border-orange-500 text-orange-600"
+                        : "border-transparent text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    Без цеха
+                    {isForeman && noWsCount > 0 && (
+                      <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                        {noWsCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+                {visibleWorkshops.map((workshop) => (
+                  <button
+                    key={workshop.id}
+                    type="button"
+                    onClick={() => setActiveWorkshopId(workshop.id)}
+                    className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
+                      activeWorkshopId === workshop.id
+                        ? "border-orange-500 text-orange-600"
+                        : "border-transparent text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {workshop.name}
+                    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                      {isForeman ? (taskCountByWs.get(workshop.id) ?? 0) : (workshop._count?.tasks ?? 0)}
+                    </span>
+                  </button>
+                ))}
+              </>
+            );
+          })()}
           {isAdmin && (
             <Button
               type="button"
@@ -323,7 +356,7 @@ export default function TasksPage() {
 
         {loading ? (
           <div className="flex h-40 items-center justify-center text-slate-400 text-sm">Загрузка...</div>
-        ) : tasks.length === 0 ? (
+        ) : displayTasks.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-3 text-slate-400">
             <p className="text-sm">Задач пока нет</p>
             {canManageTasks && (
@@ -397,7 +430,7 @@ export default function TasksPage() {
         ) : (
           /* Filtered list view */
           <div className="space-y-2">
-            {tasks.map((task) => (
+            {displayTasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
