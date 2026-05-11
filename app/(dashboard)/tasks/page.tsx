@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { TASK_STATUS_LABELS, TASK_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate } from "@/lib/utils";
-import { Building2, Check, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X } from "lucide-react";
+import { PRIORITY_LABELS, PRIORITY_COLORS, formatDate, hexToBadgeStyle } from "@/lib/utils";
+import { Building2, Check, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X, Columns3, Pencil } from "lucide-react";
 import Link from "next/link";
 import {
   DndContext,
@@ -28,8 +28,18 @@ type Workshop = {
   id: string;
   name: string;
   order: number;
+  isVirtual?: boolean;
   members?: Array<{ id: string; name: string; role: string; position?: string | null }>;
   _count?: { tasks: number };
+};
+
+type TaskColumn = {
+  id: string;
+  key: string;
+  name: string;
+  color: string;
+  order: number;
+  isSystem: boolean;
 };
 
 export default function TasksPage() {
@@ -41,6 +51,13 @@ export default function TasksPage() {
   const canManageTasks = role === "ADMIN" || role === "MANAGER";
   const [tasks, setTasks] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [columns, setColumns] = useState<TaskColumn[]>([]);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnColor, setNewColumnColor] = useState("#94a3b8");
+  const [savingColumn, setSavingColumn] = useState(false);
+  const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+  const [editColumnDraft, setEditColumnDraft] = useState<{ name: string; color: string }>({ name: "", color: "" });
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
@@ -78,11 +95,17 @@ export default function TasksPage() {
     setWorkshops(Array.isArray(data) ? data : []);
   }, []);
 
+  const fetchColumns = useCallback(async () => {
+    const data = await fetch("/api/task-columns").then((r) => r.json()).catch(() => []);
+    setColumns(Array.isArray(data) ? data : []);
+  }, []);
+
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
   useEffect(() => {
     fetchWorkshops();
+    fetchColumns();
     fetch("/api/users").then((r) => r.json()).then((data) => setUsers(Array.isArray(data) ? data : [])).catch(() => {});
-  }, [fetchWorkshops]);
+  }, [fetchWorkshops, fetchColumns]);
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
@@ -116,6 +139,51 @@ export default function TasksPage() {
     if (res.ok) {
       const updated = await res.json();
       setWorkshops((prev) => prev.map((w) => w.id === workshop.id ? updated : w));
+    }
+  };
+
+  const createColumn = async () => {
+    const name = newColumnName.trim();
+    if (!name) return;
+    setSavingColumn(true);
+    const res = await fetch("/api/task-columns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, color: newColumnColor }),
+    });
+    if (res.ok) {
+      setNewColumnName("");
+      setNewColumnColor("#94a3b8");
+      await fetchColumns();
+    }
+    setSavingColumn(false);
+  };
+
+  const startEditColumn = (col: TaskColumn) => {
+    setEditingColumnId(col.id);
+    setEditColumnDraft({ name: col.name, color: col.color });
+  };
+
+  const saveEditColumn = async () => {
+    if (!editingColumnId) return;
+    const name = editColumnDraft.name.trim();
+    if (!name) return;
+    const res = await fetch(`/api/task-columns/${editingColumnId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, color: editColumnDraft.color }),
+    });
+    if (res.ok) {
+      setEditingColumnId(null);
+      await fetchColumns();
+    }
+  };
+
+  const deleteColumn = async (id: string) => {
+    const res = await fetch(`/api/task-columns/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      await fetchColumns();
+      fetchTasks();
     }
   };
 
@@ -197,13 +265,10 @@ export default function TasksPage() {
       ? tasks.filter((t) => !t.workshopId)
       : tasks.filter((t) => t.workshopId === activeWorkshopId);
 
-  const statusGroups: Record<string, any[]> = {
-    TODO:             displayTasks.filter((t) => t.status === "TODO"),
-    PENDING_APPROVAL: displayTasks.filter((t) => t.status === "PENDING_APPROVAL"),
-    IN_PROGRESS:      displayTasks.filter((t) => t.status === "IN_PROGRESS"),
-    DONE:             displayTasks.filter((t) => t.status === "DONE"),
-    CANCELLED:        displayTasks.filter((t) => t.status === "CANCELLED"),
-  };
+  const statusGroups: Array<{ column: TaskColumn; items: any[] }> = columns.map((col) => ({
+    column: col,
+    items: displayTasks.filter((t) => t.status === col.key),
+  }));
 
   return (
     <div>
@@ -217,9 +282,10 @@ export default function TasksPage() {
               if (t.workshopId) taskCountByWs.set(t.workshopId, (taskCountByWs.get(t.workshopId) ?? 0) + 1);
               else noWsCount++;
             }
+            const realWorkshops = workshops.filter((w) => !w.isVirtual);
             const visibleWorkshops = isForeman
-              ? workshops.filter((w) => (taskCountByWs.get(w.id) ?? 0) > 0)
-              : workshops;
+              ? realWorkshops.filter((w) => (taskCountByWs.get(w.id) ?? 0) > 0)
+              : realWorkshops;
             const showNoWsTab = !isForeman || noWsCount > 0;
             const showAllTab = !isForeman || (visibleWorkshops.length + (showNoWsTab ? 1 : 0)) > 1;
             return (
@@ -276,16 +342,26 @@ export default function TasksPage() {
             );
           })()}
           {isAdmin && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="ml-auto shrink-0"
-              onClick={() => setWorkshopsOpen(true)}
-              title="Управление цехами"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setColumnsOpen(true)}
+                title="Управление колонками"
+              >
+                <Columns3 className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setWorkshopsOpen(true)}
+                title="Управление цехами"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           )}
         </div>
 
@@ -299,8 +375,8 @@ export default function TasksPage() {
             <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0"><SelectValue placeholder="Статус" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Все статусы</SelectItem>
-              {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
+              {columns.map((col) => (
+                <SelectItem key={col.key} value={col.key}>{col.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -369,12 +445,15 @@ export default function TasksPage() {
           <>
             {/* Mobile: grouped list, no DnD */}
             <div className="md:hidden space-y-5">
-              {Object.entries(statusGroups).map(([st, items]) => (
+              {statusGroups.map(({ column, items }) => (
                 items.length === 0 ? null : (
-                  <div key={st}>
+                  <div key={column.id}>
                     <div className="mb-2 flex items-center justify-between px-1">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${TASK_STATUS_COLORS[st]}`}>
-                        {TASK_STATUS_LABELS[st]}
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                        style={hexToBadgeStyle(column.color)}
+                      >
+                        {column.name}
                       </span>
                       <span className="text-xs text-slate-400">{items.length}</span>
                     </div>
@@ -399,9 +478,12 @@ export default function TasksPage() {
             {/* Desktop: Kanban with DnD */}
             <div className="hidden md:block">
               <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-                  {Object.entries(statusGroups).map(([st, items]) => (
-                    <KanbanColumn key={st} status={st} count={items.length}>
+                <div
+                  className="grid gap-6"
+                  style={{ gridTemplateColumns: `repeat(${Math.max(statusGroups.length, 1)}, minmax(0, 1fr))` }}
+                >
+                  {statusGroups.map(({ column, items }) => (
+                    <KanbanColumn key={column.id} column={column} count={items.length}>
                       {items.map((task) => (
                         <DraggableTaskCard
                           key={task.id}
@@ -473,36 +555,51 @@ export default function TasksPage() {
                 </div>
               )}
               {workshops.map((workshop) => (
-                <div key={workshop.id} className="rounded-lg border border-slate-200 p-4">
+                <div
+                  key={workshop.id}
+                  className={`rounded-lg border p-4 ${workshop.isVirtual ? "border-dashed border-slate-300 bg-slate-50/40" : "border-slate-200"}`}
+                >
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900">{workshop.name}</h3>
+                      <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                        {workshop.name}
+                        {workshop.isVirtual && (
+                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-600">
+                            виртуальный
+                          </span>
+                        )}
+                      </h3>
                       <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
                         <Users className="h-3 w-3" />
-                        {workshop.members?.length ?? 0} участников · {workshop._count?.tasks ?? 0} задач
+                        {workshop.members?.length ?? 0} участников
+                        {workshop.isVirtual
+                          ? " · доступ к задачам без цеха"
+                          : ` · ${workshop._count?.tasks ?? 0} задач`}
                       </p>
                     </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Удалить цех?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Задачи останутся в системе, но будут отвязаны от этого цеха.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Отмена</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteWorkshop(workshop.id)} className="bg-red-600 hover:bg-red-700">
-                            Удалить
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    {!workshop.isVirtual && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Удалить цех?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Задачи останутся в системе, но будут отвязаны от этого цеха.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteWorkshop(workshop.id)} className="bg-red-600 hover:bg-red-700">
+                              Удалить
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -538,20 +635,146 @@ export default function TasksPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={columnsOpen} onOpenChange={(open) => { setColumnsOpen(open); if (!open) setEditingColumnId(null); }}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Управление колонками</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                placeholder="Название колонки"
+                className="flex-1 min-w-[180px]"
+                onKeyDown={(e) => { if (e.key === "Enter") createColumn(); }}
+              />
+              <label className="flex items-center gap-2 text-xs text-slate-500">
+                <input
+                  type="color"
+                  value={newColumnColor}
+                  onChange={(e) => setNewColumnColor(e.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+                />
+              </label>
+              <Button onClick={createColumn} disabled={savingColumn || !newColumnName.trim()}>
+                {savingColumn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                Добавить
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              {columns.length === 0 && (
+                <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+                  Колонок пока нет
+                </div>
+              )}
+              {columns.map((col) => {
+                const isEditing = editingColumnId === col.id;
+                return (
+                  <div key={col.id} className="flex items-center gap-2 rounded-lg border border-slate-200 p-3">
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="color"
+                          value={editColumnDraft.color}
+                          onChange={(e) => setEditColumnDraft((p) => ({ ...p, color: e.target.value }))}
+                          className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+                        />
+                        <Input
+                          value={editColumnDraft.name}
+                          onChange={(e) => setEditColumnDraft((p) => ({ ...p, name: e.target.value }))}
+                          className="flex-1 h-8"
+                          onKeyDown={(e) => { if (e.key === "Enter") saveEditColumn(); }}
+                          autoFocus
+                        />
+                        <Button size="sm" onClick={saveEditColumn} className="h-8">Сохранить</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingColumnId(null)} className="h-8">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <span
+                          className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                          style={hexToBadgeStyle(col.color)}
+                        >
+                          {col.name}
+                        </span>
+                        {col.isSystem && (
+                          <span className="text-[10px] uppercase tracking-wide text-slate-400">системная</span>
+                        )}
+                        <div className="ml-auto flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-slate-700"
+                            onClick={() => startEditColumn(col)}
+                            title="Редактировать"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          {!col.isSystem && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-slate-400 hover:text-red-500"
+                                  title="Удалить"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Удалить колонку «{col.name}»?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Задачи из этой колонки переедут в «К выполнению».
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteColumn(col.id)} className="bg-red-600 hover:bg-red-700">
+                                    Удалить
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setColumnsOpen(false)}>Закрыть</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function KanbanColumn({ status, count, children }: { status: string; count: number; children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+function KanbanColumn({ column, count, children }: { column: TaskColumn; count: number; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: column.key });
   return (
     <div
       ref={setNodeRef}
       className={`rounded-lg transition-colors ${isOver ? "bg-orange-50/60 ring-2 ring-orange-300" : ""}`}
     >
       <div className="mb-3 flex items-center justify-between px-1">
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${TASK_STATUS_COLORS[status]}`}>
-          {TASK_STATUS_LABELS[status]}
+        <span
+          className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+          style={hexToBadgeStyle(column.color)}
+        >
+          {column.name}
         </span>
         <span className="text-xs text-slate-400">{count}</span>
       </div>
@@ -727,12 +950,25 @@ function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDel
             <p>💬 {task._count.comments}</p>
           )}
         </div>
-        {task.assignee && (
-          <div
-            className="h-7 w-7 shrink-0 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[11px] font-medium"
-            title={task.assignee.name}
-          >
-            {task.assignee.name.charAt(0).toUpperCase()}
+        {task.assignees && task.assignees.length > 0 && (
+          <div className="flex shrink-0 -space-x-1.5">
+            {task.assignees.slice(0, 3).map((a: any) => (
+              <div
+                key={a.id}
+                className="h-7 w-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[11px] font-medium ring-2 ring-white"
+                title={a.name}
+              >
+                {a.name.charAt(0).toUpperCase()}
+              </div>
+            ))}
+            {task.assignees.length > 3 && (
+              <div
+                className="h-7 w-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-medium ring-2 ring-white"
+                title={task.assignees.slice(3).map((a: any) => a.name).join(", ")}
+              >
+                +{task.assignees.length - 3}
+              </div>
+            )}
           </div>
         )}
       </div>

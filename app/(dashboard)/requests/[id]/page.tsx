@@ -23,6 +23,7 @@ import {
   OFFER_STATUS_COLORS,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
+  PRODUCTION_FIELDS,
   formatDate,
   formatDateTime,
   formatCurrency,
@@ -163,6 +164,16 @@ export default function RequestDetailPage() {
   };
 
   // --- Позиции ---
+  const blankProduction = {
+    hasMetal: null,
+    metalOwner: null,
+    laserStatus: null,
+    bendingStatus: null,
+    paintingStatus: null,
+    extraWorkStatus: null,
+    deliveryStatus: null,
+  };
+
   const addItem = () => {
     setItems((prev) => [
       ...prev,
@@ -176,6 +187,7 @@ export default function RequestDetailPage() {
         discount: 0,
         total: 0,
         isCustomerMaterial: false,
+        ...blankProduction,
       },
     ]);
   };
@@ -193,6 +205,7 @@ export default function RequestDetailPage() {
         discount: 0,
         total: catalogItem.price ?? 0,
         isCustomerMaterial: false,
+        ...blankProduction,
       },
     ]);
   };
@@ -444,6 +457,15 @@ export default function RequestDetailPage() {
                             >
                               Мат. зак.
                             </th>
+                            {PRODUCTION_FIELDS.map((f) => (
+                              <th
+                                key={f.key}
+                                className="px-1.5 py-2 text-center text-xs font-medium text-slate-500 w-24"
+                                title={f.label}
+                              >
+                                {f.label}
+                              </th>
+                            ))}
                             {!isEmployee && <th className="px-2 py-2 w-8"></th>}
                           </tr>
                         </thead>
@@ -608,6 +630,47 @@ export default function RequestDetailPage() {
                                   />
                                 )}
                               </td>
+                              {PRODUCTION_FIELDS.map((f) => {
+                                const current = item[f.key] ?? null;
+                                const opt = f.options.find((o) => o.value === current);
+                                if (isEmployee) {
+                                  return (
+                                    <td key={f.key} className="px-1.5 py-2 text-center">
+                                      {opt ? (
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${opt.className}`}>
+                                          {opt.label}
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs text-slate-300">—</span>
+                                      )}
+                                    </td>
+                                  );
+                                }
+                                return (
+                                  <td key={f.key} className="px-1.5 py-2 text-center">
+                                    <Select
+                                      value={current ?? "__none__"}
+                                      onValueChange={(v) =>
+                                        updateItem(index, f.key, v === "__none__" ? null : v)
+                                      }
+                                    >
+                                      <SelectTrigger
+                                        className={`h-7 w-full min-w-0 border-0 px-2 text-xs rounded-full font-medium shadow-none ${opt ? opt.className : "bg-slate-50 text-slate-400 ring-1 ring-slate-200"}`}
+                                      >
+                                        <SelectValue placeholder="—" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="__none__" className="text-xs">—</SelectItem>
+                                        {f.options.map((o) => (
+                                          <SelectItem key={o.value} value={o.value} className="text-xs">
+                                            {o.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </td>
+                                );
+                              })}
                               {!isEmployee && (
                                 <td className="px-2 py-2">
                                   <button

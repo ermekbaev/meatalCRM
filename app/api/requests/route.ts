@@ -46,6 +46,17 @@ export async function GET(req: NextRequest) {
     include: {
       client: { select: { id: true, name: true, shortName: true, type: true } },
       assignee: { select: { id: true, name: true } },
+      items: {
+        select: {
+          hasMetal: true,
+          metalOwner: true,
+          laserStatus: true,
+          bendingStatus: true,
+          paintingStatus: true,
+          extraWorkStatus: true,
+          deliveryStatus: true,
+        },
+      },
       _count: { select: { comments: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -72,6 +83,13 @@ export async function POST(req: NextRequest) {
             discount: parseFloat(item.discount) || 0,
             total: parseFloat(item.total) || 0,
             isCustomerMaterial: item.isCustomerMaterial ?? false,
+            hasMetal:        item.hasMetal        || null,
+            metalOwner:      item.metalOwner      || null,
+            laserStatus:     item.laserStatus     || null,
+            bendingStatus:   item.bendingStatus   || null,
+            paintingStatus:  item.paintingStatus  || null,
+            extraWorkStatus: item.extraWorkStatus || null,
+            deliveryStatus:  item.deliveryStatus  || null,
           })) }
         : undefined,
     },

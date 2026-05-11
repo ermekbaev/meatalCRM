@@ -7,10 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
+import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, PRODUCTION_FIELDS, formatDate, formatCurrency } from "@/lib/utils";
 import { Plus, Search, Trash2, Eye, Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
+
+// Сводный бейдж по производственному полю: показываем агрегат значения по позициям заявки
+function aggregateField(items: any[] | undefined, key: string) {
+  if (!items || items.length === 0) return null;
+  const values = items.map((i) => i?.[key]).filter((v): v is string => Boolean(v));
+  if (values.length === 0) return null;
+  const unique = Array.from(new Set(values));
+  if (unique.length === 1) return unique[0];
+  return "MIX";
+}
 
 export default function RequestsPage() {
   const router = useRouter();
@@ -217,6 +227,7 @@ export default function RequestsPage() {
                 <TableHead>Оплата</TableHead>
                 <TableHead>Приоритет</TableHead>
                 <TableHead>Сумма</TableHead>
+                <TableHead className="whitespace-nowrap">Производство</TableHead>
                 <TableHead>Ответственный</TableHead>
                 <TableHead>Дата</TableHead>
                 <TableHead className="w-24">Действия</TableHead>
@@ -224,9 +235,9 @@ export default function RequestsPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
               ) : requests.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
               ) : (
                 requests.map((r) => (
                   <TableRow key={r.id}>
@@ -280,6 +291,45 @@ export default function RequestsPage() {
                       </span>
                     </TableCell>
                     <TableCell className="font-medium">{r.amount ? formatCurrency(r.amount) : "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {PRODUCTION_FIELDS.map((f) => {
+                          const agg = aggregateField(r.items, f.key);
+                          if (!agg) {
+                            return (
+                              <span
+                                key={f.key}
+                                className="inline-flex h-6 min-w-[28px] items-center justify-center rounded-full bg-slate-50 px-1.5 text-[10px] font-medium text-slate-300 ring-1 ring-slate-200"
+                                title={`${f.label}: не указано`}
+                              >
+                                {f.short}
+                              </span>
+                            );
+                          }
+                          if (agg === "MIX") {
+                            return (
+                              <span
+                                key={f.key}
+                                className="inline-flex h-6 min-w-[28px] items-center justify-center rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-600 ring-1 ring-slate-300"
+                                title={`${f.label}: разное по позициям`}
+                              >
+                                {f.short}
+                              </span>
+                            );
+                          }
+                          const opt = f.options.find((o) => o.value === agg);
+                          return (
+                            <span
+                              key={f.key}
+                              className={`inline-flex h-6 items-center justify-center rounded-full px-2 text-[10px] font-medium ${opt?.className ?? ""}`}
+                              title={`${f.label}: ${opt?.label ?? agg}`}
+                            >
+                              {f.short} {opt?.label ?? agg}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-gray-600">{r.assignee?.name ?? "—"}</TableCell>
                     <TableCell className="text-gray-500">{formatDate(r.createdAt)}</TableCell>
                     <TableCell>

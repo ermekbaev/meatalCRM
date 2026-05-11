@@ -26,6 +26,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         discount: parseFloat(item.discount) || 0,
         total: parseFloat(item.total) || 0,
         isCustomerMaterial: item.isCustomerMaterial ?? false,
+        hasMetal:        item.hasMetal        || null,
+        metalOwner:      item.metalOwner      || null,
+        laserStatus:     item.laserStatus     || null,
+        bendingStatus:   item.bendingStatus   || null,
+        paintingStatus:  item.paintingStatus  || null,
+        extraWorkStatus: item.extraWorkStatus || null,
+        deliveryStatus:  item.deliveryStatus  || null,
       })),
     });
   }

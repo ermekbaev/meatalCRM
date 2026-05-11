@@ -19,6 +19,16 @@ export async function GET(req: NextRequest) {
   const userId = (session.user as any).id;
   const canSeeAll = role === "ADMIN" || role === "MANAGER";
 
+  // Для EMPLOYEE задачи без цеха видны только участникам виртуального цеха "Без цеха"
+  let noWsVisibleToEmployee = false;
+  if (!canSeeAll && role !== "FOREMAN") {
+    const virtual = await prisma.workshop.findFirst({
+      where: { isVirtual: true, members: { some: { id: userId } } },
+      select: { id: true },
+    });
+    noWsVisibleToEmployee = !!virtual;
+  }
+
   const tasks = await prisma.task.findMany({
     where: {
       AND: [
@@ -26,20 +36,20 @@ export async function GET(req: NextRequest) {
           { title: { contains: search, mode: "insensitive" } },
           { description: { contains: search, mode: "insensitive" } },
         ]} : {},
-        status     ? { status: status as any }     : {},
-        priority   ? { priority: priority as any } : {},
-        assigneeId ? { assigneeId }                : {},
+        status     ? { status: status as any }                              : {},
+        priority   ? { priority: priority as any }                          : {},
+        assigneeId ? { assignees: { some: { id: assigneeId } } }            : {},
         workshopId === "none" ? { workshopId: null } : workshopId ? { workshopId } : {},
-        canSeeAll ? {} : role === "FOREMAN" ? { assigneeId: userId } : {
+        canSeeAll ? {} : role === "FOREMAN" ? { assignees: { some: { id: userId } } } : {
           OR: [
-            { workshopId: null },
+            ...(noWsVisibleToEmployee ? [{ workshopId: null }] : []),
             { workshop: { members: { some: { id: userId } } } },
           ],
         },
       ],
     },
     include: {
-      assignee:  { select: { id: true, name: true } },
+      assignees: { select: { id: true, name: true, position: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },
@@ -65,6 +75,10 @@ export async function POST(req: NextRequest) {
   const userId = (session.user as any).id;
   const data = await req.json();
 
+  const assigneeIds: string[] = Array.isArray(data.assigneeIds)
+    ? data.assigneeIds.filter((x: any) => typeof x === "string" && x)
+    : data.assigneeId ? [data.assigneeId] : [];
+
   const task = await prisma.task.create({
     data: {
       title:       data.title,
@@ -72,24 +86,25 @@ export async function POST(req: NextRequest) {
       status:      data.status ?? "TODO",
       priority:    data.priority ?? "MEDIUM",
       dueDate:     data.dueDate ? new Date(data.dueDate) : null,
-      assigneeId:  data.assigneeId || null,
       clientId:    data.clientId || null,
       workshopId:  data.workshopId || null,
       createdById: userId,
+      assignees:   assigneeIds.length > 0 ? { connect: assigneeIds.map((id) => ({ id })) } : undefined,
     },
     include: {
-      assignee:  { select: { id: true, name: true } },
+      assignees: { select: { id: true, name: true, position: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },
     },
   });
 
+  const assigneeNames = task.assignees.map((a) => a.name).join(", ");
   await sendTelegram(
     `📝 <b>Новая задача</b>\n` +
     `📌 ${task.title}\n` +
     `⚡ Приоритет: ${PRIORITY_LABELS[task.priority]}\n` +
-    `👤 Исполнитель: ${task.assignee?.name ?? "Не назначен"}`
+    `👤 Исполнители: ${assigneeNames || "Не назначены"}`
   );
 
   return NextResponse.json(task, { status: 201 });

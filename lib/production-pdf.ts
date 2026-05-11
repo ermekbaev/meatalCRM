@@ -1,4 +1,16 @@
-import { TASK_STATUS_LABELS, PRIORITY_LABELS } from "./utils";
+import { PRIORITY_LABELS } from "./utils";
+
+async function fetchColumnLabels(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch("/api/task-columns");
+    if (!res.ok) return {};
+    const cols = await res.json();
+    if (!Array.isArray(cols)) return {};
+    return Object.fromEntries(cols.map((c: any) => [c.key, c.name]));
+  } catch {
+    return {};
+  }
+}
 
 function fmtDate(d: Date | string | null | undefined) {
   if (!d) return "—";
@@ -17,7 +29,7 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-function buildTaskHtml(task: any, company: any): string {
+function buildTaskHtml(task: any, company: any, statusLabels: Record<string, string>): string {
   const subtasks = (task.subtasks ?? []) as any[];
   const client = task.client;
   const workshop = task.workshop;
@@ -64,17 +76,22 @@ function buildTaskHtml(task: any, company: any): string {
       </tr>` : ""}
       <tr>
         <td style="padding:3px 0;color:#555;vertical-align:top;">Статус:</td>
-        <td style="padding:3px 8px;">${TASK_STATUS_LABELS[task.status] ?? task.status}</td>
+        <td style="padding:3px 8px;">${statusLabels[task.status] ?? task.status}</td>
       </tr>
       <tr>
         <td style="padding:3px 0;color:#555;vertical-align:top;">Приоритет:</td>
         <td style="padding:3px 8px;">${PRIORITY_LABELS[task.priority] ?? task.priority}</td>
       </tr>
-      ${task.assignee ? `
-      <tr>
-        <td style="padding:3px 0;color:#555;vertical-align:top;">Ответственный:</td>
-        <td style="padding:3px 8px;">${escapeHtml(task.assignee.name ?? "")}</td>
-      </tr>` : ""}
+      ${(() => {
+        const names = Array.isArray(task.assignees) && task.assignees.length > 0
+          ? task.assignees.map((a: any) => a.name).filter(Boolean)
+          : task.assignee?.name ? [task.assignee.name] : [];
+        if (names.length === 0) return "";
+        return `<tr>
+          <td style="padding:3px 0;color:#555;vertical-align:top;">${names.length > 1 ? "Ответственные" : "Ответственный"}:</td>
+          <td style="padding:3px 8px;">${escapeHtml(names.join(", "))}</td>
+        </tr>`;
+      })()}
       ${task.dueDate ? `
       <tr>
         <td style="padding:3px 0;color:#555;vertical-align:top;">Срок задачи:</td>
@@ -175,7 +192,8 @@ async function renderTaskToPdf(pdf: any, html: string, isFirstPage: boolean) {
 export async function generateProductionPDF(task: any, company: any) {
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "mm", "a4");
-  await renderTaskToPdf(pdf, buildTaskHtml(task, company), true);
+  const statusLabels = await fetchColumnLabels();
+  await renderTaskToPdf(pdf, buildTaskHtml(task, company, statusLabels), true);
   pdf.save(`Задание-${task.title?.slice(0, 40) ?? task.id}.pdf`);
 }
 
@@ -183,8 +201,9 @@ export async function generateProductionBulkPDF(tasks: any[], company: any) {
   if (tasks.length === 0) return;
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "mm", "a4");
+  const statusLabels = await fetchColumnLabels();
   for (let i = 0; i < tasks.length; i++) {
-    await renderTaskToPdf(pdf, buildTaskHtml(tasks[i], company), i === 0);
+    await renderTaskToPdf(pdf, buildTaskHtml(tasks[i], company, statusLabels), i === 0);
   }
   const dateStr = new Date().toISOString().slice(0, 10);
   pdf.save(`Задания-${tasks.length}шт-${dateStr}.pdf`);

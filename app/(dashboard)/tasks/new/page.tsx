@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TASK_STATUS_LABELS, PRIORITY_LABELS } from "@/lib/utils";
+import { PRIORITY_LABELS } from "@/lib/utils";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -18,15 +18,25 @@ export default function NewTaskPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<any[]>([]);
+  const [taskColumns, setTaskColumns] = useState<Array<{ key: string; name: string }>>([]);
 
-  const { register, handleSubmit, setValue, watch, formState: { isSubmitting } } = useForm({
+  const { register, handleSubmit, setValue, watch, formState: { isSubmitting } } = useForm<{
+    title: string;
+    description: string;
+    status: string;
+    priority: string;
+    dueDate: string;
+    assigneeIds: string[];
+    clientId: string;
+    workshopId: string;
+  }>({
     defaultValues: {
       title: "",
       description: "",
       status: "TODO",
       priority: "MEDIUM",
       dueDate: "",
-      assigneeId: "",
+      assigneeIds: [],
       clientId: "",
       workshopId: "",
     },
@@ -37,7 +47,13 @@ export default function NewTaskPage() {
       fetch("/api/users?role=FOREMAN").then((r) => r.json()).catch(() => []),
       fetch("/api/clients").then((r) => r.json()),
       fetch("/api/workshops").then((r) => r.json()).catch(() => []),
-    ]).then(([u, c, w]) => { setUsers(u); setClients(c); setWorkshops(Array.isArray(w) ? w : []); });
+      fetch("/api/task-columns").then((r) => r.json()).catch(() => []),
+    ]).then(([u, c, w, cols]) => {
+      setUsers(u);
+      setClients(c);
+      setWorkshops(Array.isArray(w) ? w.filter((x: any) => !x.isVirtual) : []);
+      setTaskColumns(Array.isArray(cols) ? cols : []);
+    });
   }, []);
 
   async function onSubmit(data: any) {
@@ -46,7 +62,7 @@ export default function NewTaskPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...data,
-        assigneeId: data.assigneeId || null,
+        assigneeIds: Array.isArray(data.assigneeIds) ? data.assigneeIds : [],
         clientId: data.clientId || null,
         workshopId: data.workshopId || null,
         dueDate: data.dueDate || null,
@@ -98,8 +114,8 @@ export default function NewTaskPage() {
                   <Select value={status} onValueChange={(v) => setValue("status", v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      {taskColumns.map((col) => (
+                        <SelectItem key={col.key} value={col.key}>{col.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -116,15 +132,41 @@ export default function NewTaskPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Ответственный</Label>
-                  <Select value={watch("assigneeId")} onValueChange={(v) => setValue("assigneeId", v)}>
-                    <SelectTrigger><SelectValue placeholder="Не назначен" /></SelectTrigger>
-                    <SelectContent>
-                      {users.map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Ответственные</Label>
+                  <div className="space-y-1 rounded-md border border-slate-200 p-2 max-h-44 overflow-y-auto">
+                    {users.length === 0 && (
+                      <p className="px-1 py-1 text-xs text-slate-400">Нет доступных мастеров</p>
+                    )}
+                    {users.map((u: any) => {
+                      const selected = (watch("assigneeIds") ?? []).includes(u.id);
+                      return (
+                        <label
+                          key={u.id}
+                          className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => {
+                              const current = watch("assigneeIds") ?? [];
+                              setValue(
+                                "assigneeIds",
+                                selected ? current.filter((id: string) => id !== u.id) : [...current, u.id],
+                                { shouldDirty: true },
+                              );
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 accent-orange-500"
+                          />
+                          <span className="flex-1 min-w-0">
+                            <span className="block truncate text-slate-800">{u.name}</span>
+                            {u.position && (
+                              <span className="block truncate text-[10px] text-slate-400">{u.position}</span>
+                            )}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Цех</Label>

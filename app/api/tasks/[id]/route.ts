@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
-import { TASK_STATUS_LABELS } from "@/lib/utils";
 import { createNotification } from "@/lib/notify";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,18 +14,27 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const userId = (session.user as any).id;
   const canSeeAll = role === "ADMIN" || role === "MANAGER";
 
+  let noWsVisibleToEmployee = false;
+  if (!canSeeAll && role !== "FOREMAN") {
+    const virtual = await prisma.workshop.findFirst({
+      where: { isVirtual: true, members: { some: { id: userId } } },
+      select: { id: true },
+    });
+    noWsVisibleToEmployee = !!virtual;
+  }
+
   const task = await prisma.task.findFirst({
     where: {
       id,
-      ...(canSeeAll ? {} : role === "FOREMAN" ? { assigneeId: userId } : {
+      ...(canSeeAll ? {} : role === "FOREMAN" ? { assignees: { some: { id: userId } } } : {
         OR: [
-          { workshopId: null },
+          ...(noWsVisibleToEmployee ? [{ workshopId: null }] : []),
           { workshop: { members: { some: { id: userId } } } },
         ],
       }),
     },
     include: {
-      assignee:  { select: { id: true, name: true } },
+      assignees: { select: { id: true, name: true, position: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },
@@ -61,24 +69,39 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const data = await req.json();
 
-  const old = await prisma.task.findUnique({ where: { id }, select: { status: true, assigneeId: true } });
+  const old = await prisma.task.findUnique({
+    where: { id },
+    select: {
+      status: true,
+      assignees: { select: { id: true } },
+    },
+  });
   if (!old) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const oldAssigneeIds = old.assignees.map((a) => a.id);
 
   let updateData: any;
+  let nextAssigneeIds: string[] | null = null;
   if (role === "ADMIN" || role === "MANAGER") {
+    if (Array.isArray(data.assigneeIds)) {
+      nextAssigneeIds = data.assigneeIds.filter((x: any) => typeof x === "string" && x);
+    } else if (data.assigneeId !== undefined) {
+      // обратная совместимость со старыми клиентами
+      nextAssigneeIds = data.assigneeId ? [data.assigneeId] : [];
+    }
     updateData = {
       title:       data.title,
       description: data.description ?? null,
       status:      data.status,
       priority:    data.priority,
       dueDate:     data.dueDate ? new Date(data.dueDate) : null,
-      assigneeId:  data.assigneeId ?? null,
       clientId:    data.clientId ?? null,
       workshopId:  data.workshopId === undefined ? undefined : data.workshopId || null,
+      ...(nextAssigneeIds !== null && {
+        assignees: { set: nextAssigneeIds.map((id) => ({ id })) },
+      }),
     };
   } else if (role === "FOREMAN") {
-    // FOREMAN: только смена статуса своей задачи
-    if (old.assigneeId !== currentUserId) {
+    if (!oldAssigneeIds.includes(currentUserId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     if (data.status === undefined) {
@@ -93,39 +116,48 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     data: updateData,
     include: {
-      assignee:  { select: { id: true, name: true } },
+      assignees: { select: { id: true, name: true, position: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },
     },
   });
 
+  const newAssigneeIds = task.assignees.map((a) => a.id);
+
   if (old && old.status !== task.status) {
+    const columns = await prisma.taskColumn.findMany({
+      where: { key: { in: [old.status, task.status] } },
+      select: { key: true, name: true },
+    });
+    const labelMap: Record<string, string> = Object.fromEntries(columns.map((c) => [c.key, c.name]));
+    const oldLabel = labelMap[old.status] ?? old.status;
+    const newLabel = labelMap[task.status] ?? task.status;
+
     await sendTelegram(
       `🔄 <b>Статус задачи изменён</b>\n` +
       `📌 ${task.title}\n` +
-      `${TASK_STATUS_LABELS[old.status] ?? old.status} → <b>${TASK_STATUS_LABELS[task.status] ?? task.status}</b>`
+      `${oldLabel} → <b>${newLabel}</b>`
     );
 
-    if (task.assigneeId && task.assigneeId !== currentUserId) {
+    for (const a of task.assignees) {
+      if (a.id === currentUserId) continue;
       await createNotification({
-        userId: task.assigneeId,
+        userId: a.id,
         type: "STATUS_CHANGED",
         title: "Статус задачи изменён",
-        body: `${task.title}: ${TASK_STATUS_LABELS[old.status] ?? old.status} → ${TASK_STATUS_LABELS[task.status] ?? task.status}`,
+        body: `${task.title}: ${oldLabel} → ${newLabel}`,
         link: `/tasks/${id}`,
       });
     }
   }
 
-  // Назначен новый исполнитель на задачу
-  if (
-    task.assigneeId &&
-    task.assigneeId !== old?.assigneeId &&
-    task.assigneeId !== currentUserId
-  ) {
+  // Уведомление только вновь добавленным исполнителям
+  const addedAssigneeIds = newAssigneeIds.filter((uid) => !oldAssigneeIds.includes(uid));
+  for (const uid of addedAssigneeIds) {
+    if (uid === currentUserId) continue;
     await createNotification({
-      userId: task.assigneeId,
+      userId: uid,
       type: "TASK_ASSIGNED",
       title: "Назначена задача",
       body: task.title,

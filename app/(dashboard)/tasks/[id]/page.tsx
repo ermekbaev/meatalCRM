@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TASK_STATUS_LABELS, TASK_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, formatDateTime } from "@/lib/utils";
+import { TASK_STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, formatDateTime, hexToBadgeStyle } from "@/lib/utils";
 import {
   ArrowLeft, Send, Loader2, Clock, Paperclip, Trash2,
   FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File, Printer
@@ -78,6 +78,8 @@ export default function TaskDetailPage() {
   const [sendingComment, setSendingComment] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<any[]>([]);
+  const [taskColumns, setTaskColumns] = useState<Array<{ id: string; key: string; name: string; color: string; order: number; isSystem: boolean }>>([]);
+  const [showAssigneePicker, setShowAssigneePicker] = useState(false);
 
   // Файлы
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -127,19 +129,34 @@ export default function TaskDetailPage() {
     fetchTask();
     fetch("/api/users").then((r) => r.json()).then(setUsers).catch(() => {});
     fetch("/api/tags").then((r) => r.json()).then(setAllTags).catch(() => {});
-    fetch("/api/workshops").then((r) => r.json()).then((data) => setWorkshops(Array.isArray(data) ? data : [])).catch(() => {});
+    fetch("/api/workshops").then((r) => r.json()).then((data) => setWorkshops(Array.isArray(data) ? data.filter((w: any) => !w.isVirtual) : [])).catch(() => {});
+    fetch("/api/task-columns").then((r) => r.json()).then((data) => setTaskColumns(Array.isArray(data) ? data : [])).catch(() => {});
   }, [fetchTask]);
 
   const updateField = async (field: string, value: any) => {
     setSaving(true);
+    const payload: any = { ...task, [field]: value };
+    // Сервер ждёт assigneeIds — приводим из task.assignees, если поле явно не передано
+    if (field !== "assigneeIds" && payload.assigneeIds === undefined && Array.isArray(payload.assignees)) {
+      payload.assigneeIds = payload.assignees.map((a: any) => a.id);
+    }
     const res = await fetch(`/api/tasks/${params.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...task, [field]: value }),
+      body: JSON.stringify(payload),
     });
     const updated = await res.json();
     setTask((prev: any) => ({ ...prev, ...updated }));
     setSaving(false);
+  };
+
+  const toggleAssignee = async (userId: string) => {
+    if (!task) return;
+    const currentIds: string[] = (task.assignees ?? []).map((a: any) => a.id);
+    const nextIds = currentIds.includes(userId)
+      ? currentIds.filter((id) => id !== userId)
+      : [...currentIds, userId];
+    await updateField("assigneeIds", nextIds);
   };
 
   const sendComment = async () => {
@@ -454,9 +471,17 @@ export default function TaskDetailPage() {
                     )}
                   </div>
                   <div className="flex gap-2 flex-wrap justify-end shrink-0">
-                    <span className={`rounded-full px-3 py-1 text-sm font-medium ${TASK_STATUS_COLORS[task.status]}`}>
-                      {TASK_STATUS_LABELS[task.status]}
-                    </span>
+                    {(() => {
+                      const col = taskColumns.find((c) => c.key === task.status);
+                      return (
+                        <span
+                          className="rounded-full px-3 py-1 text-sm font-medium"
+                          style={col ? hexToBadgeStyle(col.color) : undefined}
+                        >
+                          {col?.name ?? task.status}
+                        </span>
+                      );
+                    })()}
                     <span className={`rounded-full px-3 py-1 text-sm font-medium ${PRIORITY_COLORS[task.priority]}`}>
                       {PRIORITY_LABELS[task.priority]}
                     </span>
@@ -844,8 +869,8 @@ export default function TaskDetailPage() {
                   <Select value={task.status} onValueChange={(v) => updateField("status", v)} disabled={!canChangeStatus}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      {taskColumns.map((col) => (
+                        <SelectItem key={col.key} value={col.key}>{col.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -862,20 +887,80 @@ export default function TaskDetailPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-gray-500">Ответственный</p>
-                  <Select
-                    value={task.assigneeId ?? "none"}
-                    onValueChange={(v) => updateField("assigneeId", v === "none" ? null : v)}
-                    disabled={!canEditTask}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Не назначен" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Не назначен</SelectItem>
-                      {users.filter((u: any) => u.role === "FOREMAN").map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-gray-500">Ответственные</p>
+                    {canEditTask && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-gray-700"
+                        onClick={() => setShowAssigneePicker((v) => !v)}
+                        title="Добавить ответственного"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    {(task.assignees ?? []).length === 0 && (
+                      <p className="text-xs text-gray-400">Не назначены</p>
+                    )}
+                    {(task.assignees ?? []).map((a: any) => (
+                      <div
+                        key={a.id}
+                        className="flex items-center gap-2 rounded-md border border-slate-200 px-2 py-1.5"
+                      >
+                        <div className="h-7 w-7 shrink-0 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[11px] font-medium">
+                          {a.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm text-slate-800">{a.name}</p>
+                          {a.position && (
+                            <p className="truncate text-[10px] text-slate-400">{a.position}</p>
+                          )}
+                        </div>
+                        {canEditTask && (
+                          <button
+                            type="button"
+                            onClick={() => toggleAssignee(a.id)}
+                            className="text-slate-300 transition-colors hover:text-red-500"
+                            title="Убрать"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {canEditTask && showAssigneePicker && (() => {
+                    const assignedIds = new Set((task.assignees ?? []).map((a: any) => a.id));
+                    const candidates = users.filter((u: any) => u.role === "FOREMAN" && !assignedIds.has(u.id));
+                    return (
+                      <div className="rounded-md border border-slate-200 p-1.5 space-y-1 max-h-48 overflow-y-auto">
+                        {candidates.length === 0 && (
+                          <p className="px-2 py-1 text-xs text-slate-400">Все мастера уже добавлены</p>
+                        )}
+                        {candidates.map((u: any) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => { toggleAssignee(u.id); }}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+                          >
+                            <div className="h-6 w-6 shrink-0 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-medium">
+                              {u.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="flex-1 min-w-0">
+                              <span className="block truncate text-slate-800">{u.name}</span>
+                              {u.position && (
+                                <span className="block truncate text-[10px] text-slate-400">{u.position}</span>
+                              )}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-gray-500">Цех</p>
@@ -978,15 +1063,28 @@ export default function TaskDetailPage() {
                         className="flex-1 h-7 text-xs"
                         onKeyDown={(e) => { if (e.key === "Enter") createTag(); }}
                       />
-                      <div className="flex gap-1">
+                      <div className="flex items-center gap-1">
                         {TAG_COLORS.map((c) => (
                           <button
                             key={c}
+                            type="button"
                             className={`h-5 w-5 rounded-full border-2 transition-all ${newTagColor === c ? "border-gray-800 scale-110" : "border-transparent"}`}
                             style={{ backgroundColor: c }}
                             onClick={() => setNewTagColor(c)}
                           />
                         ))}
+                        <label
+                          className={`relative h-5 w-5 cursor-pointer overflow-hidden rounded-full border-2 transition-all ${!TAG_COLORS.includes(newTagColor) ? "border-gray-800 scale-110" : "border-transparent"}`}
+                          style={{ backgroundColor: newTagColor }}
+                          title="Свой цвет"
+                        >
+                          <input
+                            type="color"
+                            value={newTagColor}
+                            onChange={(e) => setNewTagColor(e.target.value)}
+                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          />
+                        </label>
                       </div>
                       <Button size="sm" onClick={createTag} disabled={creatingTag || !newTagName.trim()} className="h-7 px-2">
                         {creatingTag ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}

@@ -94,6 +94,7 @@ export const CLIENT_TYPE_LABELS: Record<string, string> = {
   COMPANY: "Юр. лицо",
 };
 
+// Используется для подзадач (enum TaskStatus). Статусы задач теперь динамические — см. TaskColumn.
 export const TASK_STATUS_LABELS: Record<string, string> = {
   TODO:             "К выполнению",
   PENDING_APPROVAL: "На согласовании",
@@ -109,6 +110,104 @@ export const TASK_STATUS_COLORS: Record<string, string> = {
   DONE:             "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
   CANCELLED:        "bg-red-50     text-red-600    ring-1 ring-red-200",
 };
+
+// Превращает HEX-цвет колонки задач в стили для бейджа (бледный фон + цветной текст + рамка)
+export function hexToBadgeStyle(hex: string): { backgroundColor: string; color: string; boxShadow: string } {
+  const clean = (hex || "#94a3b8").replace("#", "");
+  const normalized = clean.length === 3
+    ? clean.split("").map((c) => c + c).join("")
+    : clean.padEnd(6, "0").slice(0, 6);
+  return {
+    backgroundColor: `#${normalized}1f`,
+    color: `#${normalized}`,
+    boxShadow: `inset 0 0 0 1px #${normalized}55`,
+  };
+}
+
+// Производственные статусы позиций заявки
+export type ProductionFieldKey =
+  | "hasMetal"
+  | "metalOwner"
+  | "laserStatus"
+  | "bendingStatus"
+  | "paintingStatus"
+  | "extraWorkStatus"
+  | "deliveryStatus";
+
+export const PRODUCTION_FIELDS: Array<{
+  key: ProductionFieldKey;
+  label: string;
+  short: string;
+  options: Array<{ value: string; label: string; className: string }>;
+}> = [
+  {
+    key: "hasMetal",
+    label: "Металл",
+    short: "М",
+    options: [
+      { value: "ЕСТЬ", label: "ЕСТЬ", className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+    ],
+  },
+  {
+    key: "metalOwner",
+    label: "Чей металл",
+    short: "Ч",
+    options: [
+      { value: "НАШ", label: "НАШ", className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "ЗАК", label: "ЗАК", className: "bg-amber-100   text-amber-700   ring-1 ring-amber-200" },
+    ],
+  },
+  {
+    key: "laserStatus",
+    label: "Лазер",
+    short: "Л",
+    options: [
+      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      { value: "СПЕЦ", label: "СПЕЦ", className: "bg-blue-100    text-blue-700    ring-1 ring-blue-200" },
+    ],
+  },
+  {
+    key: "bendingStatus",
+    label: "Гибка",
+    short: "Г",
+    options: [
+      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      { value: "СПЕЦ", label: "СПЕЦ", className: "bg-blue-100    text-blue-700    ring-1 ring-blue-200" },
+    ],
+  },
+  {
+    key: "paintingStatus",
+    label: "Покраска",
+    short: "П",
+    options: [
+      { value: "ДА",  label: "ДА",  className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "НЕТ", label: "НЕТ", className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+    ],
+  },
+  {
+    key: "extraWorkStatus",
+    label: "Доп. работы",
+    short: "Д",
+    options: [
+      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      { value: "ВЫСТ", label: "ВЫСТ", className: "bg-orange-100  text-orange-700  ring-1 ring-orange-200" },
+    ],
+  },
+  {
+    key: "deliveryStatus",
+    label: "Доставка",
+    short: "🚚",
+    options: [
+      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      { value: "ВЫСТ", label: "ВЫСТ", className: "bg-orange-100  text-orange-700  ring-1 ring-orange-200" },
+    ],
+  },
+];
 
 export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   status:     "Статус",

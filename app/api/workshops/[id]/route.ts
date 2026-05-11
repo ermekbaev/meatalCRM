@@ -53,6 +53,10 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
+  const existing = await prisma.workshop.findUnique({ where: { id }, select: { isVirtual: true } });
+  if (existing?.isVirtual) {
+    return NextResponse.json({ error: "Виртуальный цех удалить нельзя" }, { status: 400 });
+  }
   await prisma.workshop.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

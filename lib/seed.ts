@@ -507,7 +507,7 @@ async function main() {
         description: t.description,
         status: t.status as TaskStatus,
         priority: t.priority as RequestPriority,
-        assigneeId: t.assigneeId,
+        assignees: t.assigneeId ? { connect: [{ id: t.assigneeId }] } : undefined,
         createdById: admin.id,
         clientId: t.clientIdx !== null ? clients[t.clientIdx].id : null,
       },

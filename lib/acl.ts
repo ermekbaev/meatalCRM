@@ -8,11 +8,11 @@ export const canManageTasks = (role: Role) => role === "ADMIN" || role === "MANA
 export const canManageSubtasks = (role: Role) =>
   role === "ADMIN" || role === "MANAGER" || role === "FOREMAN";
 
-// FOREMAN имеет доступ к подзадачам только тех задач, где он ответственный.
+// FOREMAN имеет доступ к подзадачам только тех задач, где он среди ответственных.
 export async function canForemanAccessTask(taskId: string, userId: string) {
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-    select: { assigneeId: true },
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, assignees: { some: { id: userId } } },
+    select: { id: true },
   });
-  return task?.assigneeId === userId;
+  return task !== null;
 }
