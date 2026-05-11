@@ -13,7 +13,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
   const { toggle } = useSidebar();
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 lg:h-18 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
+    <header className="safe-area-inset-top sticky top-0 z-40 flex h-14 lg:h-18 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
       <div className="flex items-center gap-3">
         <button
           onClick={toggle}

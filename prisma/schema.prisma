@@ -405,6 +405,7 @@ enum UserRole {
   ADMIN
   MANAGER
   FOREMAN
+  ENGINEER
   EMPLOYEE
 }
 

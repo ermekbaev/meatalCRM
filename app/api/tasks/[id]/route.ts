@@ -14,8 +14,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const userId = (session.user as any).id;
   const canSeeAll = role === "ADMIN" || role === "MANAGER";
 
+  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+
   let noWsVisibleToEmployee = false;
-  if (!canSeeAll && role !== "FOREMAN") {
+  if (!canSeeAll && !isAssigneeRole) {
     const virtual = await prisma.workshop.findFirst({
       where: { isVirtual: true, members: { some: { id: userId } } },
       select: { id: true },
@@ -26,7 +28,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const task = await prisma.task.findFirst({
     where: {
       id,
-      ...(canSeeAll ? {} : role === "FOREMAN" ? { assignees: { some: { id: userId } } } : {
+      ...(canSeeAll ? {} : isAssigneeRole ? { assignees: { some: { id: userId } } } : {
         OR: [
           ...(noWsVisibleToEmployee ? [{ workshopId: null }] : []),
           { workshop: { members: { some: { id: userId } } } },
@@ -100,7 +102,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         assignees: { set: nextAssigneeIds.map((id) => ({ id })) },
       }),
     };
-  } else if (role === "FOREMAN") {
+  } else if (role === "FOREMAN" || role === "ENGINEER") {
     if (!oldAssigneeIds.includes(currentUserId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

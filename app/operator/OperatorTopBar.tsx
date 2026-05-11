@@ -8,7 +8,7 @@ import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 export function OperatorTopBar({ userName, role }: { userName: string; role: string }) {
   const canSwitchToCrm = role === "ADMIN" || role === "MANAGER";
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2">
+    <header className="safe-area-inset-top sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2">
       <div className="flex-1 min-w-0">
         <p className="text-xs text-slate-400">Оператор</p>
         <p className="text-sm font-semibold text-slate-900 truncate">{userName}</p>

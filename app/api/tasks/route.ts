@@ -19,9 +19,11 @@ export async function GET(req: NextRequest) {
   const userId = (session.user as any).id;
   const canSeeAll = role === "ADMIN" || role === "MANAGER";
 
+  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+
   // Для EMPLOYEE задачи без цеха видны только участникам виртуального цеха "Без цеха"
   let noWsVisibleToEmployee = false;
-  if (!canSeeAll && role !== "FOREMAN") {
+  if (!canSeeAll && !isAssigneeRole) {
     const virtual = await prisma.workshop.findFirst({
       where: { isVirtual: true, members: { some: { id: userId } } },
       select: { id: true },
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
         priority   ? { priority: priority as any }                          : {},
         assigneeId ? { assignees: { some: { id: assigneeId } } }            : {},
         workshopId === "none" ? { workshopId: null } : workshopId ? { workshopId } : {},
-        canSeeAll ? {} : role === "FOREMAN" ? { assignees: { some: { id: userId } } } : {
+        canSeeAll ? {} : isAssigneeRole ? { assignees: { some: { id: userId } } } : {
           OR: [
             ...(noWsVisibleToEmployee ? [{ workshopId: null }] : []),
             { workshop: { members: { some: { id: userId } } } },

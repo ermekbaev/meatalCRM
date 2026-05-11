@@ -25,3 +25,14 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* iOS PWA: учитываем safe-area под статус-баром и хоум-индикатором.
+   box-sizing: content-box нужен, чтобы padding не «съедал» зафиксированную высоту (h-14 и т.п.) */
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top);
+  box-sizing: content-box;
+}
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: content-box;
+}

@@ -44,7 +44,7 @@ export default function NewTaskPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/users?role=FOREMAN").then((r) => r.json()).catch(() => []),
+      fetch("/api/users?role=FOREMAN&role=ENGINEER").then((r) => r.json()).catch(() => []),
       fetch("/api/clients").then((r) => r.json()),
       fetch("/api/workshops").then((r) => r.json()).catch(() => []),
       fetch("/api/task-columns").then((r) => r.json()).catch(() => []),

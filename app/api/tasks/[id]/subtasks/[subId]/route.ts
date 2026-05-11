@@ -25,7 +25,7 @@ export async function PUT(
 
   if (role === "ADMIN" || role === "MANAGER") {
     // полный доступ
-  } else if (role === "FOREMAN") {
+  } else if (role === "FOREMAN" || role === "ENGINEER") {
     if (!(await canForemanAccessTask(id, userId))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -91,7 +91,7 @@ export async function DELETE(
   }
 
   const { id, subId } = await params;
-  if (role === "FOREMAN" && !(await canForemanAccessTask(id, userId))) {
+  if ((role === "FOREMAN" || role === "ENGINEER") && !(await canForemanAccessTask(id, userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   await prisma.subTask.delete({ where: { id: subId } });

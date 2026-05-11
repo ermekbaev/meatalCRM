@@ -69,7 +69,7 @@ export default function TaskDetailPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const canEditTask = role === "ADMIN" || role === "MANAGER";
-  const canChangeStatus = canEditTask || role === "FOREMAN";
+  const canChangeStatus = canEditTask || role === "FOREMAN" || role === "ENGINEER";
   const [task, setTask] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<TaskDetailTab>("description");
   const [loading, setLoading] = useState(true);
@@ -934,7 +934,7 @@ export default function TaskDetailPage() {
                   </div>
                   {canEditTask && showAssigneePicker && (() => {
                     const assignedIds = new Set((task.assignees ?? []).map((a: any) => a.id));
-                    const candidates = users.filter((u: any) => u.role === "FOREMAN" && !assignedIds.has(u.id));
+                    const candidates = users.filter((u: any) => (u.role === "FOREMAN" || u.role === "ENGINEER") && !assignedIds.has(u.id));
                     return (
                       <div className="rounded-md border border-slate-200 p-1.5 space-y-1 max-h-48 overflow-y-auto">
                         {candidates.length === 0 && (
