@@ -16,10 +16,15 @@ export async function GET(req: NextRequest) {
   const paymentStatus = searchParams.get("paymentStatus") ?? "";
   const clientId = searchParams.get("clientId") ?? "";
   const minimal = searchParams.get("minimal") === "true";
+  const role = (session.user as any).role;
+  const userId = (session.user as any).id;
+  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+  const assigneeScope = isAssigneeRole ? { assigneeId: userId } : {};
 
   // Лёгкий режим для дропдаунов — только id, number, title, status
   if (minimal) {
     const requests = await prisma.request.findMany({
+      where: assigneeScope,
       select: { id: true, number: true, title: true, status: true },
       orderBy: { createdAt: "desc" },
       take: 200,
@@ -41,6 +46,7 @@ export async function GET(req: NextRequest) {
         priority ? { priority: priority as any } : {},
         paymentStatus ? { paymentStatus: paymentStatus as any } : {},
         clientId ? { clientId } : {},
+        assigneeScope,
       ],
     },
     include: {

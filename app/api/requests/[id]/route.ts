@@ -9,9 +9,16 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const role = (session.user as any).role;
+  const sessionUserId = (session.user as any).id;
+  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+
   const { id } = await params;
-  const request = await prisma.request.findUnique({
-    where: { id },
+  const request = await prisma.request.findFirst({
+    where: {
+      id,
+      ...(isAssigneeRole ? { assigneeId: sessionUserId } : {}),
+    },
     include: {
       client: true,
       assignee: true,
@@ -39,11 +46,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await params;
-  const data = await req.json();
+  const role = (session.user as any).role;
   const userId = (session.user as any).id;
 
+  const { id } = await params;
+  const data = await req.json();
+
   const old = await prisma.request.findUnique({ where: { id } });
+  if (!old) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // FOREMAN/ENGINEER могут править только свои заявки (где они в assignee)
+  if ((role === "FOREMAN" || role === "ENGINEER") && old.assigneeId !== userId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const updated = await prisma.request.update({
     where: { id },

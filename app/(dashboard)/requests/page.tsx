@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,10 @@ function aggregateField(items: any[] | undefined, key: string) {
 
 export default function RequestsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const role = (session?.user as any)?.role;
+  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+  const canManageRequests = role === "ADMIN" || role === "MANAGER";
   const [requests, setRequests] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
@@ -142,12 +147,16 @@ export default function RequestsPage() {
             </SelectContent>
           </Select>
           <div className="flex w-full sm:w-auto sm:ml-auto gap-2">
-            <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" /> Excel
-            </Button>
-            <Button className="flex-1 sm:flex-none" onClick={() => router.push("/requests/new")}>
-              <Plus className="mr-2 h-4 w-4" /> Создать
-            </Button>
+            {!isAssigneeRole && (
+              <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" /> Excel
+              </Button>
+            )}
+            {canManageRequests && (
+              <Button className="flex-1 sm:flex-none" onClick={() => router.push("/requests/new")}>
+                <Plus className="mr-2 h-4 w-4" /> Создать
+              </Button>
+            )}
           </div>
         </div>
 
@@ -192,6 +201,7 @@ export default function RequestsPage() {
                   <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => router.push(`/requests/${r.id}`)}>
                     <Eye className="h-4 w-4" />
                   </Button>
+                  {canManageRequests && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 hover:text-red-600">
@@ -209,6 +219,7 @@ export default function RequestsPage() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                  )}
                 </div>
               </div>
             </div>
@@ -337,23 +348,25 @@ export default function RequestsPage() {
                         <Button size="icon" variant="ghost" onClick={() => router.push(`/requests/${r.id}`)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
-                              <AlertDialogDescription>Это действие необратимо.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Отмена</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(r.id)}>Удалить</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        {canManageRequests && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="icon" variant="ghost" className="text-red-500 hover:text-red-600">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
+                                <AlertDialogDescription>Это действие необратимо.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(r.id)}>Удалить</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
