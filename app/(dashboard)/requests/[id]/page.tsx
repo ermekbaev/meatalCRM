@@ -517,22 +517,22 @@ export default function RequestDetailPage() {
                             <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[30%]">
                               Наименование
                             </th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20">
                               Кол-во
                             </th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
                               Ед.
                             </th>
-                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-28">
                               Цена, ₽
                             </th>
-                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-28">
                               Закуп., ₽
                             </th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20">
                               Скидка %
                             </th>
-                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-28">
                               Сумма, ₽
                             </th>
                             <th
