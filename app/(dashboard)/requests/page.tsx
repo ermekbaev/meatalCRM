@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, PRODUCTION_FIELDS, formatDate, formatCurrency } from "@/lib/utils";
-import { Plus, Search, Trash2, Eye, Download, Loader2 } from "lucide-react";
+import { Plus, Search, Trash2, Eye, Download, Loader2, Factory } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 
@@ -21,6 +22,68 @@ function aggregateField(items: any[] | undefined, key: string) {
   const unique = Array.from(new Set(values));
   if (unique.length === 1) return unique[0];
   return "MIX";
+}
+
+// Свёрнутая ячейка «Производство»: иконка с N/total, popover со всеми статусами
+function ProductionSummaryCell({ items }: { items: any[] | undefined }) {
+  const aggregates = PRODUCTION_FIELDS.map((f) => ({ field: f, agg: aggregateField(items, f.key) }));
+  const filled = aggregates.filter((a) => a.agg).length;
+  const total = PRODUCTION_FIELDS.length;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ring-1 transition-colors ${
+            filled === 0
+              ? "bg-slate-50 text-slate-400 ring-slate-200 hover:bg-slate-100"
+              : "bg-orange-50 text-orange-700 ring-orange-200 hover:bg-orange-100"
+          }`}
+          title="Производственные статусы"
+        >
+          <Factory className="h-3.5 w-3.5" />
+          <span>{filled}/{total}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-2">
+        <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          Производство
+        </div>
+        <div className="space-y-1">
+          {aggregates.map(({ field: f, agg }) => {
+            let badge: React.ReactNode;
+            if (!agg) {
+              badge = (
+                <span className="inline-flex h-5 items-center rounded-full bg-slate-50 px-2 text-[10px] font-medium text-slate-400 ring-1 ring-slate-200">
+                  не указано
+                </span>
+              );
+            } else if (agg === "MIX") {
+              badge = (
+                <span className="inline-flex h-5 items-center rounded-full bg-slate-100 px-2 text-[10px] font-medium text-slate-600 ring-1 ring-slate-300">
+                  разное
+                </span>
+              );
+            } else {
+              const opt = f.options.find((o) => o.value === agg);
+              badge = (
+                <span className={`inline-flex h-5 items-center rounded-full px-2 text-[10px] font-medium ${opt?.className ?? ""}`}>
+                  {opt?.label ?? agg}
+                </span>
+              );
+            }
+            return (
+              <div key={f.key} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md hover:bg-slate-50">
+                <span className="text-xs text-slate-600">{f.label}</span>
+                {badge}
+              </div>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export default function RequestsPage() {
@@ -303,43 +366,7 @@ export default function RequestsPage() {
                     </TableCell>
                     <TableCell className="font-medium">{r.amount ? formatCurrency(r.amount) : "—"}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {PRODUCTION_FIELDS.map((f) => {
-                          const agg = aggregateField(r.items, f.key);
-                          if (!agg) {
-                            return (
-                              <span
-                                key={f.key}
-                                className="inline-flex h-6 min-w-[28px] items-center justify-center rounded-full bg-slate-50 px-1.5 text-[10px] font-medium text-slate-300 ring-1 ring-slate-200"
-                                title={`${f.label}: не указано`}
-                              >
-                                {f.short}
-                              </span>
-                            );
-                          }
-                          if (agg === "MIX") {
-                            return (
-                              <span
-                                key={f.key}
-                                className="inline-flex h-6 min-w-[28px] items-center justify-center rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-600 ring-1 ring-slate-300"
-                                title={`${f.label}: разное по позициям`}
-                              >
-                                {f.short}
-                              </span>
-                            );
-                          }
-                          const opt = f.options.find((o) => o.value === agg);
-                          return (
-                            <span
-                              key={f.key}
-                              className={`inline-flex h-6 items-center justify-center rounded-full px-2 text-[10px] font-medium ${opt?.className ?? ""}`}
-                              title={`${f.label}: ${opt?.label ?? agg}`}
-                            >
-                              {f.short} {opt?.label ?? agg}
-                            </span>
-                          );
-                        })}
-                      </div>
+                      <ProductionSummaryCell items={r.items} />
                     </TableCell>
                     <TableCell className="text-gray-600">{r.assignee?.name ?? "—"}</TableCell>
                     <TableCell className="text-gray-500">{formatDate(r.createdAt)}</TableCell>

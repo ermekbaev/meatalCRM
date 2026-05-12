@@ -29,6 +29,7 @@ import {
   formatCurrency,
 } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   ArrowLeft,
   Send,
@@ -44,10 +45,93 @@ import {
   BookOpen,
   Archive,
   File,
+  Factory,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
+
+function ItemProductionPopover({
+  item,
+  readOnly,
+  onChange,
+}: {
+  item: any;
+  readOnly: boolean;
+  onChange: (key: string, value: string | null) => void;
+}) {
+  const filled = PRODUCTION_FIELDS.filter((f) => Boolean(item[f.key])).length;
+  const total = PRODUCTION_FIELDS.length;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium ring-1 transition-colors ${
+            filled === 0
+              ? "bg-slate-50 text-slate-400 ring-slate-200 hover:bg-slate-100"
+              : "bg-orange-50 text-orange-700 ring-orange-200 hover:bg-orange-100"
+          }`}
+          title="Производственные статусы позиции"
+        >
+          <Factory className="h-3.5 w-3.5" />
+          <span>{filled}/{total}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-2">
+        <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          Производство
+        </div>
+        <div className="space-y-1">
+          {PRODUCTION_FIELDS.map((f) => {
+            const current = item[f.key] ?? null;
+            const opt = current ? f.options.find((o) => o.value === current) : null;
+            if (readOnly) {
+              return (
+                <div key={f.key} className="flex items-center justify-between gap-2 px-2 py-1">
+                  <span className="text-xs text-slate-600">{f.label}</span>
+                  {opt ? (
+                    <span className={`inline-flex h-5 items-center rounded-full px-2 text-[10px] font-medium ${opt.className}`}>
+                      {opt.label}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-300">—</span>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <div key={f.key} className="flex items-center justify-between gap-2 px-2 py-1">
+                <span className="text-xs text-slate-600">{f.label}</span>
+                <Select
+                  value={current ?? "__none__"}
+                  onValueChange={(v) => onChange(f.key, v === "__none__" ? null : v)}
+                >
+                  <SelectTrigger
+                    className={`h-6 w-24 border-0 px-2 text-[11px] rounded-full font-medium shadow-none ${
+                      opt ? opt.className : "bg-slate-50 text-slate-400 ring-1 ring-slate-200"
+                    }`}
+                  >
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">—</SelectItem>
+                    {f.options.map((o) => (
+                      <SelectItem key={o.value} value={o.value} className="text-xs">
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function getFileIcon(mimeType?: string, fileName?: string) {
   const ext = fileName?.split(".").pop()?.toLowerCase();
@@ -427,7 +511,7 @@ export default function RequestDetailPage() {
                 ) : (
                   <>
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[700px] text-sm">
+                      <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50">
                             <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[30%]">
@@ -457,15 +541,12 @@ export default function RequestDetailPage() {
                             >
                               Мат. зак.
                             </th>
-                            {PRODUCTION_FIELDS.map((f) => (
-                              <th
-                                key={f.key}
-                                className="px-1.5 py-2 text-center text-xs font-medium text-slate-500 w-24"
-                                title={f.label}
-                              >
-                                {f.label}
-                              </th>
-                            ))}
+                            <th
+                              className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-28"
+                              title="Производственные статусы"
+                            >
+                              Производство
+                            </th>
                             {!isEmployee && <th className="px-2 py-2 w-8"></th>}
                           </tr>
                         </thead>
@@ -630,47 +711,13 @@ export default function RequestDetailPage() {
                                   />
                                 )}
                               </td>
-                              {PRODUCTION_FIELDS.map((f) => {
-                                const current = item[f.key] ?? null;
-                                const opt = f.options.find((o) => o.value === current);
-                                if (isEmployee) {
-                                  return (
-                                    <td key={f.key} className="px-1.5 py-2 text-center">
-                                      {opt ? (
-                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${opt.className}`}>
-                                          {opt.label}
-                                        </span>
-                                      ) : (
-                                        <span className="text-xs text-slate-300">—</span>
-                                      )}
-                                    </td>
-                                  );
-                                }
-                                return (
-                                  <td key={f.key} className="px-1.5 py-2 text-center">
-                                    <Select
-                                      value={current ?? "__none__"}
-                                      onValueChange={(v) =>
-                                        updateItem(index, f.key, v === "__none__" ? null : v)
-                                      }
-                                    >
-                                      <SelectTrigger
-                                        className={`h-7 w-full min-w-0 border-0 px-2 text-xs rounded-full font-medium shadow-none ${opt ? opt.className : "bg-slate-50 text-slate-400 ring-1 ring-slate-200"}`}
-                                      >
-                                        <SelectValue placeholder="—" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="__none__" className="text-xs">—</SelectItem>
-                                        {f.options.map((o) => (
-                                          <SelectItem key={o.value} value={o.value} className="text-xs">
-                                            {o.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </td>
-                                );
-                              })}
+                              <td className="px-2 py-2 text-center">
+                                <ItemProductionPopover
+                                  item={item}
+                                  readOnly={isEmployee}
+                                  onChange={(key, value) => updateItem(index, key, value)}
+                                />
+                              </td>
                               {!isEmployee && (
                                 <td className="px-2 py-2">
                                   <button
