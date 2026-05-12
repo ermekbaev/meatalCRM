@@ -324,10 +324,6 @@ export default function RequestDetailPage() {
   };
 
   const subtotal = items.reduce((s, it) => s + (parseFloat(it.total) || 0), 0);
-  const customerMaterialTotal = items
-    .filter((it) => it.isCustomerMaterial)
-    .reduce((s, it) => s + (parseFloat(it.total) || 0), 0);
-  const ourRevenue = subtotal - customerMaterialTotal;
   const vatAmount = request?.vatIncluded ? subtotal * 0.22 : 0;
   const totalWithVat = subtotal + vatAmount;
 
@@ -536,12 +532,6 @@ export default function RequestDetailPage() {
                               Сумма, ₽
                             </th>
                             <th
-                              className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20"
-                              title="Материал заказчика"
-                            >
-                              Мат. зак.
-                            </th>
-                            <th
                               className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-28"
                               title="Производственные статусы"
                             >
@@ -683,33 +673,8 @@ export default function RequestDetailPage() {
                                   />
                                 )}
                               </td>
-                              <td
-                                className={`px-2 py-2 text-right text-sm font-medium whitespace-nowrap ${item.isCustomerMaterial ? "text-amber-600" : "text-slate-700"}`}
-                              >
+                              <td className="px-2 py-2 text-right text-sm font-medium whitespace-nowrap text-slate-700">
                                 {formatCurrency(parseFloat(item.total) || 0)}
-                              </td>
-                              <td className="px-2 py-2 text-center">
-                                {isEmployee ? (
-                                  item.isCustomerMaterial ? (
-                                    <span className="text-xs text-amber-600 font-medium">
-                                      Да
-                                    </span>
-                                  ) : null
-                                ) : (
-                                  <input
-                                    type="checkbox"
-                                    checked={item.isCustomerMaterial ?? false}
-                                    onChange={(e) =>
-                                      updateItem(
-                                        index,
-                                        "isCustomerMaterial",
-                                        e.target.checked,
-                                      )
-                                    }
-                                    className="h-4 w-4 accent-amber-500 cursor-pointer"
-                                    title="Материал заказчика (давальческое сырьё)"
-                                  />
-                                )}
                               </td>
                               <td className="px-2 py-2 text-center">
                                 <ItemProductionPopover
@@ -801,22 +766,6 @@ export default function RequestDetailPage() {
                             <span>Итого с НДС:</span>
                             <span className="min-w-24 text-right">
                               {formatCurrency(totalWithVat)}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                      {customerMaterialTotal > 0 && (
-                        <>
-                          <div className="flex justify-end gap-8 text-xs text-amber-600">
-                            <span>Материал заказчика:</span>
-                            <span className="min-w-24 text-right">
-                              − {formatCurrency(customerMaterialTotal)}
-                            </span>
-                          </div>
-                          <div className="flex justify-end gap-8 text-sm font-medium text-slate-700 border-t border-slate-100 pt-1.5">
-                            <span>Наша выручка:</span>
-                            <span className="min-w-24 text-right text-green-700">
-                              {formatCurrency(ourRevenue)}
                             </span>
                           </div>
                         </>
@@ -1126,17 +1075,6 @@ export default function RequestDetailPage() {
                           Итого: {formatCurrency(totalWithVat)}
                         </p>
                       </>
-                    )}
-                    {customerMaterialTotal > 0 && (
-                      <div className="border-t border-slate-200 pt-1.5 mt-1.5 space-y-0.5">
-                        <p className="text-xs text-amber-600">
-                          Матер. заказчика:{" "}
-                          {formatCurrency(customerMaterialTotal)}
-                        </p>
-                        <p className="text-xs font-medium text-green-700">
-                          Наша выручка: {formatCurrency(ourRevenue)}
-                        </p>
-                      </div>
                     )}
                   </div>
                 )}

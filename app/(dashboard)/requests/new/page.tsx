@@ -306,12 +306,6 @@ export default function NewRequestPage() {
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">
                               Сумма, ₽
                             </th>
-                            <th
-                              className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20"
-                              title="Материал заказчика"
-                            >
-                              Мат. зак.
-                            </th>
                             <th className="px-2 py-2 w-8"></th>
                           </tr>
                         </thead>
@@ -371,20 +365,8 @@ export default function NewRequestPage() {
                                   placeholder="0"
                                 />
                               </td>
-                              <td
-                                className={`px-2 py-2 text-right text-sm font-medium whitespace-nowrap ${items[index]?.isCustomerMaterial ? "text-amber-600" : "text-slate-700"}`}
-                              >
+                              <td className="px-2 py-2 text-right text-sm font-medium whitespace-nowrap text-slate-700">
                                 {formatCurrency(calcTotal(index))}
-                              </td>
-                              <td className="px-2 py-2 text-center">
-                                <input
-                                  type="checkbox"
-                                  {...register(
-                                    `items.${index}.isCustomerMaterial`,
-                                  )}
-                                  className="h-4 w-4 accent-amber-500 cursor-pointer"
-                                  title="Материал заказчика (давальческое сырьё)"
-                                />
                               </td>
                               <td className="px-2 py-2">
                                 <button
