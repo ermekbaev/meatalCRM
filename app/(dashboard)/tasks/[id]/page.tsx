@@ -934,11 +934,11 @@ export default function TaskDetailPage() {
                   </div>
                   {canEditTask && showAssigneePicker && (() => {
                     const assignedIds = new Set((task.assignees ?? []).map((a: any) => a.id));
-                    const candidates = users.filter((u: any) => (u.role === "FOREMAN" || u.role === "ENGINEER") && !assignedIds.has(u.id));
+                    const candidates = users.filter((u: any) => !assignedIds.has(u.id));
                     return (
                       <div className="rounded-md border border-slate-200 p-1.5 space-y-1 max-h-48 overflow-y-auto">
                         {candidates.length === 0 && (
-                          <p className="px-2 py-1 text-xs text-slate-400">Все мастера уже добавлены</p>
+                          <p className="px-2 py-1 text-xs text-slate-400">Все пользователи уже добавлены</p>
                         )}
                         {candidates.map((u: any) => (
                           <button
