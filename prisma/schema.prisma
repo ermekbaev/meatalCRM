@@ -196,6 +196,10 @@ model Task {
   workshopId  String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+  laserStatus        String?
+  bendingStatus      String?
+  paintingStatus     String?
+  sandblastingStatus String?
   checklist   ChecklistItem[]
   subtasks    SubTask[]
   assignees   User[]          @relation("AssignedTasks")
@@ -419,6 +423,7 @@ enum RequestStatus {
   NEW
   PENDING_APPROVAL
   IN_PROGRESS
+  READY
   COMPLETED
   CANCELLED
 }

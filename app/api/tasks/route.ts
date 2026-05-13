@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       ],
     },
     include: {
-      assignees: { select: { id: true, name: true, position: true } },
+      assignees: { select: { id: true, name: true, position: true, role: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       assignees:   assigneeIds.length > 0 ? { connect: assigneeIds.map((id) => ({ id })) } : undefined,
     },
     include: {
-      assignees: { select: { id: true, name: true, position: true } },
+      assignees: { select: { id: true, name: true, position: true, role: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },

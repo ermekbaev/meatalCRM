@@ -30,6 +30,7 @@ export const REQUEST_STATUS_LABELS: Record<string, string> = {
   NEW:              "Новая",
   PENDING_APPROVAL: "На согласовании",
   IN_PROGRESS:      "В работе",
+  READY:            "Готово",
   COMPLETED:        "Завершена",
   CANCELLED:        "Отменена",
 };
@@ -38,6 +39,7 @@ export const REQUEST_STATUS_COLORS: Record<string, string> = {
   NEW:              "bg-blue-50    text-blue-700    ring-1 ring-blue-200",
   PENDING_APPROVAL: "bg-purple-50  text-purple-700  ring-1 ring-purple-200",
   IN_PROGRESS:      "bg-amber-50   text-amber-700   ring-1 ring-amber-200",
+  READY:            "bg-teal-50    text-teal-700    ring-1 ring-teal-200",
   COMPLETED:        "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
   CANCELLED:        "bg-red-50     text-red-600     ring-1 ring-red-200",
 };
@@ -167,7 +169,6 @@ export const PRODUCTION_FIELDS: Array<{
     options: [
       { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
       { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
-      { value: "СПЕЦ", label: "СПЕЦ", className: "bg-blue-100    text-blue-700    ring-1 ring-blue-200" },
     ],
   },
   {
@@ -177,7 +178,6 @@ export const PRODUCTION_FIELDS: Array<{
     options: [
       { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
       { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
-      { value: "СПЕЦ", label: "СПЕЦ", className: "bg-blue-100    text-blue-700    ring-1 ring-blue-200" },
     ],
   },
   {
@@ -219,6 +219,11 @@ export const PRODUCTION_FIELDS: Array<{
     ],
   },
 ];
+
+// Подмножество производственных статусов, доступных на уровне задачи
+export const TASK_PRODUCTION_FIELDS = PRODUCTION_FIELDS.filter((f) =>
+  ["laserStatus", "bendingStatus", "paintingStatus", "sandblastingStatus"].includes(f.key)
+);
 
 export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   status:     "Статус",

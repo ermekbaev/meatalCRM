@@ -36,7 +36,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       }),
     },
     include: {
-      assignees: { select: { id: true, name: true, position: true } },
+      assignees: { select: { id: true, name: true, position: true, role: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },
@@ -98,6 +98,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       dueDate:     data.dueDate ? new Date(data.dueDate) : null,
       clientId:    data.clientId ?? null,
       workshopId:  data.workshopId === undefined ? undefined : data.workshopId || null,
+      ...(data.laserStatus        !== undefined && { laserStatus:        data.laserStatus        || null }),
+      ...(data.bendingStatus      !== undefined && { bendingStatus:      data.bendingStatus      || null }),
+      ...(data.paintingStatus     !== undefined && { paintingStatus:     data.paintingStatus     || null }),
+      ...(data.sandblastingStatus !== undefined && { sandblastingStatus: data.sandblastingStatus || null }),
       ...(nextAssigneeIds !== null && {
         assignees: { set: nextAssigneeIds.map((id) => ({ id })) },
       }),
@@ -106,10 +110,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!oldAssigneeIds.includes(currentUserId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    if (data.status === undefined) {
+    const productionPatch: any = {};
+    for (const k of ["laserStatus", "bendingStatus", "paintingStatus", "sandblastingStatus"] as const) {
+      if (data[k] !== undefined) productionPatch[k] = data[k] || null;
+    }
+    if (data.status === undefined && Object.keys(productionPatch).length === 0) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    updateData = { status: data.status };
+    updateData = { ...(data.status !== undefined && { status: data.status }), ...productionPatch };
   } else {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -118,7 +126,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     data: updateData,
     include: {
-      assignees: { select: { id: true, name: true, position: true } },
+      assignees: { select: { id: true, name: true, position: true, role: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },

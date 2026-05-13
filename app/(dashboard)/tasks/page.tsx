@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { PRIORITY_LABELS, PRIORITY_COLORS, formatDate, hexToBadgeStyle } from "@/lib/utils";
-import { Building2, Check, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X, Columns3, Pencil } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PRIORITY_LABELS, PRIORITY_COLORS, TASK_PRODUCTION_FIELDS, formatDate, hexToBadgeStyle } from "@/lib/utils";
+import { Building2, Check, Factory, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X, Columns3, Pencil } from "lucide-react";
 import Link from "next/link";
 import {
   DndContext,
@@ -831,6 +832,55 @@ function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelec
   );
 }
 
+function TaskProductionPill({ task }: { task: any }) {
+  const filled = TASK_PRODUCTION_FIELDS.filter((f) => Boolean(task?.[f.key])).length;
+  const total = TASK_PRODUCTION_FIELDS.length;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 transition-colors ${
+            filled === 0
+              ? "bg-slate-50 text-slate-400 ring-slate-200 hover:bg-slate-100"
+              : "bg-orange-50 text-orange-700 ring-orange-200 hover:bg-orange-100"
+          }`}
+          title="Производственные статусы"
+        >
+          <Factory className="h-3 w-3" />
+          {filled}/{total}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" onClick={(e) => e.stopPropagation()}>
+        <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          Производство
+        </div>
+        <div className="space-y-1">
+          {TASK_PRODUCTION_FIELDS.map((f) => {
+            const value = task?.[f.key] ?? null;
+            const opt = value ? f.options.find((o) => o.value === value) : null;
+            return (
+              <div key={f.key} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md hover:bg-slate-50">
+                <span className="text-xs text-slate-600">{f.label}</span>
+                {opt ? (
+                  <span className={`inline-flex h-5 items-center rounded-full px-2 text-[10px] font-medium ${opt.className}`}>
+                    {opt.label}
+                  </span>
+                ) : (
+                  <span className="inline-flex h-5 items-center rounded-full bg-slate-50 px-2 text-[10px] font-medium text-slate-400 ring-1 ring-slate-200">
+                    не указано
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDelete }: CardProps) {
   const subtasksTotal = task.subtasks?.length ?? 0;
   const subtasksDone = task.subtasks?.filter((s: any) => s.status === "DONE").length ?? 0;
@@ -931,6 +981,7 @@ function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDel
             ✓ {subtasksDone}/{subtasksTotal}
           </span>
         )}
+        <TaskProductionPill task={task} />
       </div>
 
       <div className="flex items-end justify-between gap-2">

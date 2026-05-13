@@ -8,10 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TASK_STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, formatDateTime, hexToBadgeStyle } from "@/lib/utils";
+import { TASK_STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, ROLE_LABELS, TASK_PRODUCTION_FIELDS, formatDate, formatDateTime, hexToBadgeStyle } from "@/lib/utils";
 import {
   ArrowLeft, Send, Loader2, Clock, Paperclip, Trash2,
-  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File, Printer
+  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File, Printer, Factory
 } from "lucide-react";
 import Link from "next/link";
 
@@ -563,6 +563,66 @@ export default function TaskDetailPage() {
                 )}
                   </CardContent>
                 </Card>
+
+                {/* Производственные статусы */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Factory className="h-4 w-4 text-slate-400" />
+                      Производство
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {TASK_PRODUCTION_FIELDS.map((f) => {
+                        const current = (task as any)[f.key] ?? null;
+                        const opt = current ? f.options.find((o) => o.value === current) : null;
+                        const canEditProd = canEditTask || ((role === "FOREMAN" || role === "ENGINEER") && (task.assignees ?? []).some((a: any) => a.id === (session?.user as any)?.id));
+                        if (!canEditProd) {
+                          return (
+                            <div key={f.key} className="space-y-1">
+                              <p className="text-xs font-medium text-slate-500">{f.label}</p>
+                              {opt ? (
+                                <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium ${opt.className}`}>
+                                  {opt.label}
+                                </span>
+                              ) : (
+                                <span className="inline-flex h-6 items-center rounded-full bg-slate-50 px-2.5 text-xs font-medium text-slate-400 ring-1 ring-slate-200">
+                                  не указано
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={f.key} className="space-y-1">
+                            <p className="text-xs font-medium text-slate-500">{f.label}</p>
+                            <Select
+                              value={current ?? "__none__"}
+                              onValueChange={(v) => updateField(f.key, v === "__none__" ? null : v)}
+                            >
+                              <SelectTrigger
+                                className={`h-8 w-full px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${
+                                  opt ? opt.className : "bg-slate-50 text-slate-400 ring-1 ring-slate-200"
+                                }`}
+                              >
+                                <SelectValue placeholder="—" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__" className="text-xs">—</SelectItem>
+                                {f.options.map((o) => (
+                                  <SelectItem key={o.value} value={o.value} className="text-xs">
+                                    {o.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
 
@@ -915,8 +975,8 @@ export default function TaskDetailPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="truncate text-sm text-slate-800">{a.name}</p>
-                          {a.position && (
-                            <p className="truncate text-[10px] text-slate-400">{a.position}</p>
+                          {(a.position || ROLE_LABELS[a.role]) && (
+                            <p className="truncate text-[10px] text-slate-400">{a.position || ROLE_LABELS[a.role]}</p>
                           )}
                         </div>
                         {canEditTask && (
@@ -952,8 +1012,8 @@ export default function TaskDetailPage() {
                             </div>
                             <span className="flex-1 min-w-0">
                               <span className="block truncate text-slate-800">{u.name}</span>
-                              {u.position && (
-                                <span className="block truncate text-[10px] text-slate-400">{u.position}</span>
+                              {(u.position || ROLE_LABELS[u.role]) && (
+                                <span className="block truncate text-[10px] text-slate-400">{u.position || ROLE_LABELS[u.role]}</span>
                               )}
                             </span>
                           </button>

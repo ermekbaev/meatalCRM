@@ -2,6 +2,7 @@
 import { Menu } from "lucide-react";
 import { useSidebar } from "./DashboardShell";
 import { NotificationsBell } from "./NotificationsBell";
+import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 
 interface HeaderProps {
   title: string;
@@ -28,6 +29,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       </div>
       <div className="flex items-center gap-3">
         {actions}
+        <PushSubscribeButton compact />
         <NotificationsBell />
       </div>
     </header>
