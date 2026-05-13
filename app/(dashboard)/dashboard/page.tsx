@@ -126,7 +126,7 @@ export default async function DashboardPage({
         </div>
 
         {/* Stat cards */}
-        <DashboardStats stats={stats} />
+        <DashboardStats stats={stats} period={period} />
 
         {/* Charts + recent */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -24,13 +23,12 @@ interface RevenueRequest {
 interface RevenueDetailModalProps {
   open: boolean;
   onClose: () => void;
+  period: string;
 }
 
-export function RevenueDetailModal({ open, onClose }: RevenueDetailModalProps) {
+export function RevenueDetailModal({ open, onClose, period }: RevenueDetailModalProps) {
   const [requests, setRequests] = useState<RevenueRequest[]>([]);
   const [loading, setLoading] = useState(false);
-  const searchParams = useSearchParams();
-  const period = searchParams.get("period") ?? "month";
 
   useEffect(() => {
     if (!open) return;

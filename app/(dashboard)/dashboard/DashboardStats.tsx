@@ -21,14 +21,15 @@ interface StatItem {
 
 interface DashboardStatsProps {
   stats: StatItem[];
+  period: string;
 }
 
-export function DashboardStats({ stats }: DashboardStatsProps) {
+export function DashboardStats({ stats, period }: DashboardStatsProps) {
   const [revenueOpen, setRevenueOpen] = useState(false);
 
   return (
     <>
-      <RevenueDetailModal open={revenueOpen} onClose={() => setRevenueOpen(false)} />
+      <RevenueDetailModal open={revenueOpen} onClose={() => setRevenueOpen(false)} period={period} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => {
           const Icon = ICONS[s.icon];
