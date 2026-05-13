@@ -487,7 +487,7 @@ export default function RequestDetailPage() {
                               Цена, ₽
                             </th>
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-28">
-                              Закуп., ₽
+                              Себест., ₽
                             </th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20">
                               Скидка %

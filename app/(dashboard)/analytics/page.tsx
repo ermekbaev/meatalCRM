@@ -273,7 +273,7 @@ export default function AnalyticsPage() {
               icon={Percent}
               label="Маржинальность"
               value={summary.margin != null ? `${summary.margin.toFixed(1)}%` : "—"}
-              sub="По заявкам с закупочными ценами"
+              sub="По заявкам с указанной себестоимостью"
               accent="blue"
             />
           </div>
@@ -488,7 +488,7 @@ export default function AnalyticsPage() {
                 </table>
               </div>
               <p className="px-4 py-2.5 text-[11px] text-slate-400 border-t border-slate-100">
-                Прибыль и маржа рассчитываются только по позициям с указанной закупочной ценой
+                Прибыль и маржа рассчитываются только по позициям с указанной себестоимостью
               </p>
             </CardContent>
           </Card>

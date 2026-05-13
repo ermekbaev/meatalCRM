@@ -67,7 +67,7 @@ function ItemsTable({ rows, onEdit, onDelete, noun }: any) {
           <TableHead className="hidden md:table-cell">Описание</TableHead>
           <TableHead className="w-20">Ед. изм.</TableHead>
           <TableHead className="w-32">Цена продажи</TableHead>
-          <TableHead className="hidden sm:table-cell w-32">Закуп. цена</TableHead>
+          <TableHead className="hidden sm:table-cell w-32">Себестоимость</TableHead>
           <TableHead className="w-20">Действия</TableHead>
         </TableRow>
       </TableHeader>
@@ -471,7 +471,7 @@ export default function CatalogPage() {
                 <Input {...register("price")} type="number" min="0" step="0.01" placeholder="1500" />
               </div>
               <div className="space-y-2">
-                <Label>Закупочная цена (₽)</Label>
+                <Label>Себестоимость (₽)</Label>
                 <Input {...register("purchasePrice")} type="number" min="0" step="0.01" placeholder="1000" />
               </div>
             </div>
