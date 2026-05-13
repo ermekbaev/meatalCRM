@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -28,18 +29,20 @@ interface RevenueDetailModalProps {
 export function RevenueDetailModal({ open, onClose }: RevenueDetailModalProps) {
   const [requests, setRequests] = useState<RevenueRequest[]>([]);
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const period = searchParams.get("period") ?? "month";
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch("/api/dashboard/revenue")
+    fetch(`/api/dashboard/revenue?period=${encodeURIComponent(period)}`)
       .then((r) => r.json())
       .then((data) => {
         setRequests(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [open]);
+  }, [open, period]);
 
   const total = requests.reduce((sum, r) => sum + (r.amount ?? 0), 0);
 
