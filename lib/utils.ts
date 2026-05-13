@@ -132,6 +132,7 @@ export type ProductionFieldKey =
   | "laserStatus"
   | "bendingStatus"
   | "paintingStatus"
+  | "sandblastingStatus"
   | "extraWorkStatus"
   | "deliveryStatus";
 
@@ -183,6 +184,15 @@ export const PRODUCTION_FIELDS: Array<{
     key: "paintingStatus",
     label: "Покраска",
     short: "П",
+    options: [
+      { value: "ДА",  label: "ДА",  className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "НЕТ", label: "НЕТ", className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+    ],
+  },
+  {
+    key: "sandblastingStatus",
+    label: "Пескоструй",
+    short: "ПС",
     options: [
       { value: "ДА",  label: "ДА",  className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
       { value: "НЕТ", label: "НЕТ", className: "bg-red-100     text-red-700     ring-1 ring-red-200" },

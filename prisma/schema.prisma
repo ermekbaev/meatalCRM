@@ -65,29 +65,37 @@ model Client {
 }
 
 model Request {
-  id            String            @id @default(cuid())
-  number        Int               @unique @default(autoincrement())
-  title         String
-  description   String?
-  status        RequestStatus     @default(NEW)
-  priority      RequestPriority   @default(MEDIUM)
-  amount        Float?
-  services      String[]          @default([])
-  clientId      String
-  assigneeId    String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  vatIncluded   Boolean           @default(false)
-  paymentMethod String?
-  paymentStatus PaymentStatus     @default(NONE)
-  changeLogs    ChangeLog[]
-  comments      Comment[]
-  offers        CommercialOffer[]
-  invoices      Invoice[]
-  assignee      User?             @relation("AssignedRequests", fields: [assigneeId], references: [id])
-  client        Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  files         RequestFile[]
-  items         RequestItem[]
+  id              String            @id @default(cuid())
+  number          Int               @unique @default(autoincrement())
+  title           String
+  description     String?
+  status          RequestStatus     @default(NEW)
+  priority        RequestPriority   @default(MEDIUM)
+  amount          Float?
+  services        String[]          @default([])
+  clientId        String
+  assigneeId      String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  vatIncluded     Boolean           @default(false)
+  paymentMethod   String?
+  paymentStatus   PaymentStatus     @default(NONE)
+  hasMetal           String?
+  metalOwner         String?
+  laserStatus        String?
+  bendingStatus      String?
+  paintingStatus     String?
+  sandblastingStatus String?
+  extraWorkStatus    String?
+  deliveryStatus     String?
+  changeLogs      ChangeLog[]
+  comments        Comment[]
+  offers          CommercialOffer[]
+  invoices        Invoice[]
+  assignee        User?             @relation("AssignedRequests", fields: [assigneeId], references: [id])
+  client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  files           RequestFile[]
+  items           RequestItem[]
 }
 
 model RequestFile {
@@ -114,13 +122,6 @@ model RequestItem {
   requestId          String
   isCustomerMaterial Boolean @default(false)
   purchasePrice      Float?
-  hasMetal           String?
-  metalOwner         String?
-  laserStatus        String?
-  bendingStatus      String?
-  extraWorkStatus    String?
-  deliveryStatus     String?
-  paintingStatus     String?
   request            Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 }
 
