@@ -231,6 +231,14 @@ export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   title:      "Название",
   assigneeId: "Ответственный",
   amount:     "Сумма",
+  // Поля задач
+  assignee:           "Исполнитель",
+  dueDate:            "Срок",
+  workshop:           "Цех",
+  laserStatus:        "Лазер",
+  bendingStatus:      "Гибка",
+  paintingStatus:     "Покраска",
+  sandblastingStatus: "Пескоструй",
 };
 
 export const CHANGELOG_VALUE_LABELS: Record<string, string> = {

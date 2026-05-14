@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
+import { createNotifications } from "@/lib/notify";
 import { PRIORITY_LABELS } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
@@ -107,6 +108,19 @@ export async function POST(req: NextRequest) {
     `📌 ${task.title}\n` +
     `⚡ Приоритет: ${PRIORITY_LABELS[task.priority]}\n` +
     `👤 Исполнители: ${assigneeNames || "Не назначены"}`
+  );
+
+  // Уведомление + push исполнителям (кроме самого создателя)
+  await createNotifications(
+    task.assignees
+      .filter((a) => a.id !== userId)
+      .map((a) => ({
+        userId: a.id,
+        type: "TASK_ASSIGNED" as const,
+        title: "Назначена задача",
+        body: task.title,
+        link: `/tasks/${task.id}`,
+      }))
   );
 
   return NextResponse.json(task, { status: 201 });

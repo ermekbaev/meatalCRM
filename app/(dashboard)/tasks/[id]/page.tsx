@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TASK_STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, ROLE_LABELS, TASK_PRODUCTION_FIELDS, formatDate, formatDateTime, hexToBadgeStyle } from "@/lib/utils";
+import { TASK_STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, ROLE_LABELS, TASK_PRODUCTION_FIELDS, CHANGELOG_FIELD_LABELS, formatDate, formatDateTime, hexToBadgeStyle } from "@/lib/utils";
 import {
   ArrowLeft, Send, Loader2, Clock, Paperclip, Trash2,
   FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File, Printer, Factory
@@ -377,7 +377,7 @@ export default function TaskDetailPage() {
     { key: "description", label: "Описание" },
     { key: "subtasks", label: `Подзадачи${totalCount ? ` ${doneCount}/${totalCount}` : ""}` },
     { key: "chat", label: `Чат${commentCount ? ` ${commentCount}` : ""}` },
-    { key: "history", label: "История" },
+    { key: "history", label: `История${task?.changeLogs?.length ? ` ${task.changeLogs.length}` : ""}` },
   ];
 
   if (loading) {
@@ -910,10 +910,47 @@ export default function TaskDetailPage() {
 
             {activeTab === "history" && (
               <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-gray-400">
-                    История изменений будет реализована вместе с задачей #7.
-                  </p>
+                <CardHeader>
+                  <CardTitle className="text-base">История изменений</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(!task.changeLogs || task.changeLogs.length === 0) ? (
+                    <p className="text-sm text-gray-400">Изменений пока нет</p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {task.changeLogs.map((log: any) => (
+                        <div key={log.id} className="flex items-start gap-3 text-sm">
+                          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                          <div>
+                            <span className="font-medium text-gray-700">{log.user?.name}</span>
+                            {log.field === "assignee" ? (
+                              log.newValue ? (
+                                <> добавил исполнителя <span className="font-medium text-gray-600">«{log.newValue}»</span></>
+                              ) : (
+                                <> убрал исполнителя <span className="font-medium text-gray-600">«{log.oldValue}»</span></>
+                              )
+                            ) : (
+                              <>
+                                {" изменил "}
+                                <span className="font-medium text-gray-600">
+                                  {CHANGELOG_FIELD_LABELS[log.field] ?? log.field}
+                                </span>
+                                {log.oldValue && (
+                                  <span className="text-gray-400"> с «{log.oldValue}»</span>
+                                )}
+                                {log.newValue ? (
+                                  <span> на «{log.newValue}»</span>
+                                ) : (
+                                  <span className="text-gray-400"> — очищено</span>
+                                )}
+                              </>
+                            )}
+                            <span className="ml-2 text-xs text-gray-400">{formatDateTime(log.createdAt)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
 import { createNotification } from "@/lib/notify";
+import { PRIORITY_LABELS, TASK_PRODUCTION_FIELDS, formatDate } from "@/lib/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -54,6 +55,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
         include: { assignee: { select: { id: true, name: true } } },
       },
       tags: true,
+      changeLogs: {
+        orderBy: { createdAt: "desc" },
+        include: { user: { select: { id: true, name: true, position: true } } },
+      },
     },
   });
 
@@ -74,8 +79,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const old = await prisma.task.findUnique({
     where: { id },
     select: {
+      title: true,
       status: true,
-      assignees: { select: { id: true } },
+      priority: true,
+      dueDate: true,
+      workshopId: true,
+      laserStatus: true,
+      bendingStatus: true,
+      paintingStatus: true,
+      sandblastingStatus: true,
+      assignees: { select: { id: true, name: true } },
     },
   });
   if (!old) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -135,7 +148,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const newAssigneeIds = task.assignees.map((a) => a.id);
 
-  if (old && old.status !== task.status) {
+  // --- История изменений ---
+  const changeLogEntries: { field: string; oldValue: string | null; newValue: string | null }[] = [];
+
+  if (old.status !== task.status) {
     const columns = await prisma.taskColumn.findMany({
       where: { key: { in: [old.status, task.status] } },
       select: { key: true, name: true },
@@ -143,6 +159,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const labelMap: Record<string, string> = Object.fromEntries(columns.map((c) => [c.key, c.name]));
     const oldLabel = labelMap[old.status] ?? old.status;
     const newLabel = labelMap[task.status] ?? task.status;
+
+    changeLogEntries.push({ field: "status", oldValue: oldLabel, newValue: newLabel });
 
     await sendTelegram(
       `🔄 <b>Статус задачи изменён</b>\n` +
@@ -160,6 +178,64 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         link: `/tasks/${id}`,
       });
     }
+  }
+
+  if (old.title !== task.title) {
+    changeLogEntries.push({ field: "title", oldValue: old.title, newValue: task.title });
+  }
+
+  if (old.priority !== task.priority) {
+    changeLogEntries.push({
+      field: "priority",
+      oldValue: PRIORITY_LABELS[old.priority] ?? old.priority,
+      newValue: PRIORITY_LABELS[task.priority] ?? task.priority,
+    });
+  }
+
+  const oldDue = old.dueDate ? formatDate(old.dueDate) : "";
+  const newDue = task.dueDate ? formatDate(task.dueDate) : "";
+  if (oldDue !== newDue) {
+    changeLogEntries.push({ field: "dueDate", oldValue: oldDue || null, newValue: newDue || null });
+  }
+
+  if ((old.workshopId ?? null) !== (task.workshopId ?? null)) {
+    let oldWsName = "";
+    if (old.workshopId) {
+      const ws = await prisma.workshop.findUnique({ where: { id: old.workshopId }, select: { name: true } });
+      oldWsName = ws?.name ?? "";
+    }
+    changeLogEntries.push({
+      field: "workshop",
+      oldValue: oldWsName || null,
+      newValue: task.workshop?.name ?? null,
+    });
+  }
+
+  for (const f of TASK_PRODUCTION_FIELDS) {
+    const ov = (old as any)[f.key] ?? null;
+    const nv = (task as any)[f.key] ?? null;
+    if (ov !== nv) {
+      changeLogEntries.push({
+        field: f.key,
+        oldValue: ov ? (f.options.find((o) => o.value === ov)?.label ?? ov) : null,
+        newValue: nv ? (f.options.find((o) => o.value === nv)?.label ?? nv) : null,
+      });
+    }
+  }
+
+  const oldAssById = new Map(old.assignees.map((a) => [a.id, a.name]));
+  const newAssById = new Map(task.assignees.map((a) => [a.id, a.name]));
+  for (const [aid, name] of newAssById) {
+    if (!oldAssById.has(aid)) changeLogEntries.push({ field: "assignee", oldValue: null, newValue: name });
+  }
+  for (const [aid, name] of oldAssById) {
+    if (!newAssById.has(aid)) changeLogEntries.push({ field: "assignee", oldValue: name, newValue: null });
+  }
+
+  if (changeLogEntries.length > 0) {
+    await prisma.taskChangeLog.createMany({
+      data: changeLogEntries.map((c) => ({ ...c, taskId: id, userId: currentUserId })),
+    });
   }
 
   // Уведомление только вновь добавленным исполнителям
