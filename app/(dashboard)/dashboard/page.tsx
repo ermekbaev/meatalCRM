@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { formatCurrency, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS } from "@/lib/utils";
-import { Inbox, Loader, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Inbox, Loader, CheckCircle2, XCircle, Clock, PackageCheck } from "lucide-react";
 import { DashboardCharts } from "./DashboardCharts";
 import { DashboardStats } from "./DashboardStats";
 import { PopularItemsCard } from "./PopularItemsCard";
@@ -102,6 +102,7 @@ export default async function DashboardPage({
     NEW:              { icon: Inbox,        iconBg: "bg-blue-100",    iconColor: "text-blue-500",    hoverShadow: "hover:shadow-blue-200   hover:shadow-lg" },
     PENDING_APPROVAL: { icon: Clock,        iconBg: "bg-purple-100",  iconColor: "text-purple-500",  hoverShadow: "hover:shadow-blue-200   hover:shadow-lg" },
     IN_PROGRESS:      { icon: Loader,       iconBg: "bg-amber-100",   iconColor: "text-amber-500",   hoverShadow: "hover:shadow-amber-200  hover:shadow-lg" },
+    READY:            { icon: PackageCheck, iconBg: "bg-teal-100",    iconColor: "text-teal-500",    hoverShadow: "hover:shadow-teal-200   hover:shadow-lg" },
     COMPLETED:        { icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "text-emerald-500", hoverShadow: "hover:shadow-emerald-200 hover:shadow-lg" },
     CANCELLED:        { icon: XCircle,      iconBg: "bg-red-100",     iconColor: "text-red-500",     hoverShadow: "hover:shadow-red-200    hover:shadow-lg" },
   };
@@ -168,7 +169,7 @@ export default async function DashboardPage({
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {Object.entries(REQUEST_STATUS_LABELS).map(([key, label]) => {
             const count = requestsByStatus.find((s) => s.status === key)?._count ?? 0;
-            const cfg = statusBlocks[key];
+            const cfg = statusBlocks[key] ?? statusBlocks.NEW;
             return (
               <Link key={key} href={`/requests?status=${key}`}>
                 <div className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 cursor-pointer ${cfg.hoverShadow}`}>

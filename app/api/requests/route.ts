@@ -11,7 +11,10 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") ?? "";
-  const status = searchParams.get("status") ?? "";
+  const statusList = (searchParams.get("status") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const priority = searchParams.get("priority") ?? "";
   const paymentStatus = searchParams.get("paymentStatus") ?? "";
   const clientId = searchParams.get("clientId") ?? "";
@@ -42,7 +45,7 @@ export async function GET(req: NextRequest) {
             { client: { name: { contains: search, mode: "insensitive" } } },
           ],
         } : {},
-        status ? { status: status as any } : {},
+        statusList.length ? { status: { in: statusList as any } } : {},
         priority ? { priority: priority as any } : {},
         paymentStatus ? { paymentStatus: paymentStatus as any } : {},
         clientId ? { clientId } : {},
