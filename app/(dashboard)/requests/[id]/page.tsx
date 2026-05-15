@@ -49,6 +49,7 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
+import { AssigneeSearchPicker } from "@/components/AssigneeSearchPicker";
 
 function getFileIcon(mimeType?: string, fileName?: string) {
   const ext = fileName?.split(".").pop()?.toLowerCase();
@@ -929,24 +930,11 @@ export default function RequestDetailPage() {
                       <p className="text-xs font-medium text-gray-500">
                         Ответственный
                       </p>
-                      <Select
-                        value={request.assigneeId ?? "none"}
-                        onValueChange={(v) =>
-                          updateField("assigneeId", v === "none" ? null : v)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Не назначен" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Не назначен</SelectItem>
-                          {users.map((u: any) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <AssigneeSearchPicker
+                        users={users}
+                        value={request.assigneeId ?? null}
+                        onChange={(id) => updateField("assigneeId", id)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-gray-500">

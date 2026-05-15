@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ClientSearchInput } from "@/components/ClientSearchInput";
+import { AssigneeSearchPicker } from "@/components/AssigneeSearchPicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -477,21 +478,11 @@ export default function NewRequestPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Ответственный</Label>
-                  <Select
-                    value={watch("assigneeId")}
-                    onValueChange={(v) => setValue("assigneeId", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Не назначен" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <AssigneeSearchPicker
+                    users={users}
+                    value={watch("assigneeId") || null}
+                    onChange={(id) => setValue("assigneeId", id ?? "", { shouldDirty: true })}
+                  />
                 </div>
                 {/* НДС */}
                 <div className="flex items-center justify-between">
