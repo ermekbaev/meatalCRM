@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const userId = (session.user as any).id;
   const canSeeAll = role === "ADMIN" || role === "MANAGER";
 
-  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR";
 
   // Для EMPLOYEE задачи без цеха видны только участникам виртуального цеха "Без цеха"
   let noWsVisibleToEmployee = false;

@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ROLE_LABELS, formatDate } from "@/lib/utils";
-import { Plus, Trash2, Pencil, Loader2, ShieldCheck, Shield, User, HardHat, Wrench } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, ShieldCheck, Shield, User, HardHat, Wrench, Briefcase } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
 
@@ -20,6 +20,7 @@ const ROLE_ICONS: Record<string, any> = {
   FOREMAN: HardHat,
   ENGINEER: Wrench,
   EMPLOYEE: User,
+  CONTRACTOR: Briefcase,
 };
 
 export default function UsersPage() {

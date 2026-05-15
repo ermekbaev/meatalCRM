@@ -15,7 +15,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const userId = (session.user as any).id;
   const canSeeAll = role === "ADMIN" || role === "MANAGER";
 
-  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR";
 
   let noWsVisibleToEmployee = false;
   if (!canSeeAll && !isAssigneeRole) {

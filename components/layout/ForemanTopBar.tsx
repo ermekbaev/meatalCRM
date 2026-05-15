@@ -12,8 +12,17 @@ const NAV = [
   { href: "/requests", label: "Заявки", icon: ClipboardList },
 ];
 
-export function ForemanTopBar({ userName, roleLabel = "Мастер цеха" }: { userName: string; roleLabel?: string }) {
+export function ForemanTopBar({
+  userName,
+  roleLabel = "Мастер цеха",
+  tasksOnly = false,
+}: {
+  userName: string;
+  roleLabel?: string;
+  tasksOnly?: boolean;
+}) {
   const pathname = usePathname();
+  const nav = tasksOnly ? NAV.filter((i) => i.href === "/tasks") : NAV;
   return (
     <header className="safe-area-inset-top sticky top-0 z-30 bg-white border-b border-slate-200">
       <div className="px-4 py-3 flex items-center gap-2">
@@ -32,7 +41,7 @@ export function ForemanTopBar({ userName, roleLabel = "Мастер цеха" }:
         </button>
       </div>
       <nav className="flex items-center gap-1 px-2">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (

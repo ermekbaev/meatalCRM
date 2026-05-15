@@ -49,6 +49,9 @@ export default function TasksPage() {
   const role = (session?.user as any)?.role;
   const isAdmin = role === "ADMIN";
   const isForeman = role === "FOREMAN";
+  const isContractor = role === "CONTRACTOR";
+  // FOREMAN и CONTRACTOR видят только задачи, где они среди ответственных — UI у них одинаковый.
+  const isAssigneeView = isForeman || isContractor;
   const canManageTasks = role === "ADMIN" || role === "MANAGER";
   const [tasks, setTasks] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
@@ -83,13 +86,13 @@ export default function TasksPage() {
     if (search) params.set("search", search);
     if (status !== "ALL") params.set("status", status);
     if (priority !== "ALL") params.set("priority", priority);
-    // Для FOREMAN фильтр по цеху делаем на клиенте, чтобы счётчики на табах оставались валидными
-    if (!isForeman && activeWorkshopId !== "ALL") params.set("workshopId", activeWorkshopId);
+    // Для FOREMAN/CONTRACTOR фильтр по цеху делаем на клиенте, чтобы счётчики на табах оставались валидными
+    if (!isAssigneeView && activeWorkshopId !== "ALL") params.set("workshopId", activeWorkshopId);
     const res = await fetch(`/api/tasks?${params}`);
     const data = await res.json();
     setTasks(data);
     setLoading(false);
-  }, [search, status, priority, activeWorkshopId, isForeman]);
+  }, [search, status, priority, activeWorkshopId, isAssigneeView]);
 
   const fetchWorkshops = useCallback(async () => {
     const data = await fetch("/api/workshops").then((r) => r.json()).catch(() => []);
@@ -260,7 +263,7 @@ export default function TasksPage() {
     }
   };
 
-  const displayTasks = !isForeman || activeWorkshopId === "ALL"
+  const displayTasks = !isAssigneeView || activeWorkshopId === "ALL"
     ? tasks
     : activeWorkshopId === "none"
       ? tasks.filter((t) => !t.workshopId)
@@ -284,11 +287,11 @@ export default function TasksPage() {
               else noWsCount++;
             }
             const realWorkshops = workshops.filter((w) => !w.isVirtual);
-            const visibleWorkshops = isForeman
+            const visibleWorkshops = isAssigneeView
               ? realWorkshops.filter((w) => (taskCountByWs.get(w.id) ?? 0) > 0)
               : realWorkshops;
-            const showNoWsTab = !isForeman || noWsCount > 0;
-            const showAllTab = !isForeman || (visibleWorkshops.length + (showNoWsTab ? 1 : 0)) > 1;
+            const showNoWsTab = !isAssigneeView || noWsCount > 0;
+            const showAllTab = !isAssigneeView || (visibleWorkshops.length + (showNoWsTab ? 1 : 0)) > 1;
             return (
               <>
                 {showAllTab && (
@@ -315,7 +318,7 @@ export default function TasksPage() {
                     }`}
                   >
                     Без цеха
-                    {isForeman && noWsCount > 0 && (
+                    {isAssigneeView && noWsCount > 0 && (
                       <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
                         {noWsCount}
                       </span>
@@ -335,7 +338,7 @@ export default function TasksPage() {
                   >
                     {workshop.name}
                     <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                      {isForeman ? (taskCountByWs.get(workshop.id) ?? 0) : (workshop._count?.tasks ?? 0)}
+                      {isAssigneeView ? (taskCountByWs.get(workshop.id) ?? 0) : (workshop._count?.tasks ?? 0)}
                     </span>
                   </button>
                 ))}

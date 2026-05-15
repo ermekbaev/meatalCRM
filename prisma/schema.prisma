@@ -428,6 +428,7 @@ enum UserRole {
   FOREMAN
   ENGINEER
   EMPLOYEE
+  CONTRACTOR
 }
 
 enum ClientType {

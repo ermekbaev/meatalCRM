@@ -90,6 +90,7 @@ export const ROLE_LABELS: Record<string, string> = {
   FOREMAN: "Мастер цеха",
   ENGINEER: "Конструктор/Инженер",
   EMPLOYEE: "Оператор",
+  CONTRACTOR: "Подрядчик",
 };
 
 export const CLIENT_TYPE_LABELS: Record<string, string> = {

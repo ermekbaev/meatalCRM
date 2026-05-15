@@ -13,10 +13,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const role = user.role;
   if (role === "EMPLOYEE") redirect("/operator");
 
-  if (role === "FOREMAN" || role === "ENGINEER") {
+  if (role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR") {
     return (
       <div className="flex h-screen flex-col bg-gray-50">
-        <ForemanTopBar userName={user.name} roleLabel={ROLE_LABELS[role] ?? "Сотрудник"} />
+        <ForemanTopBar
+          userName={user.name}
+          roleLabel={ROLE_LABELS[role] ?? "Сотрудник"}
+          tasksOnly={role === "CONTRACTOR"}
+        />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     );

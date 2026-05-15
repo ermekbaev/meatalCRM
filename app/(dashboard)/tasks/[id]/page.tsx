@@ -70,6 +70,8 @@ export default function TaskDetailPage() {
   const role = (session?.user as any)?.role;
   const canEditTask = role === "ADMIN" || role === "MANAGER";
   const canChangeStatus = canEditTask || role === "FOREMAN" || role === "ENGINEER";
+  // CONTRACTOR — только просмотр: комментарии/файлы/теги/подзадачи/чек-лист недоступны.
+  const isReadOnly = role === "CONTRACTOR";
   const [task, setTask] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<TaskDetailTab>("description");
   const [loading, setLoading] = useState(true);
@@ -80,6 +82,7 @@ export default function TaskDetailPage() {
   const [workshops, setWorkshops] = useState<any[]>([]);
   const [taskColumns, setTaskColumns] = useState<Array<{ id: string; key: string; name: string; color: string; order: number; isSystem: boolean }>>([]);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
+  const [assigneeQuery, setAssigneeQuery] = useState("");
 
   // Файлы
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -732,6 +735,7 @@ export default function TaskDetailPage() {
                   </div>
                 ))}
 
+                {!isReadOnly && (
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
                   <Input
                     value={newSubTitle}
@@ -781,6 +785,7 @@ export default function TaskDetailPage() {
                     {addingSub ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
                   </Button>
                 </div>
+                )}
               </CardContent>
             </Card>
             )}
@@ -793,16 +798,18 @@ export default function TaskDetailPage() {
                   <CardTitle className="text-base flex items-center gap-2">
                     <Paperclip className="h-4 w-4" /> Файлы
                   </CardTitle>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingFile}
-                    className="h-8"
-                  >
-                    {uploadingFile ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
-                    Загрузить
-                  </Button>
+                  {!isReadOnly && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingFile}
+                      className="h-8"
+                    >
+                      {uploadingFile ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+                      Загрузить
+                    </Button>
+                  )}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -832,9 +839,11 @@ export default function TaskDetailPage() {
                             <Download className="h-3.5 w-3.5" />
                           </Button>
                         </a>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => deleteFile(file.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {!isReadOnly && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => deleteFile(file.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -870,6 +879,7 @@ export default function TaskDetailPage() {
                     </div>
                   ))}
                 </div>
+                {isReadOnly ? null : (
                 <div className="relative flex gap-2 pt-2 border-t border-gray-100">
                   <div className="flex-1 relative">
                     <Textarea
@@ -904,6 +914,7 @@ export default function TaskDetailPage() {
                     {sendingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </div>
+                )}
               </CardContent>
             </Card>
             )}
@@ -1031,30 +1042,50 @@ export default function TaskDetailPage() {
                   </div>
                   {canEditTask && showAssigneePicker && (() => {
                     const assignedIds = new Set((task.assignees ?? []).map((a: any) => a.id));
-                    const candidates = users.filter((u: any) => !assignedIds.has(u.id));
+                    const q = assigneeQuery.trim().toLowerCase();
+                    const candidates = users
+                      .filter((u: any) => !assignedIds.has(u.id))
+                      .filter((u: any) =>
+                        !q
+                          ? true
+                          : u.name?.toLowerCase().includes(q)
+                            || (u.position ?? "").toLowerCase().includes(q)
+                            || (ROLE_LABELS[u.role] ?? "").toLowerCase().includes(q)
+                      );
                     return (
-                      <div className="rounded-md border border-slate-200 p-1.5 space-y-1 max-h-48 overflow-y-auto">
-                        {candidates.length === 0 && (
-                          <p className="px-2 py-1 text-xs text-slate-400">Все пользователи уже добавлены</p>
-                        )}
-                        {candidates.map((u: any) => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => { toggleAssignee(u.id); }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50"
-                          >
-                            <div className="h-6 w-6 shrink-0 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-medium">
-                              {u.name.charAt(0).toUpperCase()}
-                            </div>
-                            <span className="flex-1 min-w-0">
-                              <span className="block truncate text-slate-800">{u.name}</span>
-                              {(u.position || ROLE_LABELS[u.role]) && (
-                                <span className="block truncate text-[10px] text-slate-400">{u.position || ROLE_LABELS[u.role]}</span>
-                              )}
-                            </span>
-                          </button>
-                        ))}
+                      <div className="rounded-md border border-slate-200 p-1.5 space-y-1">
+                        <Input
+                          autoFocus
+                          value={assigneeQuery}
+                          onChange={(e) => setAssigneeQuery(e.target.value)}
+                          placeholder="Поиск..."
+                          className="h-7 text-xs"
+                        />
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {candidates.length === 0 && (
+                            <p className="px-2 py-1 text-xs text-slate-400">
+                              {q ? "Ничего не найдено" : "Все пользователи уже добавлены"}
+                            </p>
+                          )}
+                          {candidates.map((u: any) => (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => { toggleAssignee(u.id); }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+                            >
+                              <div className="h-6 w-6 shrink-0 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-medium">
+                                {u.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="flex-1 min-w-0">
+                                <span className="block truncate text-slate-800">{u.name}</span>
+                                {(u.position || ROLE_LABELS[u.role]) && (
+                                  <span className="block truncate text-[10px] text-slate-400">{u.position || ROLE_LABELS[u.role]}</span>
+                                )}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     );
                   })()}
@@ -1108,9 +1139,11 @@ export default function TaskDetailPage() {
                   <CardTitle className="text-base flex items-center gap-2">
                     <Tag className="h-4 w-4" /> Теги
                   </CardTitle>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowTagPicker(!showTagPicker)}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  {!isReadOnly && (
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowTagPicker(!showTagPicker)}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -1119,12 +1152,12 @@ export default function TaskDetailPage() {
                   {task.tags?.map((tag: any) => (
                     <span
                       key={tag.id}
-                      className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium text-white cursor-pointer hover:opacity-80"
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${isReadOnly ? "" : "cursor-pointer hover:opacity-80"}`}
                       style={{ backgroundColor: tag.color }}
-                      onClick={() => toggleTag(tag.id, true)}
-                      title="Убрать тег"
+                      onClick={isReadOnly ? undefined : () => toggleTag(tag.id, true)}
+                      title={isReadOnly ? undefined : "Убрать тег"}
                     >
-                      {tag.name} <X className="h-3 w-3" />
+                      {tag.name} {!isReadOnly && <X className="h-3 w-3" />}
                     </span>
                   ))}
                 </div>
@@ -1152,28 +1185,24 @@ export default function TaskDetailPage() {
                         </span>
                       ))}
                     </div>
-                    <div className="flex gap-1.5">
-                      <Input
-                        value={newTagName}
-                        onChange={(e) => setNewTagName(e.target.value)}
-                        placeholder="Новый тег..."
-                        className="flex-1 h-7 text-xs"
-                        onKeyDown={(e) => { if (e.key === "Enter") createTag(); }}
-                      />
-                      <div className="flex items-center gap-1">
-                        {TAG_COLORS.map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            className={`h-5 w-5 rounded-full border-2 transition-all ${newTagColor === c ? "border-gray-800 scale-110" : "border-transparent"}`}
-                            style={{ backgroundColor: c }}
-                            onClick={() => setNewTagColor(c)}
-                          />
-                        ))}
+                    <div className="space-y-2">
+                      <div className="flex gap-1.5">
+                        <Input
+                          value={newTagName}
+                          onChange={(e) => setNewTagName(e.target.value)}
+                          placeholder="Новый тег..."
+                          className="flex-1 h-7 text-xs"
+                          onKeyDown={(e) => { if (e.key === "Enter") createTag(); }}
+                        />
+                        <Button size="sm" onClick={createTag} disabled={creatingTag || !newTagName.trim()} className="h-7 px-2">
+                          {creatingTag ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <label
-                          className={`relative h-5 w-5 cursor-pointer overflow-hidden rounded-full border-2 transition-all ${!TAG_COLORS.includes(newTagColor) ? "border-gray-800 scale-110" : "border-transparent"}`}
+                          className="relative inline-flex h-6 w-6 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-gray-800 ring-1 ring-white"
                           style={{ backgroundColor: newTagColor }}
-                          title="Свой цвет"
+                          title="Любой цвет"
                         >
                           <input
                             type="color"
@@ -1182,10 +1211,28 @@ export default function TaskDetailPage() {
                             className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                           />
                         </label>
+                        <Input
+                          value={newTagColor}
+                          onChange={(e) => {
+                            const v = e.target.value.trim();
+                            if (/^#?[0-9a-fA-F]{0,6}$/.test(v)) {
+                              setNewTagColor(v.startsWith("#") ? v : `#${v}`);
+                            }
+                          }}
+                          placeholder="#RRGGBB"
+                          className="h-6 w-20 px-1.5 text-[11px] font-mono"
+                        />
+                        <span className="text-[10px] text-slate-400">или выберите</span>
+                        {TAG_COLORS.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`h-5 w-5 rounded-full border-2 transition-all ${newTagColor.toLowerCase() === c ? "border-gray-800 scale-110" : "border-transparent"}`}
+                            style={{ backgroundColor: c }}
+                            onClick={() => setNewTagColor(c)}
+                          />
+                        ))}
                       </div>
-                      <Button size="sm" onClick={createTag} disabled={creatingTag || !newTagName.trim()} className="h-7 px-2">
-                        {creatingTag ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                      </Button>
                     </div>
                   </div>
                 )}

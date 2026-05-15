@@ -19,6 +19,7 @@ export default function NewTaskPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<any[]>([]);
   const [taskColumns, setTaskColumns] = useState<Array<{ key: string; name: string }>>([]);
+  const [assigneeQuery, setAssigneeQuery] = useState("");
 
   const { register, handleSubmit, setValue, watch, formState: { isSubmitting } } = useForm<{
     title: string;
@@ -44,7 +45,7 @@ export default function NewTaskPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/users?role=FOREMAN&role=ENGINEER").then((r) => r.json()).catch(() => []),
+      fetch("/api/users?role=FOREMAN&role=ENGINEER&role=CONTRACTOR").then((r) => r.json()).catch(() => []),
       fetch("/api/clients").then((r) => r.json()),
       fetch("/api/workshops").then((r) => r.json()).catch(() => []),
       fetch("/api/task-columns").then((r) => r.json()).catch(() => []),
@@ -133,39 +134,59 @@ export default function NewTaskPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Ответственные</Label>
-                  <div className="space-y-1 rounded-md border border-slate-200 p-2 max-h-44 overflow-y-auto">
-                    {users.length === 0 && (
-                      <p className="px-1 py-1 text-xs text-slate-400">Нет доступных мастеров</p>
-                    )}
-                    {users.map((u: any) => {
-                      const selected = (watch("assigneeIds") ?? []).includes(u.id);
-                      return (
-                        <label
-                          key={u.id}
-                          className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => {
-                              const current = watch("assigneeIds") ?? [];
-                              setValue(
-                                "assigneeIds",
-                                selected ? current.filter((id: string) => id !== u.id) : [...current, u.id],
-                                { shouldDirty: true },
-                              );
-                            }}
-                            className="h-4 w-4 rounded border-slate-300 accent-orange-500"
-                          />
-                          <span className="flex-1 min-w-0">
-                            <span className="block truncate text-slate-800">{u.name}</span>
-                            {u.position && (
-                              <span className="block truncate text-[10px] text-slate-400">{u.position}</span>
-                            )}
-                          </span>
-                        </label>
-                      );
-                    })}
+                  <div className="rounded-md border border-slate-200 p-2 space-y-2">
+                    <Input
+                      value={assigneeQuery}
+                      onChange={(e) => setAssigneeQuery(e.target.value)}
+                      placeholder="Поиск..."
+                      className="h-7 text-xs"
+                    />
+                    <div className="space-y-1 max-h-44 overflow-y-auto">
+                      {(() => {
+                        const q = assigneeQuery.trim().toLowerCase();
+                        const filtered = users.filter((u: any) =>
+                          !q
+                            ? true
+                            : u.name?.toLowerCase().includes(q)
+                              || (u.position ?? "").toLowerCase().includes(q)
+                        );
+                        if (users.length === 0) {
+                          return <p className="px-1 py-1 text-xs text-slate-400">Нет доступных мастеров</p>;
+                        }
+                        if (filtered.length === 0) {
+                          return <p className="px-1 py-1 text-xs text-slate-400">Ничего не найдено</p>;
+                        }
+                        return filtered.map((u: any) => {
+                          const selected = (watch("assigneeIds") ?? []).includes(u.id);
+                          return (
+                            <label
+                              key={u.id}
+                              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => {
+                                  const current = watch("assigneeIds") ?? [];
+                                  setValue(
+                                    "assigneeIds",
+                                    selected ? current.filter((id: string) => id !== u.id) : [...current, u.id],
+                                    { shouldDirty: true },
+                                  );
+                                }}
+                                className="h-4 w-4 rounded border-slate-300 accent-orange-500"
+                              />
+                              <span className="flex-1 min-w-0">
+                                <span className="block truncate text-slate-800">{u.name}</span>
+                                {u.position && (
+                                  <span className="block truncate text-[10px] text-slate-400">{u.position}</span>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        });
+                      })()}
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">

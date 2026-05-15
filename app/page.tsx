@@ -7,6 +7,6 @@ export default async function Home() {
   if (!session) redirect("/login");
   const role = (session.user as any).role;
   if (role === "EMPLOYEE") redirect("/operator");
-  if (role === "FOREMAN" || role === "ENGINEER") redirect("/tasks");
+  if (role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR") redirect("/tasks");
   redirect("/dashboard");
 }
