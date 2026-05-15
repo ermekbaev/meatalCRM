@@ -29,6 +29,8 @@ export async function PUT(
     if (!(await canForemanAccessTask(id, userId))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+  } else if (role === "CONTRACTOR") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } else {
     // EMPLOYEE: только смена статуса своей подзадачи
     if (before.assigneeId !== userId) {
