@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { StatusMultiSelect } from "@/components/ui/status-multi-select";
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, PRODUCTION_FIELDS, formatDate, formatCurrency } from "@/lib/utils";
-import { Plus, Search, Trash2, Eye, Download, Loader2, Factory, ChevronDown, Check } from "lucide-react";
+import { Plus, Search, Trash2, Eye, Download, Loader2, Factory } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 
@@ -59,55 +60,6 @@ function ProductionSummaryCell({ request }: { request: any }) {
             );
           })}
         </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-// Мультивыбор статусов: пустой массив = все статусы
-function StatusMultiSelect({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-  const toggle = (k: string) =>
-    onChange(value.includes(k) ? value.filter((v) => v !== k) : [...value, k]);
-
-  const label =
-    value.length === 0
-      ? "Все статусы"
-      : value.length === 1
-      ? REQUEST_STATUS_LABELS[value[0]]
-      : `Статусы: ${value.length}`;
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="flex h-9 flex-1 sm:flex-none sm:w-40 min-w-0 items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-52 p-1" align="start">
-        <button
-          type="button"
-          onClick={() => onChange([])}
-          className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100"
-        >
-          <Check className={`mr-2 h-4 w-4 text-blue-600 ${value.length === 0 ? "" : "opacity-0"}`} />
-          Все статусы
-        </button>
-        <div className="-mx-1 my-1 h-px bg-gray-100" />
-        {Object.entries(REQUEST_STATUS_LABELS).map(([k, v]) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => toggle(k)}
-            className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100"
-          >
-            <Check className={`mr-2 h-4 w-4 text-blue-600 ${value.includes(k) ? "" : "opacity-0"}`} />
-            {v}
-          </button>
-        ))}
       </PopoverContent>
     </Popover>
   );
@@ -203,7 +155,11 @@ export default function RequestsPage() {
               className="pl-9"
             />
           </div>
-          <StatusMultiSelect value={statuses} onChange={setStatuses} />
+          <StatusMultiSelect
+            value={statuses}
+            onChange={setStatuses}
+            options={Object.entries(REQUEST_STATUS_LABELS).map(([key, label]) => ({ key, label }))}
+          />
           <Select value={priority} onValueChange={setPriority}>
             <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0">
               <SelectValue placeholder="Приоритет" />

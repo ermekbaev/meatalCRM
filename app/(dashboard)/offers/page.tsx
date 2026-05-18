@@ -4,13 +4,7 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { StatusMultiSelect } from "@/components/ui/status-multi-select";
 import {
   Table,
   TableBody,
@@ -42,19 +36,19 @@ export default function OffersPage() {
   const router = useRouter();
   const [offers, setOffers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("ALL");
+  const [statuses, setStatuses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchOffers = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set("search", search);
-    if (status && status !== "ALL") params.set("status", status);
+    if (statuses.length) params.set("status", statuses.join(","));
     const res = await fetch(`/api/offers?${params}`);
     const data = await res.json();
     setOffers(data);
     setLoading(false);
-  }, [search, status]);
+  }, [search, statuses]);
 
   useEffect(() => {
     fetchOffers();
@@ -79,19 +73,11 @@ export default function OffersPage() {
               className="pl-9"
             />
           </div>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0">
-              <SelectValue placeholder="Статус" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Все статусы</SelectItem>
-              {Object.entries(OFFER_STATUS_LABELS).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <StatusMultiSelect
+            value={statuses}
+            onChange={setStatuses}
+            options={Object.entries(OFFER_STATUS_LABELS).map(([key, label]) => ({ key, label }))}
+          />
           <Button
             className="w-full sm:w-auto sm:ml-auto"
             onClick={() => router.push("/offers/new")}

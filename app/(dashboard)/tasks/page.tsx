@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { StatusMultiSelect } from "@/components/ui/status-multi-select";
 import { PRIORITY_LABELS, PRIORITY_COLORS, TASK_PRODUCTION_FIELDS, formatDate, hexToBadgeStyle } from "@/lib/utils";
 import { Building2, Check, Factory, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X, Columns3, Pencil } from "lucide-react";
 import Link from "next/link";
@@ -47,6 +48,7 @@ export default function TasksPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
+  const userId = (session?.user as any)?.id as string | undefined;
   const isAdmin = role === "ADMIN";
   const isForeman = role === "FOREMAN";
   const isContractor = role === "CONTRACTOR";
@@ -64,7 +66,7 @@ export default function TasksPage() {
   const [editColumnDraft, setEditColumnDraft] = useState<{ name: string; color: string }>({ name: "", color: "" });
   const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("ALL");
+  const [statuses, setStatuses] = useState<string[]>([]);
   const [priority, setPriority] = useState("ALL");
   const [activeWorkshopId, setActiveWorkshopId] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -75,6 +77,10 @@ export default function TasksPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printingBulk, setPrintingBulk] = useState(false);
+  // Бейджи «новых» задач на табах цехов. Per-tab timestamp последнего просмотра.
+  const [lastSeen, setLastSeen] = useState<Record<string, number>>({});
+  const [seenLoaded, setSeenLoaded] = useState(false);
+  const seenStorageKey = userId ? `tasks-tabs-seen:${userId}` : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -84,7 +90,7 @@ export default function TasksPage() {
     setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set("search", search);
-    if (status !== "ALL") params.set("status", status);
+    if (statuses.length) params.set("status", statuses.join(","));
     if (priority !== "ALL") params.set("priority", priority);
     // Для FOREMAN/CONTRACTOR фильтр по цеху делаем на клиенте, чтобы счётчики на табах оставались валидными
     if (!isAssigneeView && activeWorkshopId !== "ALL") params.set("workshopId", activeWorkshopId);
@@ -92,7 +98,7 @@ export default function TasksPage() {
     const data = await res.json();
     setTasks(data);
     setLoading(false);
-  }, [search, status, priority, activeWorkshopId, isAssigneeView]);
+  }, [search, statuses, priority, activeWorkshopId, isAssigneeView]);
 
   const fetchWorkshops = useCallback(async () => {
     const data = await fetch("/api/workshops").then((r) => r.json()).catch(() => []);
@@ -110,6 +116,63 @@ export default function TasksPage() {
     fetchColumns();
     fetch("/api/users").then((r) => r.json()).then((data) => setUsers(Array.isArray(data) ? data : [])).catch(() => {});
   }, [fetchWorkshops, fetchColumns]);
+
+  // Загрузка «прочитанности» табов из localStorage
+  useEffect(() => {
+    if (!seenStorageKey) return;
+    try {
+      const raw = localStorage.getItem(seenStorageKey);
+      if (raw) setLastSeen(JSON.parse(raw));
+    } catch {}
+    setSeenLoaded(true);
+  }, [seenStorageKey]);
+
+  // Сохранение
+  useEffect(() => {
+    if (!seenStorageKey || !seenLoaded) return;
+    try {
+      localStorage.setItem(seenStorageKey, JSON.stringify(lastSeen));
+    } catch {}
+  }, [seenStorageKey, seenLoaded, lastSeen]);
+
+  // Первый визит: проставляем baseline = now, чтобы существующие задачи не светились как новые
+  useEffect(() => {
+    if (!seenLoaded || workshops.length === 0) return;
+    if (Object.keys(lastSeen).length > 0) return;
+    const now = Date.now();
+    const initial: Record<string, number> = { none: now };
+    for (const w of workshops) initial[w.id] = now;
+    setLastSeen(initial);
+  }, [seenLoaded, workshops, lastSeen]);
+
+  const markTabSeen = useCallback((tabId: string) => {
+    const now = Date.now();
+    setLastSeen((prev) => {
+      if (tabId === "ALL") {
+        const next: Record<string, number> = { ...prev, none: now };
+        for (const w of workshops) next[w.id] = now;
+        return next;
+      }
+      return { ...prev, [tabId]: now };
+    });
+  }, [workshops]);
+
+  // Сколько «новых» задач на каждом табе
+  const newByTab = useMemo(() => {
+    const result: Record<string, number> = { none: 0 };
+    for (const w of workshops) result[w.id] = 0;
+    for (const t of tasks) {
+      const key = (t.workshopId as string | null) ?? "none";
+      const seen = lastSeen[key] ?? 0;
+      if (new Date(t.createdAt).getTime() > seen) {
+        result[key] = (result[key] ?? 0) + 1;
+      }
+    }
+    let all = 0;
+    for (const k of Object.keys(result)) all += result[k];
+    result.ALL = all;
+    return result;
+  }, [tasks, workshops, lastSeen]);
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
@@ -269,7 +332,10 @@ export default function TasksPage() {
       ? tasks.filter((t) => !t.workshopId)
       : tasks.filter((t) => t.workshopId === activeWorkshopId);
 
-  const statusGroups: Array<{ column: TaskColumn; items: any[] }> = columns.map((col) => ({
+  const visibleColumns = statuses.length
+    ? columns.filter((c) => statuses.includes(c.key))
+    : columns;
+  const statusGroups: Array<{ column: TaskColumn; items: any[] }> = visibleColumns.map((col) => ({
     column: col,
     items: displayTasks.filter((t) => t.status === col.key),
   }));
@@ -297,7 +363,7 @@ export default function TasksPage() {
                 {showAllTab && (
                   <button
                     type="button"
-                    onClick={() => setActiveWorkshopId("ALL")}
+                    onClick={() => { markTabSeen("ALL"); setActiveWorkshopId("ALL"); }}
                     className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
                       activeWorkshopId === "ALL"
                         ? "border-orange-500 text-orange-600"
@@ -305,12 +371,13 @@ export default function TasksPage() {
                     }`}
                   >
                     <Building2 className="h-4 w-4" /> Все
+                    <NewBadge count={newByTab.ALL ?? 0} />
                   </button>
                 )}
                 {showNoWsTab && (
                   <button
                     type="button"
-                    onClick={() => setActiveWorkshopId("none")}
+                    onClick={() => { markTabSeen("none"); setActiveWorkshopId("none"); }}
                     className={`inline-flex h-8 shrink-0 items-center border-b-2 px-3 text-sm font-medium transition-colors ${
                       activeWorkshopId === "none"
                         ? "border-orange-500 text-orange-600"
@@ -323,13 +390,14 @@ export default function TasksPage() {
                         {noWsCount}
                       </span>
                     )}
+                    <NewBadge count={newByTab.none ?? 0} />
                   </button>
                 )}
                 {visibleWorkshops.map((workshop) => (
                   <button
                     key={workshop.id}
                     type="button"
-                    onClick={() => setActiveWorkshopId(workshop.id)}
+                    onClick={() => { markTabSeen(workshop.id); setActiveWorkshopId(workshop.id); }}
                     className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
                       activeWorkshopId === workshop.id
                         ? "border-orange-500 text-orange-600"
@@ -340,6 +408,7 @@ export default function TasksPage() {
                     <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
                       {isAssigneeView ? (taskCountByWs.get(workshop.id) ?? 0) : (workshop._count?.tasks ?? 0)}
                     </span>
+                    <NewBadge count={newByTab[workshop.id] ?? 0} />
                   </button>
                 ))}
               </>
@@ -375,15 +444,11 @@ export default function TasksPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input placeholder="Поиск задач..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0"><SelectValue placeholder="Статус" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Все статусы</SelectItem>
-              {columns.map((col) => (
-                <SelectItem key={col.key} value={col.key}>{col.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <StatusMultiSelect
+            value={statuses}
+            onChange={setStatuses}
+            options={columns.map((col) => ({ key: col.key, label: col.name }))}
+          />
           <Select value={priority} onValueChange={setPriority}>
             <SelectTrigger className="flex-1 sm:flex-none sm:w-36 min-w-0"><SelectValue placeholder="Приоритет" /></SelectTrigger>
             <SelectContent>
@@ -445,7 +510,7 @@ export default function TasksPage() {
               </Button>
             )}
           </div>
-        ) : status === "ALL" ? (
+        ) : (
           <>
             {/* Mobile: grouped list, no DnD */}
             <div className="md:hidden space-y-5">
@@ -513,21 +578,6 @@ export default function TasksPage() {
               </DndContext>
             </div>
           </>
-        ) : (
-          /* Filtered list view */
-          <div className="space-y-2">
-            {displayTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onDelete={handleDelete}
-                selectMode={selectMode}
-                selected={selectedIds.has(task.id)}
-                onToggleSelect={toggleSelect}
-                canDelete={canManageTasks}
-              />
-            ))}
-          </div>
         )}
       </div>
 
@@ -763,6 +813,15 @@ export default function TasksPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function NewBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+      +{count}
+    </span>
   );
 }
 

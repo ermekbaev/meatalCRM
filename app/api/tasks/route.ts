@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const search   = searchParams.get("search") ?? "";
-  const status   = searchParams.get("status") ?? "";
+  const statusList = (searchParams.get("status") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const priority = searchParams.get("priority") ?? "";
   const assigneeId = searchParams.get("assigneeId") ?? "";
   const workshopId = searchParams.get("workshopId") ?? "";
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest) {
           { title: { contains: search, mode: "insensitive" } },
           { description: { contains: search, mode: "insensitive" } },
         ]} : {},
-        status     ? { status: status as any }                              : {},
+        statusList.length ? { status: { in: statusList as any } }            : {},
         priority   ? { priority: priority as any }                          : {},
         assigneeId ? { assignees: { some: { id: assigneeId } } }            : {},
         workshopId === "none" ? { workshopId: null } : workshopId ? { workshopId } : {},
