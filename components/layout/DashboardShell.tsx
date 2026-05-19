@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, Factory, BookOpen, X, LogOut, Calculator,
-  Layers, Scissors, Box, Receipt, BarChart2,
+  Layers, Scissors, Box, Receipt, BarChart2, Warehouse,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
@@ -30,6 +30,8 @@ const navItems: NavItem[] = [
 ];
 
 // Только 4 пункта — для боттом-бара
+navItems.push({ href: "/warehouse", label: "Склад", mobileLabel: "Склад", icon: Warehouse, foreman: true });
+
 const bottomTabItems = navItems.slice(0, 4);
 
 const settingsItems = [

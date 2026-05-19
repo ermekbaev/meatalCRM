@@ -23,6 +23,7 @@ import {
   PRIORITY_LABELS,
   formatCurrency,
 } from "@/lib/utils";
+import { getUnitOptions } from "@/lib/unit-options";
 import {
   ArrowLeft,
   Loader2,
@@ -339,11 +340,27 @@ export default function NewRequestPage() {
                                 />
                               </td>
                               <td className="px-2 py-2">
-                                <Input
-                                  {...register(`items.${index}.unit`)}
-                                  className="h-8 text-sm text-center w-full"
-                                  placeholder="шт"
-                                />
+                                <Select
+                                  value={items[index]?.unit || "шт"}
+                                  onValueChange={(value) =>
+                                    setValue(`items.${index}.unit`, value, {
+                                      shouldDirty: true,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-8 w-full px-2 text-sm">
+                                    <SelectValue placeholder="шт" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {getUnitOptions(items[index]?.unit).map(
+                                      (unit) => (
+                                        <SelectItem key={unit} value={unit}>
+                                          {unit}
+                                        </SelectItem>
+                                      ),
+                                    )}
+                                  </SelectContent>
+                                </Select>
                               </td>
                               <td className="px-2 py-2">
                                 <Input

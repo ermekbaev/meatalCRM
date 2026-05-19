@@ -28,6 +28,7 @@ import {
   formatDateTime,
   formatCurrency,
 } from "@/lib/utils";
+import { getUnitOptions } from "@/lib/unit-options";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft,
@@ -561,13 +562,23 @@ export default function RequestDetailPage() {
                                     {item.unit}
                                   </span>
                                 ) : (
-                                  <Input
-                                    value={item.unit}
-                                    onChange={(e) =>
-                                      updateItem(index, "unit", e.target.value)
+                                  <Select
+                                    value={item.unit || "шт"}
+                                    onValueChange={(value) =>
+                                      updateItem(index, "unit", value)
                                     }
-                                    className="h-8 text-sm text-center w-full"
-                                  />
+                                  >
+                                    <SelectTrigger className="h-8 w-full px-2 text-sm">
+                                      <SelectValue placeholder="шт" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {getUnitOptions(item.unit).map((unit) => (
+                                        <SelectItem key={unit} value={unit}>
+                                          {unit}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
                                 )}
                               </td>
                               <td className="px-2 py-2">

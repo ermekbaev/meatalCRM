@@ -21,16 +21,16 @@ const TABS = [
 function ItemRow({ item, onEdit, onDelete, noun }: any) {
   return (
     <TableRow>
-      <TableCell className="font-medium text-slate-800">{item.name}</TableCell>
+      <TableCell className="w-[46%] font-medium text-slate-800">{item.name}</TableCell>
       <TableCell className="hidden md:table-cell text-slate-400 text-[13px]">{item.description ?? "—"}</TableCell>
-      <TableCell className="text-slate-500 text-[13px] w-20">{item.unit}</TableCell>
-      <TableCell className="font-medium text-slate-700 text-[13px] w-32">
+      <TableCell className="w-20 text-slate-500 text-[13px]">{item.unit}</TableCell>
+      <TableCell className="w-32 font-medium text-slate-700 text-[13px]">
         {item.price ? `${item.price.toLocaleString("ru")} ₽ / ${item.unit}` : "—"}
       </TableCell>
-      <TableCell className="hidden sm:table-cell text-slate-500 text-[13px] w-32">
+      <TableCell className="hidden w-32 sm:table-cell text-slate-500 text-[13px]">
         {item.purchasePrice ? `${item.purchasePrice.toLocaleString("ru")} ₽` : "—"}
       </TableCell>
-      <TableCell>
+      <TableCell className="w-20">
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" onClick={() => onEdit(item)}>
             <Pencil className="h-3.5 w-3.5" />
@@ -60,7 +60,15 @@ function ItemRow({ item, onEdit, onDelete, noun }: any) {
 
 function ItemsTable({ rows, onEdit, onDelete, noun }: any) {
   return (
-    <Table>
+    <Table className="min-w-[900px] table-fixed">
+      <colgroup>
+        <col className="w-[46%]" />
+        <col className="w-[24%]" />
+        <col className="w-20" />
+        <col className="w-32" />
+        <col className="w-32" />
+        <col className="w-20" />
+      </colgroup>
       <TableHeader>
         <TableRow className="bg-slate-50">
           <TableHead>Название</TableHead>
