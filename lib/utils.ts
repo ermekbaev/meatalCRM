@@ -255,13 +255,18 @@ export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
 
 export const CHANGELOG_VALUE_LABELS: Record<string, string> = {
   // Статусы заявок
-  NEW:         "Новая",
-  IN_PROGRESS: "В работе",
-  COMPLETED:   "Выполнено",
-  CANCELLED:   "Отменено",
+  NEW:              "Новая",
+  PENDING_APPROVAL: "На согласовании",
+  IN_PROGRESS:      "В работе",
+  READY:            "Готово",
+  COMPLETED:        "Завершена",
+  CANCELLED:        "Отменена",
   // Приоритеты
   LOW:    "Низкий",
   MEDIUM: "Средний",
   HIGH:   "Высокий",
   URGENT: "Срочный",
+  // Статусы задач
+  TODO:                  "К выполнению",
+  DONE:                  "Выполнено",
 };

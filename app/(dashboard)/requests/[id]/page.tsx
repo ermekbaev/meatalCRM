@@ -840,35 +840,48 @@ export default function RequestDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {request.changeLogs.map((log: any) => (
-                      <div
-                        key={log.id}
-                        className="flex items-start gap-3 text-sm"
-                      >
-                        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-                        <div>
-                          <span className="font-medium text-gray-700">
-                            {log.user?.name}
-                          </span>
-                          {" изменил "}
-                          <span className="font-medium text-gray-600">
-                            {CHANGELOG_FIELD_LABELS[log.field] ?? log.field}
-                          </span>
-                          {log.oldValue && (
-                            <span className="text-gray-400">
-                              {" "}
-                              с &quot;{CHANGELOG_VALUE_LABELS[log.oldValue] ?? log.oldValue}&quot;
+                    {request.changeLogs.map((log: any) => {
+                      const renderValue = (raw: string) => {
+                        if (!raw) return "—";
+                        if (log.field === "assigneeId") {
+                          return users.find((u) => u.id === raw)?.name ?? "—";
+                        }
+                        if (log.field === "amount") {
+                          const num = parseFloat(raw);
+                          return Number.isFinite(num) ? formatCurrency(num) : raw;
+                        }
+                        return CHANGELOG_VALUE_LABELS[raw] ?? raw;
+                      };
+                      return (
+                        <div
+                          key={log.id}
+                          className="flex items-start gap-3 text-sm"
+                        >
+                          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                          <div className="min-w-0 flex-1">
+                            <span className="font-medium text-gray-700">
+                              {log.user?.name}
                             </span>
-                          )}
-                          {log.newValue && (
-                            <span> на &quot;{CHANGELOG_VALUE_LABELS[log.newValue] ?? log.newValue}&quot;</span>
-                          )}
-                          <span className="ml-2 text-xs text-gray-400">
-                            {formatDateTime(log.createdAt)}
-                          </span>
+                            {" изменил "}
+                            <span className="font-medium text-gray-600">
+                              {CHANGELOG_FIELD_LABELS[log.field] ?? log.field}
+                            </span>
+                            {log.oldValue && (
+                              <span className="text-gray-400">
+                                {" "}
+                                с &quot;{renderValue(log.oldValue)}&quot;
+                              </span>
+                            )}
+                            {log.newValue && (
+                              <span> на &quot;{renderValue(log.newValue)}&quot;</span>
+                            )}
+                            <span className="ml-2 text-xs text-gray-400">
+                              {formatDateTime(log.createdAt)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>

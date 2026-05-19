@@ -201,8 +201,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex flex-1 flex-col overflow-hidden lg:ml-60">
           {children}
-          {/* Spacer so content isn't hidden under bottom tab bar */}
-          <div className="h-16 shrink-0 lg:hidden" />
+          {/* Spacer so content isn't hidden under bottom tab bar (учитывает safe-area iOS) */}
+          <div className="shrink-0 lg:hidden h-[calc(4rem+env(safe-area-inset-bottom))]" />
         </div>
       </div>
 
