@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
+import { createNotification } from "@/lib/notify";
 import { PRIORITY_LABELS, REQUEST_STATUS_LABELS } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
@@ -94,6 +95,17 @@ export async function POST(req: NextRequest) {
     `⚡ Приоритет: ${PRIORITY_LABELS[request.priority]}\n` +
     `👤 Ответственный: ${request.assignee?.name ?? "Не назначен"}`
   );
+
+  const currentUserId = (session.user as any).id as string | undefined;
+  if (request.assigneeId && request.assigneeId !== currentUserId) {
+    await createNotification({
+      userId: request.assigneeId,
+      type: "REQUEST_ASSIGNED",
+      title: `Назначена заявка #${request.number}`,
+      body: request.title,
+      link: `/requests/${request.id}`,
+    });
+  }
 
   return NextResponse.json(request, { status: 201 });
 }

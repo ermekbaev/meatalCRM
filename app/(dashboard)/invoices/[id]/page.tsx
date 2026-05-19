@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Download, Loader2, Trash2, Plus, Pencil, Check, X, Clipboard, ClipboardCheck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatDate } from "@/lib/utils";
+import { formatDate, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from "@/lib/utils";
 
 function fmt(n: number) {
   return n.toLocaleString("ru", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -80,6 +81,15 @@ export default function InvoiceDetailPage() {
   const handleDelete = async () => {
     await fetch(`/api/invoices/${params.id}`, { method: "DELETE" });
     router.push("/invoices");
+  };
+
+  const handlePaymentStatusChange = async (value: string) => {
+    setInvoice((prev: any) => prev ? { ...prev, paymentStatus: value } : prev);
+    await fetch(`/api/invoices/${params.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentStatusOnly: true, paymentStatus: value }),
+    }).catch(() => {});
   };
 
   const updateItem = (idx: number, field: string, value: any) => {
@@ -202,6 +212,21 @@ export default function InvoiceDetailPage() {
             <div>
               <p className="text-xs text-gray-500 mb-0.5">НДС</p>
               <p className="font-medium">{invoice.vatRate > 0 ? `${invoice.vatRate}%` : "Без НДС"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Статус оплаты</p>
+              <Select value={invoice.paymentStatus ?? "WAITING"} onValueChange={handlePaymentStatusChange}>
+                <SelectTrigger
+                  className={`h-8 px-2 py-0 text-xs font-medium border-0 rounded-md w-auto min-w-32 ${PAYMENT_STATUS_COLORS[invoice.paymentStatus ?? "WAITING"] ?? ""}`}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PAYMENT_STATUS_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

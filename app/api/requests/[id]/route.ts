@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
+import { createNotification } from "@/lib/notify";
 import { REQUEST_STATUS_LABELS } from "@/lib/utils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -81,6 +82,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             `📌 ${updated.title}\n` +
             `${REQUEST_STATUS_LABELS[oldVal as any] ?? oldVal} → <b>${REQUEST_STATUS_LABELS[newVal as any] ?? newVal}</b>`
           );
+          if (updated.assigneeId && updated.assigneeId !== userId) {
+            const oldLabel = REQUEST_STATUS_LABELS[oldVal as any] ?? oldVal;
+            const newLabel = REQUEST_STATUS_LABELS[newVal as any] ?? newVal;
+            await createNotification({
+              userId: updated.assigneeId,
+              type: "STATUS_CHANGED",
+              title: `Статус заявки #${updated.number} изменён`,
+              body: `${updated.title}: ${oldLabel} → ${newLabel}`,
+              link: `/requests/${id}`,
+            });
+          }
+        }
+        if (field === "assigneeId" && newVal && newVal !== userId) {
+          await createNotification({
+            userId: newVal,
+            type: "REQUEST_ASSIGNED",
+            title: `Назначена заявка #${updated.number}`,
+            body: updated.title,
+            link: `/requests/${id}`,
+          });
         }
       }
     }

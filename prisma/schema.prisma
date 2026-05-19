@@ -85,6 +85,7 @@ model Request {
   metalOwner         String?
   laserStatus        String?
   bendingStatus      String?
+  weldingStatus      String?
   paintingStatus     String?
   sandblastingStatus String?
   extraWorkStatus    String?
@@ -399,6 +400,7 @@ model Invoice {
   basis          String?       @default("Основной договор")
   vatRate        Float         @default(0)
   notes          String?
+  paymentStatus  PaymentStatus @default(WAITING)
   clientId       String
   requestId      String?
   createdById    String
@@ -478,6 +480,7 @@ enum NotificationType {
   SUBTASK_ASSIGNED
   COMMENT_MENTION
   STATUS_CHANGED
+  REQUEST_ASSIGNED
 }
 
 model Notification {

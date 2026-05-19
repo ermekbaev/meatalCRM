@@ -285,29 +285,29 @@ export default function NewRequestPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto -mx-px">
+                      <table className="min-w-205 text-sm table-fixed">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50">
-                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-[30%]">
+                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-60">
                               Наименование
                             </th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-24">
                               Кол-во
                             </th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-20">
                               Ед.
                             </th>
-                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-32">
                               Цена, ₽
                             </th>
-                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-16">
+                            <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-24">
                               Скидка %
                             </th>
-                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-24">
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-35">
                               Сумма, ₽
                             </th>
-                            <th className="px-2 py-2 w-8"></th>
+                            <th className="px-2 py-2 w-10"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">

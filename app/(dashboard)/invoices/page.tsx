@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, FileText, Download, Search, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { formatDate } from "@/lib/utils";
+import { formatDate, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function fmt(n: number) {
   return n.toLocaleString("ru", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -38,6 +39,15 @@ export default function InvoicesPage() {
     } finally {
       setExportingId(null);
     }
+  };
+
+  const updatePaymentStatus = async (invId: string, status: string) => {
+    setInvoices((prev) => prev.map((i) => i.id === invId ? { ...i, paymentStatus: status } : i));
+    await fetch(`/api/invoices/${invId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentStatusOnly: true, paymentStatus: status }),
+    }).catch(() => {});
   };
 
   return (
@@ -94,6 +104,11 @@ export default function InvoicesPage() {
                     </div>
                     <span className="font-bold text-gray-800 tabular-nums shrink-0">{fmt(total)} ₽</span>
                   </div>
+                  <div className="mt-1.5">
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${PAYMENT_STATUS_COLORS[inv.paymentStatus ?? "WAITING"] ?? ""}`}>
+                      {PAYMENT_STATUS_LABELS[inv.paymentStatus ?? "WAITING"]}
+                    </span>
+                  </div>
                   <div className="mt-2 flex justify-end">
                     <Button
                       size="sm"
@@ -123,6 +138,7 @@ export default function InvoicesPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Контрагент</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Заявка</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">Срок оплаты</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 w-40">Статус</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Сумма</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 w-24">PDF</th>
                 </tr>
@@ -152,6 +168,23 @@ export default function InvoicesPage() {
                         {inv.dueDate
                           ? <span className={new Date(inv.dueDate) < new Date() ? "text-red-500 font-medium" : ""}>{formatDate(inv.dueDate)}</span>
                           : "—"}
+                      </td>
+                      <td className="px-4 py-3" onClick={(e) => e.preventDefault()}>
+                        <Select
+                          value={inv.paymentStatus ?? "WAITING"}
+                          onValueChange={(v) => updatePaymentStatus(inv.id, v)}
+                        >
+                          <SelectTrigger
+                            className={`h-7 px-2 py-0 text-xs font-medium border-0 rounded-md w-auto min-w-30 ${PAYMENT_STATUS_COLORS[inv.paymentStatus ?? "WAITING"] ?? ""}`}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PAYMENT_STATUS_LABELS).map(([key, label]) => (
+                              <SelectItem key={key} value={key}>{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="px-4 py-3 text-right font-bold tabular-nums text-gray-800">
                         {fmt(total)} ₽

@@ -56,7 +56,7 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
         isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
       )}
     >
-      <div className="absolute inset-0 bg-white flex flex-col">
+      <div className="absolute inset-0 bg-white flex flex-col safe-area-inset-top">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
           <div className="flex items-center gap-3" suppressHydrationWarning>

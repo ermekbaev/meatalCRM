@@ -157,6 +157,12 @@ export default function TasksPage() {
     });
   }, [workshops]);
 
+  // Авто-сброс бейджа: если пользователь сейчас на табе и задачи прогрузились — он их «видит»
+  useEffect(() => {
+    if (!seenLoaded || loading) return;
+    markTabSeen(activeWorkshopId);
+  }, [seenLoaded, loading, activeWorkshopId, tasks, markTabSeen]);
+
   // Сколько «новых» задач на каждом табе
   const newByTab = useMemo(() => {
     const result: Record<string, number> = { none: 0 };

@@ -134,6 +134,7 @@ export type ProductionFieldKey =
   | "metalOwner"
   | "laserStatus"
   | "bendingStatus"
+  | "weldingStatus"
   | "paintingStatus"
   | "sandblastingStatus"
   | "extraWorkStatus"
@@ -176,6 +177,15 @@ export const PRODUCTION_FIELDS: Array<{
     key: "bendingStatus",
     label: "Гибка",
     short: "Г",
+    options: [
+      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
+      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+    ],
+  },
+  {
+    key: "weldingStatus",
+    label: "Сварка",
+    short: "С",
     options: [
       { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
       { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
@@ -238,6 +248,7 @@ export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   workshop:           "Цех",
   laserStatus:        "Лазер",
   bendingStatus:      "Гибка",
+  weldingStatus:      "Сварка",
   paintingStatus:     "Покраска",
   sandblastingStatus: "Пескоструй",
 };

@@ -27,6 +27,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const { items, ...data } = await req.json();
 
+  // Лёгкий PATCH-режим: меняем только статус, не трогаем позиции
+  if (data.paymentStatusOnly) {
+    const updated = await prisma.invoice.update({
+      where: { id },
+      data: { paymentStatus: data.paymentStatus },
+      include: INCLUDE,
+    });
+    return NextResponse.json(updated);
+  }
+
   const invoice = await prisma.$transaction(async (tx) => {
     await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
     return tx.invoice.update({
@@ -37,6 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         date: data.date ? new Date(data.date) : undefined,
         notes: data.notes ?? null,
+        ...(data.paymentStatus ? { paymentStatus: data.paymentStatus } : {}),
         items: {
           create: (items ?? []).map((it: any) => ({
             name: it.name,

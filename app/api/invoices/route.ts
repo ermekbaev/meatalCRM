@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       date: data.date ? new Date(data.date) : new Date(),
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       vatRate: data.vatRate ?? 0,
+      paymentStatus: data.paymentStatus ?? "WAITING",
       createdById: userId,
       items: {
         create: (items ?? []).map((it: any) => ({
