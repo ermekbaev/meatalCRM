@@ -654,136 +654,145 @@ export default function TaskDetailPage() {
                 {task.subtasks?.map((item: any) => (
                   <div
                     key={item.id}
-                    className={`flex flex-wrap items-center gap-2 group rounded-lg border px-2 py-1.5 ${
+                    className={`group rounded-lg border ${
                       isSubTaskOverdue(item)
-                        ? "border-red-200 bg-red-50 hover:bg-red-50"
+                        ? "border-red-200 bg-red-50"
                         : "border-gray-100 hover:bg-gray-50"
                     }`}
                   >
-                    <button
-                      onClick={() => toggleSubTaskDone(item.id, item.status)}
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                        item.status === "DONE"
-                          ? "border-green-500 bg-green-500 text-white"
-                          : "border-gray-300 hover:border-green-400"
-                      }`}
-                    >
-                      {item.status === "DONE" && <Check className="h-3 w-3" />}
-                    </button>
+                    {/* Верхняя строка: чекбокс + название + удалить */}
+                    <div className="flex items-start gap-2 px-2 pt-2 sm:py-1.5">
+                      <button
+                        onClick={() => toggleSubTaskDone(item.id, item.status)}
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                          item.status === "DONE"
+                            ? "border-green-500 bg-green-500 text-white"
+                            : "border-gray-300 hover:border-green-400"
+                        }`}
+                      >
+                        {item.status === "DONE" && <Check className="h-3 w-3" />}
+                      </button>
 
-                    <span className={`flex-1 min-w-0 text-sm ${item.status === "DONE" ? "line-through text-gray-400" : "text-gray-800"}`}>
-                      {item.title}
-                      {item.quantity != null && (
-                        <span className="ml-1 text-gray-500">
-                          {item.quantity} {item.unit || "шт"}
-                        </span>
-                      )}
-                    </span>
+                      <span className={`flex-1 min-w-0 text-sm break-words ${item.status === "DONE" ? "line-through text-gray-400" : "text-gray-800"}`}>
+                        {item.title}
+                        {item.quantity != null && (
+                          <span className="ml-1 text-gray-500">
+                            {item.quantity} {item.unit || "шт"}
+                          </span>
+                        )}
+                        {isSubTaskOverdue(item) && (
+                          <span className="ml-2 text-[10px] font-medium text-red-600 sm:hidden">просрочено</span>
+                        )}
+                      </span>
 
-                    <Select value={item.status} onValueChange={(v) => updateSubTask(item.id, { status: v })}>
-                      <SelectTrigger className="h-7 w-[110px] text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>{v}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <button
+                        onClick={() => deleteSubTask(item.id)}
+                        className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
 
-                    <Select value={item.priority} onValueChange={(v) => updateSubTask(item.id, { priority: v })}>
-                      <SelectTrigger className="h-7 w-[100px] text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>{v}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {/* Контролы: 2 колонки на мобиле, инлайн на десктопе */}
+                    <div className="grid grid-cols-2 gap-1.5 px-2 pb-2 pt-1.5 sm:flex sm:flex-wrap sm:items-center sm:pt-0 sm:-mt-1 sm:pl-9">
+                      <Select value={item.status} onValueChange={(v) => updateSubTask(item.id, { status: v })}>
+                        <SelectTrigger className="h-7 text-xs sm:w-[110px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>{v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                    <Select
-                      value={item.assigneeId ?? "none"}
-                      onValueChange={(v) => updateSubTask(item.id, { assigneeId: v === "none" ? null : v })}
-                    >
-                      <SelectTrigger className="h-7 w-[140px] text-xs"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Не назначен</SelectItem>
-                        {users.filter((u: any) => u.role === "EMPLOYEE").map((u: any) => (
-                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <Select value={item.priority} onValueChange={(v) => updateSubTask(item.id, { priority: v })}>
+                        <SelectTrigger className="h-7 text-xs sm:w-[100px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>{v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                    <div className="flex items-center gap-1">
+                      <Select
+                        value={item.assigneeId ?? "none"}
+                        onValueChange={(v) => updateSubTask(item.id, { assigneeId: v === "none" ? null : v })}
+                      >
+                        <SelectTrigger className="h-7 text-xs sm:w-[140px]"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Не назначен</SelectItem>
+                          {users.filter((u: any) => u.role === "EMPLOYEE").map((u: any) => (
+                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
                       <Input
                         type="date"
                         value={formatDateInput(item.dueDate)}
                         onChange={(e) => updateSubTask(item.id, { dueDate: e.target.value || null })}
-                        className={`h-7 w-[135px] text-xs ${
+                        className={`h-7 text-xs sm:w-[135px] ${
                           isSubTaskOverdue(item) ? "border-red-300 bg-white text-red-600" : ""
                         }`}
                         title={isSubTaskOverdue(item) ? "Просрочено" : "Срок подзадачи"}
                       />
-                      {isSubTaskOverdue(item) && (
-                        <span className="text-xs font-medium text-red-600">просрочено</span>
-                      )}
                     </div>
-
-                    <button
-                      onClick={() => deleteSubTask(item.id)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
                   </div>
                 ))}
 
                 {!isReadOnly && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-                  <Input
-                    value={newSubTitle}
-                    onChange={(e) => setNewSubTitle(e.target.value)}
-                    placeholder="Название (напр. МС-1)"
-                    className="flex-1 min-w-[160px] h-8 text-sm"
-                    onKeyDown={(e) => { if (e.key === "Enter") addSubTask(); }}
-                  />
-                  <Input
-                    value={newSubQty}
-                    onChange={(e) => setNewSubQty(e.target.value)}
-                    placeholder="Кол-во"
-                    type="number"
-                    className="w-20 h-8 text-sm"
-                  />
-                  <Input
-                    value={newSubUnit}
-                    onChange={(e) => setNewSubUnit(e.target.value)}
-                    placeholder="ед."
-                    className="w-16 h-8 text-sm"
-                  />
-                  <Select value={newSubPriority} onValueChange={setNewSubPriority}>
-                    <SelectTrigger className="h-8 w-[110px] text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={newSubAssignee || "none"} onValueChange={(v) => setNewSubAssignee(v === "none" ? "" : v)}>
-                    <SelectTrigger className="h-8 w-[150px] text-sm"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Не назначен</SelectItem>
-                      {users.filter((u: any) => u.role === "EMPLOYEE").map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    value={newSubDueDate}
-                    onChange={(e) => setNewSubDueDate(e.target.value)}
-                    type="date"
-                    className="h-8 w-[145px] text-sm"
-                    title="Срок подзадачи"
-                  />
-                  <Button size="sm" onClick={addSubTask} disabled={addingSub || !newSubTitle.trim()} className="h-8">
-                    {addingSub ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
-                  </Button>
+                <div className="pt-2 border-t border-gray-100">
+                  {/* Название отдельной строкой, ввод цифр/полей в сетке 2 колонки на мобиле */}
+                  <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
+                    <Input
+                      value={newSubTitle}
+                      onChange={(e) => setNewSubTitle(e.target.value)}
+                      placeholder="Название (напр. МС-1)"
+                      className="sm:flex-1 sm:min-w-[160px] h-8 text-sm"
+                      onKeyDown={(e) => { if (e.key === "Enter") addSubTask(); }}
+                    />
+                    <div className="grid grid-cols-2 gap-2 sm:contents">
+                      <Input
+                        value={newSubQty}
+                        onChange={(e) => setNewSubQty(e.target.value)}
+                        placeholder="Кол-во"
+                        type="number"
+                        className="h-8 text-sm sm:w-20"
+                      />
+                      <Input
+                        value={newSubUnit}
+                        onChange={(e) => setNewSubUnit(e.target.value)}
+                        placeholder="ед."
+                        className="h-8 text-sm sm:w-16"
+                      />
+                      <Select value={newSubPriority} onValueChange={setNewSubPriority}>
+                        <SelectTrigger className="h-8 text-sm sm:w-[110px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>{v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={newSubAssignee || "none"} onValueChange={(v) => setNewSubAssignee(v === "none" ? "" : v)}>
+                        <SelectTrigger className="h-8 text-sm sm:w-[150px]"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Не назначен</SelectItem>
+                          {users.filter((u: any) => u.role === "EMPLOYEE").map((u: any) => (
+                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        value={newSubDueDate}
+                        onChange={(e) => setNewSubDueDate(e.target.value)}
+                        type="date"
+                        className="h-8 text-sm sm:w-[145px] col-span-2 sm:col-auto"
+                        title="Срок подзадачи"
+                      />
+                    </div>
+                    <Button size="sm" onClick={addSubTask} disabled={addingSub || !newSubTitle.trim()} className="h-8 w-full sm:w-auto">
+                      {addingSub ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Plus className="h-3 w-3 mr-1" /> Добавить</>}
+                    </Button>
+                  </div>
                 </div>
                 )}
               </CardContent>
