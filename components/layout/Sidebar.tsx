@@ -3,6 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
+import { useState } from "react";
+import { AvatarDialog } from "./AvatarDialog";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, LogOut, Factory, BookOpen, ChevronRight, Calculator,
@@ -37,6 +39,7 @@ const settingsItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const role = (session?.user as any)?.role;
   const isAdmin = role === "ADMIN";
   const isForeman = role === "FOREMAN";
@@ -118,13 +121,19 @@ export function Sidebar() {
       {/* User */}
       <div className="border-t border-slate-200 p-3">
         <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-100 transition-colors">
-          <Avatar name={session?.user?.name} src={(session?.user as any)?.avatarUrl} size={28} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-slate-700">{session?.user?.name}</p>
-            <p className="truncate text-[11px] text-slate-400">
-              {ROLE_LABELS[(session?.user as any)?.role] ?? ""}
-            </p>
-          </div>
+          <button
+            onClick={() => setAvatarOpen(true)}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            title="Изменить фото"
+          >
+            <Avatar name={session?.user?.name} src={(session?.user as any)?.avatarUrl} size={28} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-slate-700">{session?.user?.name}</p>
+              <p className="truncate text-[11px] text-slate-400">
+                {ROLE_LABELS[(session?.user as any)?.role] ?? ""}
+              </p>
+            </div>
+          </button>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="text-slate-300 hover:text-slate-500 transition-colors"
@@ -134,6 +143,8 @@ export function Sidebar() {
           </button>
         </div>
       </div>
+
+      <AvatarDialog open={avatarOpen} onOpenChange={setAvatarOpen} />
     </aside>
   );
 }

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
+import { Avatar } from "@/components/ui/avatar";
+import { AvatarDialog } from "./AvatarDialog";
 
 const SidebarCtx = createContext({ isOpen: false, toggle: () => {}, close: () => {} });
 export const useSidebar = () => useContext(SidebarCtx);
@@ -46,6 +48,7 @@ const settingsItems = [
 function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const role = (session?.user as any)?.role;
   const isAdmin = role === "ADMIN";
   const isForeman = role === "FOREMAN";
@@ -133,15 +136,19 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
         {/* User footer */}
         <div className="border-t border-slate-200 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-xs font-semibold text-white">
-              {session?.user?.name?.charAt(0).toUpperCase() ?? "U"}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium text-slate-800">{session?.user?.name}</p>
-              <p className="truncate text-[11px] text-slate-400">
-                {ROLE_LABELS[(session?.user as any)?.role] ?? ""}
-              </p>
-            </div>
+            <button
+              onClick={() => setAvatarOpen(true)}
+              className="flex min-w-0 flex-1 items-center gap-3 text-left"
+              title="Изменить фото"
+            >
+              <Avatar name={session?.user?.name} src={(session?.user as any)?.avatarUrl} size={36} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-medium text-slate-800">{session?.user?.name}</p>
+                <p className="truncate text-[11px] text-slate-400">
+                  {ROLE_LABELS[(session?.user as any)?.role] ?? ""}
+                </p>
+              </div>
+            </button>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
@@ -152,6 +159,8 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
           </div>
         </div>
       </div>
+
+      <AvatarDialog open={avatarOpen} onOpenChange={setAvatarOpen} />
     </div>
   );
 }
