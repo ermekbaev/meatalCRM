@@ -13,6 +13,7 @@ import { ROLE_LABELS, formatDate } from "@/lib/utils";
 import { Plus, Trash2, Pencil, Loader2, ShieldCheck, Shield, User, HardHat, Wrench, Briefcase } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
 
 const ROLE_ICONS: Record<string, any> = {
   ADMIN: ShieldCheck,
@@ -28,6 +29,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { isSubmitting } } = useForm();
 
@@ -79,6 +81,38 @@ export default function UsersPage() {
     fetchUsers();
   };
 
+  const handleAvatarUpload = async (file: File) => {
+    if (!editUser) return;
+    setAvatarUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/users/${editUser.id}/avatar`, { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? "Не удалось загрузить аватар");
+        return;
+      }
+      const updated = await res.json();
+      setEditUser((prev: any) => ({ ...prev, avatarUrl: updated.avatarUrl }));
+      fetchUsers();
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    if (!editUser?.avatarUrl) return;
+    setAvatarUploading(true);
+    try {
+      await fetch(`/api/users/${editUser.id}/avatar`, { method: "DELETE" });
+      setEditUser((prev: any) => ({ ...prev, avatarUrl: null }));
+      fetchUsers();
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const role = watch("role");
 
   return (
@@ -99,9 +133,7 @@ export default function UsersPage() {
             return (
               <div key={u.id} className="rounded-xl border border-gray-200 bg-white p-3">
                 <div className="flex items-start gap-2 mb-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700">
-                    {u.name.charAt(0).toUpperCase()}
-                  </div>
+                  <Avatar name={u.name} src={u.avatarUrl} size={36} />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-gray-900 text-sm truncate">{u.name}</p>
                     <p className="text-xs text-gray-500 truncate">{u.email}</p>
@@ -172,9 +204,7 @@ export default function UsersPage() {
                     <TableRow key={u.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700">
-                            {u.name.charAt(0).toUpperCase()}
-                          </div>
+                          <Avatar name={u.name} src={u.avatarUrl} size={32} />
                           <div className="flex flex-col">
                             <span className="font-medium text-gray-900">{u.name}</span>
                             {u.position && (
@@ -241,6 +271,41 @@ export default function UsersPage() {
             <DialogTitle>{editUser ? "Редактировать пользователя" : "Новый пользователь"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {editUser && (
+              <div className="flex items-center gap-4">
+                <Avatar name={editUser.name} src={editUser.avatarUrl} size={64} />
+                <div className="flex flex-col gap-2">
+                  <label className="inline-flex">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      className="hidden"
+                      disabled={avatarUploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleAvatarUpload(f);
+                        e.target.value = "";
+                      }}
+                    />
+                    <span className="inline-flex cursor-pointer items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50">
+                      {avatarUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {editUser.avatarUrl ? "Заменить фото" : "Загрузить фото"}
+                    </span>
+                  </label>
+                  {editUser.avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleAvatarDelete}
+                      disabled={avatarUploading}
+                      className="text-left text-xs text-red-500 hover:text-red-600"
+                    >
+                      Удалить фото
+                    </button>
+                  )}
+                  <p className="text-xs text-gray-400">PNG, JPG, WebP. Макс. 5 МБ</p>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Имя *</Label>
               <Input {...register("name", { required: true })} placeholder="Иванов Иван" />

@@ -84,10 +84,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       priority: true,
       dueDate: true,
       workshopId: true,
-      laserStatus: true,
-      bendingStatus: true,
-      paintingStatus: true,
-      sandblastingStatus: true,
+      ...Object.fromEntries(TASK_PRODUCTION_FIELDS.map((f) => [f.key, true])),
       assignees: { select: { id: true, name: true } },
     },
   });
@@ -103,6 +100,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // обратная совместимость со старыми клиентами
       nextAssigneeIds = data.assigneeId ? [data.assigneeId] : [];
     }
+    const productionPatch: any = {};
+    for (const f of TASK_PRODUCTION_FIELDS) {
+      if (data[f.key] !== undefined) productionPatch[f.key] = data[f.key] || null;
+    }
     updateData = {
       title:       data.title,
       description: data.description ?? null,
@@ -111,10 +112,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       dueDate:     data.dueDate ? new Date(data.dueDate) : null,
       clientId:    data.clientId ?? null,
       workshopId:  data.workshopId === undefined ? undefined : data.workshopId || null,
-      ...(data.laserStatus        !== undefined && { laserStatus:        data.laserStatus        || null }),
-      ...(data.bendingStatus      !== undefined && { bendingStatus:      data.bendingStatus      || null }),
-      ...(data.paintingStatus     !== undefined && { paintingStatus:     data.paintingStatus     || null }),
-      ...(data.sandblastingStatus !== undefined && { sandblastingStatus: data.sandblastingStatus || null }),
+      ...productionPatch,
       ...(nextAssigneeIds !== null && {
         assignees: { set: nextAssigneeIds.map((id) => ({ id })) },
       }),
@@ -124,8 +122,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const productionPatch: any = {};
-    for (const k of ["laserStatus", "bendingStatus", "paintingStatus", "sandblastingStatus"] as const) {
-      if (data[k] !== undefined) productionPatch[k] = data[k] || null;
+    for (const f of TASK_PRODUCTION_FIELDS) {
+      if (data[f.key] !== undefined) productionPatch[f.key] = data[f.key] || null;
     }
     if (data.status === undefined && Object.keys(productionPatch).length === 0) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -19,6 +19,7 @@ model User {
   telegramChatId    String?
   phone             String?
   position          String?
+  avatarUrl         String?
   changeLogs        ChangeLog[]
   taskChangeLogs    TaskChangeLog[]
   comments          Comment[]
@@ -199,10 +200,15 @@ model Task {
   workshopId  String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+  hasMetal           String?
+  metalOwner         String?
   laserStatus        String?
   bendingStatus      String?
+  weldingStatus      String?
   paintingStatus     String?
   sandblastingStatus String?
+  extraWorkStatus    String?
+  deliveryStatus     String?
   checklist   ChecklistItem[]
   subtasks    SubTask[]
   assignees   User[]          @relation("AssignedTasks")

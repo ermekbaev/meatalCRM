@@ -13,7 +13,7 @@ export async function uploadFile(
   buffer: Buffer,
   originalName: string,
   mimeType: string,
-  folder: "requests" | "tasks" | "company"
+  folder: "requests" | "tasks" | "company" | "avatars"
 ): Promise<{ key: string; filename: string; originalName: string }> {
   const ext = originalName.split(".").pop() ?? "bin";
   const uuid = randomUUID();

@@ -231,10 +231,8 @@ export const PRODUCTION_FIELDS: Array<{
   },
 ];
 
-// Подмножество производственных статусов, доступных на уровне задачи
-export const TASK_PRODUCTION_FIELDS = PRODUCTION_FIELDS.filter((f) =>
-  ["laserStatus", "bendingStatus", "paintingStatus", "sandblastingStatus"].includes(f.key)
-);
+// На уровне задачи доступны все производственные статусы, как в заявках
+export const TASK_PRODUCTION_FIELDS = PRODUCTION_FIELDS;
 
 export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   status:     "Статус",
@@ -246,11 +244,15 @@ export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   assignee:           "Исполнитель",
   dueDate:            "Срок",
   workshop:           "Цех",
+  hasMetal:           "Металл",
+  metalOwner:         "Чей металл",
   laserStatus:        "Лазер",
   bendingStatus:      "Гибка",
   weldingStatus:      "Сварка",
   paintingStatus:     "Покраска",
   sandblastingStatus: "Пескоструй",
+  extraWorkStatus:    "Доп. работы",
+  deliveryStatus:     "Доставка",
 };
 
 export const CHANGELOG_VALUE_LABELS: Record<string, string> = {

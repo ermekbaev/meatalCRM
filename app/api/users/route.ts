@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         ...(roleFilter.length ? { role: { in: roleFilter as any } } : {}),
         ...(workshopId ? { workshops: { some: { id: workshopId } } } : {}),
       },
-      select: { id: true, name: true, role: true, position: true },
+      select: { id: true, name: true, role: true, position: true, avatarUrl: true },
       orderBy: { name: "asc" },
     });
     return NextResponse.json(users);
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       ...(roleFilter.length ? { role: { in: roleFilter as any } } : {}),
       ...(workshopId ? { workshops: { some: { id: workshopId } } } : {}),
     },
-    select: { id: true, email: true, name: true, role: true, isBlocked: true, telegramChatId: true, phone: true, position: true, createdAt: true },
+    select: { id: true, email: true, name: true, role: true, isBlocked: true, telegramChatId: true, phone: true, position: true, avatarUrl: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
 

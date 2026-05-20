@@ -9,6 +9,7 @@ import {
   Layers, Scissors, Box, BarChart2, Receipt, Warehouse,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
+import { Avatar } from "@/components/ui/avatar";
 
 type NavItem = { href: string; label: string; icon: any; foreman?: boolean };
 
@@ -117,9 +118,7 @@ export function Sidebar() {
       {/* User */}
       <div className="border-t border-slate-200 p-3">
         <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-100 transition-colors">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[11px] font-semibold text-slate-600">
-            {session?.user?.name?.charAt(0).toUpperCase() ?? "U"}
-          </div>
+          <Avatar name={session?.user?.name} src={(session?.user as any)?.avatarUrl} size={28} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-slate-700">{session?.user?.name}</p>
             <p className="truncate text-[11px] text-slate-400">
