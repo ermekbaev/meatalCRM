@@ -39,6 +39,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Combobox } from "@/components/ui/combobox";
+import { StatusMultiSelect } from "@/components/ui/status-multi-select";
+import { getThicknessesForMaterial } from "@/lib/metalReferenceData";
 import { UNIT_OPTIONS, getUnitOptions } from "@/lib/unit-options";
 import { formatDateTime } from "@/lib/utils";
 import { Loader2, PackagePlus, Pencil, Search, Trash2, Warehouse } from "lucide-react";
@@ -58,18 +61,78 @@ const METAL_TYPE_OPTIONS = [
   "Круг",
 ];
 
+const STEEL_GRADE_OPTIONS = [
+  "Ст3",
+  "Ст3пс",
+  "09Г2С",
+  "Ст20",
+  "45",
+  "40Х",
+  "AISI 304",
+  "AISI 316",
+  "AISI 430",
+  "12Х18Н10Т",
+  "АМг2",
+  "АД0",
+];
+
+// Запасной список толщин для видов металла, которых нет в ГОСТ-справочнике
+// (труба, уголок, швеллер и т.п.)
+const FALLBACK_THICKNESS_OPTIONS = [
+  "0.4",
+  "0.5",
+  "0.7",
+  "0.8",
+  "1.0",
+  "1.2",
+  "1.5",
+  "2.0",
+  "2.5",
+  "3.0",
+  "4.0",
+  "5.0",
+  "6.0",
+  "8.0",
+  "10.0",
+  "12.0",
+  "14.0",
+  "16.0",
+  "18.0",
+  "20.0",
+  "25.0",
+  "30.0",
+];
+
+// Вид металла на складе -> materialId в ГОСТ-справочнике (metalReferenceData)
+const METAL_TYPE_TO_MATERIAL_ID: Record<string, string> = {
+  "Г/К": "hot-rolled",
+  "Х/К": "cold-rolled",
+  "Оцинковка": "galvanized",
+  "Нержавейка": "stainless",
+  "Алюминий": "aluminum",
+};
+
+function getThicknessOptions(metalType?: string | null) {
+  const materialId = metalType ? METAL_TYPE_TO_MATERIAL_ID[metalType.trim()] : undefined;
+  if (!materialId) return FALLBACK_THICKNESS_OPTIONS;
+  const gostThicknesses = getThicknessesForMaterial(materialId).map((n) => String(n));
+  return gostThicknesses.length ? gostThicknesses : FALLBACK_THICKNESS_OPTIONS;
+}
+
 type WarehouseForm = {
   metalType: string;
   steelGrade: string;
+  thickness: string;
+  size: string;
   unit: string;
   quantity: string;
   note: string;
 };
 
-function getMetalTypeOptions(current?: string | null) {
+function withCurrent(options: string[], current?: string | null) {
   const value = current?.trim();
-  if (!value || METAL_TYPE_OPTIONS.includes(value)) return METAL_TYPE_OPTIONS;
-  return [value, ...METAL_TYPE_OPTIONS];
+  if (!value || options.includes(value)) return options;
+  return [value, ...options];
 }
 
 function formatQuantity(value: number) {
@@ -86,6 +149,9 @@ export default function WarehousePage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [metalFilter, setMetalFilter] = useState<string[]>([]);
+  const [gradeFilter, setGradeFilter] = useState<string[]>([]);
+  const [thicknessFilter, setThicknessFilter] = useState<string[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
 
@@ -100,6 +166,8 @@ export default function WarehousePage() {
     defaultValues: {
       metalType: METAL_TYPE_OPTIONS[0],
       steelGrade: "",
+      thickness: "",
+      size: "",
       unit: UNIT_OPTIONS[0],
       quantity: "0",
       note: "",
@@ -107,6 +175,8 @@ export default function WarehousePage() {
   });
 
   const metalType = useWatch({ control, name: "metalType" });
+  const steelGrade = useWatch({ control, name: "steelGrade" });
+  const thickness = useWatch({ control, name: "thickness" });
   const unit = useWatch({ control, name: "unit" });
 
   const fetchItems = async () => {
@@ -120,22 +190,39 @@ export default function WarehousePage() {
     fetchItems();
   }, []);
 
+  const filterOptions = useMemo(() => {
+    const collect = (key: string) =>
+      [...new Set(items.map((i) => i[key]).filter(Boolean).map(String))]
+        .sort((a, b) => a.localeCompare(b, "ru", { numeric: true }))
+        .map((value) => ({ key: value, label: value }));
+    return {
+      metal: collect("metalType"),
+      grade: collect("steelGrade"),
+      thickness: collect("thickness"),
+    };
+  }, [items]);
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return items;
 
-    return items.filter((item) =>
-      [item.metalType, item.steelGrade, item.unit, item.note]
+    return items.filter((item) => {
+      if (metalFilter.length && !metalFilter.includes(item.metalType)) return false;
+      if (gradeFilter.length && !gradeFilter.includes(item.steelGrade)) return false;
+      if (thicknessFilter.length && !thicknessFilter.includes(item.thickness)) return false;
+      if (!needle) return true;
+      return [item.metalType, item.steelGrade, item.thickness, item.size, item.unit, item.note]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(needle)),
-    );
-  }, [items, query]);
+        .some((value) => String(value).toLowerCase().includes(needle));
+    });
+  }, [items, query, metalFilter, gradeFilter, thicknessFilter]);
 
   const openCreate = () => {
     setEditItem(null);
     reset({
       metalType: METAL_TYPE_OPTIONS[0],
       steelGrade: "",
+      thickness: "",
+      size: "",
       unit: UNIT_OPTIONS[0],
       quantity: "0",
       note: "",
@@ -148,6 +235,8 @@ export default function WarehousePage() {
     reset({
       metalType: item.metalType ?? METAL_TYPE_OPTIONS[0],
       steelGrade: item.steelGrade ?? "",
+      thickness: item.thickness ?? "",
+      size: item.size ?? "",
       unit: item.unit ?? UNIT_OPTIONS[0],
       quantity: String(item.quantity ?? 0),
       note: item.note ?? "",
@@ -159,6 +248,8 @@ export default function WarehousePage() {
     const payload = {
       metalType: data.metalType,
       steelGrade: data.steelGrade || null,
+      thickness: data.thickness || null,
+      size: data.size || null,
       unit: data.unit || UNIT_OPTIONS[0],
       quantity: parseFloat(data.quantity) || 0,
       note: data.note || null,
@@ -219,6 +310,43 @@ export default function WarehousePage() {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusMultiSelect
+            value={metalFilter}
+            onChange={setMetalFilter}
+            options={filterOptions.metal}
+            allLabel="Все виды металла"
+            countLabel="Виды"
+          />
+          <StatusMultiSelect
+            value={gradeFilter}
+            onChange={setGradeFilter}
+            options={filterOptions.grade}
+            allLabel="Все марки стали"
+            countLabel="Марки"
+          />
+          <StatusMultiSelect
+            value={thicknessFilter}
+            onChange={setThicknessFilter}
+            options={filterOptions.thickness}
+            allLabel="Все толщины"
+            countLabel="Толщины"
+          />
+          {(metalFilter.length || gradeFilter.length || thicknessFilter.length) > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setMetalFilter([]);
+                setGradeFilter([]);
+                setThicknessFilter([]);
+              }}
+              className="text-sm text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+            >
+              Сбросить
+            </button>
+          )}
+        </div>
+
         <div className="md:hidden space-y-2">
           {loading ? (
             <div className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400">
@@ -247,6 +375,20 @@ export default function WarehousePage() {
                     </p>
                   </div>
                 </div>
+                {(item.thickness || item.size) && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {item.thickness && (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                        Толщина: {item.thickness}
+                      </span>
+                    )}
+                    {item.size && (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                        Размер: {item.size}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {item.note && <p className="mt-2 text-xs text-slate-500">{item.note}</p>}
                 {canEdit && (
                   <div className="mt-3 flex justify-end gap-1">
@@ -287,6 +429,8 @@ export default function WarehousePage() {
               <TableRow className="bg-slate-50">
                 <TableHead>Вид металла</TableHead>
                 <TableHead>Марка стали</TableHead>
+                <TableHead className="w-24">Толщина</TableHead>
+                <TableHead className="w-32">Размер</TableHead>
                 <TableHead className="w-36 text-right">Количество</TableHead>
                 <TableHead className="w-24">Ед. изм.</TableHead>
                 <TableHead>Комментарий</TableHead>
@@ -298,13 +442,13 @@ export default function WarehousePage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 8 : 7} className="py-10 text-center text-slate-400">
+                  <TableCell colSpan={canEdit ? 10 : 9} className="py-10 text-center text-slate-400">
                     Загрузка...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit ? 8 : 7} className="py-10 text-center text-slate-400">
+                  <TableCell colSpan={canEdit ? 10 : 9} className="py-10 text-center text-slate-400">
                     Остатков пока нет
                   </TableCell>
                 </TableRow>
@@ -318,6 +462,8 @@ export default function WarehousePage() {
                       </div>
                     </TableCell>
                     <TableCell>{item.steelGrade || "—"}</TableCell>
+                    <TableCell className="text-slate-600">{item.thickness || "—"}</TableCell>
+                    <TableCell className="text-slate-600">{item.size || "—"}</TableCell>
                     <TableCell className="text-right font-semibold text-slate-900">
                       {formatQuantity(item.quantity)}
                     </TableCell>
@@ -376,32 +522,44 @@ export default function WarehousePage() {
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <input type="hidden" {...register("metalType", { required: true })} />
+            <input type="hidden" {...register("steelGrade")} />
+            <input type="hidden" {...register("thickness")} />
             <input type="hidden" {...register("unit", { required: true })} />
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Вид металла</Label>
-                <Select
-                  value={metalType || METAL_TYPE_OPTIONS[0]}
-                  onValueChange={(value) =>
-                    setValue("metalType", value, { shouldDirty: true })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите металл" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getMetalTypeOptions(metalType).map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  value={metalType || ""}
+                  onChange={(value) => setValue("metalType", value, { shouldDirty: true })}
+                  options={withCurrent(METAL_TYPE_OPTIONS, metalType)}
+                  placeholder="Выберите металл"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Марка стали</Label>
-                <Input {...register("steelGrade")} placeholder="СТ3, 09Г2С, AISI 304" />
+                <Combobox
+                  value={steelGrade || ""}
+                  onChange={(value) => setValue("steelGrade", value, { shouldDirty: true })}
+                  options={withCurrent(STEEL_GRADE_OPTIONS, steelGrade)}
+                  placeholder="Ст3, 09Г2С, AISI 304"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Толщина</Label>
+                <Combobox
+                  value={thickness || ""}
+                  onChange={(value) => setValue("thickness", value, { shouldDirty: true })}
+                  options={withCurrent(getThicknessOptions(metalType), thickness)}
+                  placeholder="2.0, 0.5, 10..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Размер</Label>
+                <Input {...register("size")} placeholder="1250x2500, обрезок 800x300" />
               </div>
             </div>
 
@@ -440,7 +598,7 @@ export default function WarehousePage() {
 
             <div className="space-y-2">
               <Label>Комментарий</Label>
-              <Textarea {...register("note")} rows={3} placeholder="Размер, место хранения или примечание" />
+              <Textarea {...register("note")} rows={3} placeholder="Место хранения или примечание" />
             </div>
 
             <DialogFooter>

@@ -343,6 +343,8 @@ model WarehouseItem {
   id          String   @id @default(cuid())
   metalType   String
   steelGrade  String?
+  thickness   String?
+  size        String?
   unit        String   @default("шт")
   quantity    Float    @default(0)
   note        String?

@@ -9,6 +9,7 @@ type Props = {
   onChange: (next: string[]) => void;
   options: StatusOption[];
   allLabel?: string;
+  countLabel?: string;
   className?: string;
 };
 
@@ -17,6 +18,7 @@ export function StatusMultiSelect({
   onChange,
   options,
   allLabel = "Все статусы",
+  countLabel = "Статусы",
   className,
 }: Props) {
   const toggle = (k: string) =>
@@ -28,7 +30,7 @@ export function StatusMultiSelect({
       ? allLabel
       : value.length === 1
       ? labelMap.get(value[0]) ?? allLabel
-      : `Статусы: ${value.length}`;
+      : `${countLabel}: ${value.length}`;
 
   return (
     <Popover>

@@ -7,6 +7,8 @@ function normalizeWarehousePayload(data: any) {
   return {
     metalType: String(data.metalType ?? "").trim(),
     steelGrade: data.steelGrade ? String(data.steelGrade).trim() : null,
+    thickness: data.thickness ? String(data.thickness).trim() : null,
+    size: data.size ? String(data.size).trim() : null,
     unit: String(data.unit ?? "шт").trim() || "шт",
     quantity: data.quantity ? parseFloat(String(data.quantity)) : 0,
     note: data.note ? String(data.note).trim() : null,
