@@ -36,7 +36,7 @@ export function ForemanTopBar({
   const pathname = usePathname();
   const nav = NAV_BY_VARIANT[variant];
   return (
-    <header className="safe-area-inset-top sticky top-0 z-30 bg-white border-b border-slate-200">
+    <header className="safe-area-inset-top sticky top-0 z-50 bg-white border-b border-slate-200">
       <div className="px-4 py-3 flex items-center gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-xs text-slate-400">{roleLabel}</p>
