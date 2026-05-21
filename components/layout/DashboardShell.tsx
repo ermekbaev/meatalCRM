@@ -14,7 +14,10 @@ import { Sidebar } from "./Sidebar";
 import { Avatar } from "@/components/ui/avatar";
 import { AvatarDialog } from "./AvatarDialog";
 
-const SidebarCtx = createContext({ isOpen: false, toggle: () => {}, close: () => {} });
+// insideShell — признак того, что Header рендерится внутри DashboardShell (у админа/
+// менеджера). Под ForemanTopBar (мастер/оператор/подрядчик) провайдера нет, флаг
+// остаётся false, и Header не дублирует колокольчик и кнопку push.
+const SidebarCtx = createContext({ isOpen: false, toggle: () => {}, close: () => {}, insideShell: false });
 export const useSidebar = () => useContext(SidebarCtx);
 
 // Все пункты — для полноэкранного мобильного меню
@@ -202,7 +205,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const close = () => setIsOpen(false);
 
   return (
-    <SidebarCtx.Provider value={{ isOpen, toggle, close }}>
+    <SidebarCtx.Provider value={{ isOpen, toggle, close, insideShell: true }}>
       {/* Mobile full-screen menu */}
       <MobileMenu isOpen={isOpen} onClose={close} />
 

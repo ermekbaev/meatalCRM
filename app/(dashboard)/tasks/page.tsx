@@ -52,8 +52,10 @@ export default function TasksPage() {
   const isAdmin = role === "ADMIN";
   const isForeman = role === "FOREMAN";
   const isContractor = role === "CONTRACTOR";
-  // FOREMAN и CONTRACTOR видят только задачи, где они среди ответственных — UI у них одинаковый.
-  const isAssigneeView = isForeman || isContractor;
+  const isEmployee = role === "EMPLOYEE";
+  // FOREMAN, CONTRACTOR и EMPLOYEE (оператор) видят только задачи, где они среди
+  // ответственных — UI у них одинаковый (доска с колонками).
+  const isAssigneeView = isForeman || isContractor || isEmployee;
   const canManageTasks = role === "ADMIN" || role === "MANAGER";
   const [tasks, setTasks] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
@@ -72,6 +74,10 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [workshopsOpen, setWorkshopsOpen] = useState(false);
   const [newWorkshopName, setNewWorkshopName] = useState("");
+  // Поиск участников и инлайн-переименование цеха в диалоге управления цехами
+  const [memberSearch, setMemberSearch] = useState("");
+  const [editingWorkshopId, setEditingWorkshopId] = useState<string | null>(null);
+  const [editWorkshopName, setEditWorkshopName] = useState("");
   const [savingWorkshop, setSavingWorkshop] = useState(false);
   const [activeDragTask, setActiveDragTask] = useState<any>(null);
   const [selectMode, setSelectMode] = useState(false);
@@ -257,6 +263,27 @@ export default function TasksPage() {
     if (res.ok) {
       await fetchColumns();
       fetchTasks();
+    }
+  };
+
+  const startEditWorkshop = (workshop: Workshop) => {
+    setEditingWorkshopId(workshop.id);
+    setEditWorkshopName(workshop.name);
+  };
+
+  const saveEditWorkshop = async () => {
+    if (!editingWorkshopId) return;
+    const name = editWorkshopName.trim();
+    if (!name) return;
+    const res = await fetch(`/api/workshops/${editingWorkshopId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setWorkshops((prev) => prev.map((w) => w.id === updated.id ? updated : w));
+      setEditingWorkshopId(null);
     }
   };
 
@@ -568,7 +595,7 @@ export default function TasksPage() {
                           selected={selectedIds.has(task.id)}
                           onToggleSelect={toggleSelect}
                           canDelete={canManageTasks}
-                          canDrag={canManageTasks || isForeman}
+                          canDrag={canManageTasks || isForeman || isEmployee}
                         />
                       ))}
                     </KanbanColumn>
@@ -587,7 +614,7 @@ export default function TasksPage() {
         )}
       </div>
 
-      <Dialog open={workshopsOpen} onOpenChange={(open) => setWorkshopsOpen(open)}>
+      <Dialog open={workshopsOpen} onOpenChange={(open) => { setWorkshopsOpen(open); if (!open) { setEditingWorkshopId(null); setMemberSearch(""); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Управление цехами</DialogTitle>
@@ -608,6 +635,16 @@ export default function TasksPage() {
               </Button>
             </div>
 
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                placeholder="Поиск сотрудника..."
+                className="pl-9"
+              />
+            </div>
+
             <div className="space-y-3">
               {workshops.length === 0 && (
                 <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
@@ -620,15 +657,46 @@ export default function TasksPage() {
                   className={`rounded-lg border p-4 ${workshop.isVirtual ? "border-dashed border-slate-300 bg-slate-50/40" : "border-slate-200"}`}
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                        {workshop.name}
-                        {workshop.isVirtual && (
-                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-600">
-                            виртуальный
-                          </span>
-                        )}
-                      </h3>
+                    <div className="min-w-0 flex-1">
+                      {editingWorkshopId === workshop.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editWorkshopName}
+                            onChange={(e) => setEditWorkshopName(e.target.value)}
+                            autoFocus
+                            className="h-8 text-sm"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveEditWorkshop();
+                              if (e.key === "Escape") setEditingWorkshopId(null);
+                            }}
+                          />
+                          <Button size="sm" className="h-8" onClick={saveEditWorkshop} disabled={!editWorkshopName.trim()}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingWorkshopId(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                          {workshop.name}
+                          {workshop.isVirtual && (
+                            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-600">
+                              виртуальный
+                            </span>
+                          )}
+                          {!workshop.isVirtual && (
+                            <button
+                              type="button"
+                              onClick={() => startEditWorkshop(workshop)}
+                              className="text-slate-300 hover:text-slate-600"
+                              title="Переименовать цех"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </h3>
+                      )}
                       <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
                         <Users className="h-3 w-3" />
                         {workshop.members?.length ?? 0} участников
@@ -663,7 +731,16 @@ export default function TasksPage() {
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {users.map((user) => {
+                    {users
+                      .filter((user) => {
+                        const q = memberSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return (
+                          user.name?.toLowerCase().includes(q) ||
+                          (user.position ?? "").toLowerCase().includes(q)
+                        );
+                      })
+                      .map((user) => {
                       const checked = Boolean(workshop.members?.some((member) => member.id === user.id));
                       return (
                         <Label

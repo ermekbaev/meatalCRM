@@ -2,27 +2,39 @@
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LogOut, CheckSquare, ClipboardList } from "lucide-react";
+import { LogOut, CheckSquare, ClipboardList, Boxes, Calculator } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/tasks",    label: "Задачи", icon: CheckSquare },
-  { href: "/requests", label: "Заявки", icon: ClipboardList },
-];
+const TASKS      = { href: "/tasks",      label: "Задачи",     icon: CheckSquare };
+const REQUESTS   = { href: "/requests",   label: "Заявки",     icon: ClipboardList };
+const WAREHOUSE  = { href: "/warehouse",  label: "Склад",      icon: Boxes };
+const CALCULATOR = { href: "/calculator", label: "Калькулятор", icon: Calculator };
+
+// Набор разделов в шапке по роли:
+// - foreman   — мастер: задачи, заявки, склад
+// - engineer  — конструктор: задачи, склад, калькулятор
+// - operator  — оператор: задачи и склад
+// - tasksOnly — подрядчик: только задачи
+const NAV_BY_VARIANT = {
+  foreman:   [TASKS, REQUESTS, WAREHOUSE],
+  engineer:  [TASKS, WAREHOUSE, CALCULATOR],
+  operator:  [TASKS, WAREHOUSE],
+  tasksOnly: [TASKS],
+} as const;
 
 export function ForemanTopBar({
   userName,
   roleLabel = "Мастер цеха",
-  tasksOnly = false,
+  variant = "foreman",
 }: {
   userName: string;
   roleLabel?: string;
-  tasksOnly?: boolean;
+  variant?: "foreman" | "engineer" | "operator" | "tasksOnly";
 }) {
   const pathname = usePathname();
-  const nav = tasksOnly ? NAV.filter((i) => i.href === "/tasks") : NAV;
+  const nav = NAV_BY_VARIANT[variant];
   return (
     <header className="safe-area-inset-top sticky top-0 z-30 bg-white border-b border-slate-200">
       <div className="px-4 py-3 flex items-center gap-2">

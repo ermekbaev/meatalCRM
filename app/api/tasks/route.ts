@@ -21,9 +21,10 @@ export async function GET(req: NextRequest) {
   const workshopId = searchParams.get("workshopId") ?? "";
   const role = (session.user as any).role;
   const userId = (session.user as any).id;
-  const canSeeAll = role === "ADMIN" || role === "MANAGER";
+  // Конструктор (ENGINEER) видит все задачи (в т.ч. где он отмечен исполнителем).
+  const canSeeAll = role === "ADMIN" || role === "MANAGER" || role === "ENGINEER";
 
-  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR";
+  const isAssigneeRole = role === "FOREMAN" || role === "CONTRACTOR";
 
   // Для EMPLOYEE задачи без цеха видны только участникам виртуального цеха "Без цеха"
   let noWsVisibleToEmployee = false;
@@ -47,7 +48,10 @@ export async function GET(req: NextRequest) {
         assigneeId ? { assignees: { some: { id: assigneeId } } }            : {},
         workshopId === "none" ? { workshopId: null } : workshopId ? { workshopId } : {},
         canSeeAll ? {} : isAssigneeRole ? { assignees: { some: { id: userId } } } : {
+          // EMPLOYEE (оператор) видит задачи, где он отмечен исполнителем,
+          // плюс задачи своего цеха (как было раньше).
           OR: [
+            { assignees: { some: { id: userId } } },
             ...(noWsVisibleToEmployee ? [{ workshopId: null }] : []),
             { workshop: { members: { some: { id: userId } } } },
           ],

@@ -15,6 +15,32 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Оператор (EMPLOYEE) видит только задачи и склад. Остальные разделы дашборда
+  // (аналитика, КП, счета, клиенты и т.д.) недоступны — уводим на доску задач.
+  if (
+    role === "EMPLOYEE" &&
+    !pathname.startsWith("/tasks") &&
+    !pathname.startsWith("/warehouse") &&
+    !pathname.startsWith("/login")
+  ) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/tasks";
+    return NextResponse.redirect(url);
+  }
+
+  // Конструктор (ENGINEER) видит задачи, склад и калькулятор. Остальное недоступно.
+  if (
+    role === "ENGINEER" &&
+    !pathname.startsWith("/tasks") &&
+    !pathname.startsWith("/warehouse") &&
+    !pathname.startsWith("/calculator") &&
+    !pathname.startsWith("/login")
+  ) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/tasks";
+    return NextResponse.redirect(url);
+  }
+
   return NextResponse.next();
 }
 

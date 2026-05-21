@@ -69,7 +69,7 @@ export default function TaskDetailPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role;
   const canEditTask = role === "ADMIN" || role === "MANAGER";
-  const canChangeStatus = canEditTask || role === "FOREMAN" || role === "ENGINEER";
+  const canChangeStatus = canEditTask || role === "FOREMAN" || role === "ENGINEER" || role === "EMPLOYEE";
   // CONTRACTOR — только просмотр: комментарии/файлы/теги/подзадачи/чек-лист недоступны.
   const isReadOnly = role === "CONTRACTOR";
   const [task, setTask] = useState<any>(null);
@@ -101,6 +101,8 @@ export default function TaskDetailPage() {
 
   // Подзадачи
   const [newSubTitle, setNewSubTitle] = useState("");
+  // Тип подзадачи: с количеством (материал) или чисто текстовая (инструкция).
+  const [newSubHasQty, setNewSubHasQty] = useState(true);
   const [newSubQty, setNewSubQty] = useState("");
   const [newSubUnit, setNewSubUnit] = useState("шт");
   const [newSubPriority, setNewSubPriority] = useState("MEDIUM");
@@ -290,8 +292,9 @@ export default function TaskDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: newSubTitle.trim(),
-        quantity: newSubQty ? Number(newSubQty) : null,
-        unit: newSubUnit.trim() || null,
+        // Текстовая подзадача — без количества и единицы измерения.
+        quantity: newSubHasQty && newSubQty ? Number(newSubQty) : null,
+        unit: newSubHasQty ? (newSubUnit.trim() || null) : null,
         priority: newSubPriority,
         assigneeId: newSubAssignee || null,
         dueDate: newSubDueDate || null,
@@ -580,7 +583,7 @@ export default function TaskDetailPage() {
                       {TASK_PRODUCTION_FIELDS.map((f) => {
                         const current = (task as any)[f.key] ?? null;
                         const opt = current ? f.options.find((o) => o.value === current) : null;
-                        const canEditProd = canEditTask || ((role === "FOREMAN" || role === "ENGINEER") && (task.assignees ?? []).some((a: any) => a.id === (session?.user as any)?.id));
+                        const canEditProd = canEditTask || ((role === "FOREMAN" || role === "ENGINEER" || role === "EMPLOYEE") && (task.assignees ?? []).some((a: any) => a.id === (session?.user as any)?.id));
                         if (!canEditProd) {
                           return (
                             <div key={f.key} className="space-y-1">
@@ -720,8 +723,10 @@ export default function TaskDetailPage() {
                         <SelectTrigger className="h-7 text-xs sm:w-[140px]"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Не назначен</SelectItem>
-                          {users.filter((u: any) => u.role === "EMPLOYEE").map((u: any) => (
-                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          {users.map((u: any) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.name}{(u.position || ROLE_LABELS[u.role]) ? ` · ${u.position || ROLE_LABELS[u.role]}` : ""}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -741,16 +746,35 @@ export default function TaskDetailPage() {
 
                 {!isReadOnly && (
                 <div className="pt-2 border-t border-gray-100">
+                  {/* Тип подзадачи: с количеством (материал) или текстовая (инструкция) */}
+                  <div className="mb-2 inline-flex rounded-lg border border-gray-200 p-0.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setNewSubHasQty(true)}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${newSubHasQty ? "bg-orange-500 text-white" : "text-gray-500 hover:text-gray-700"}`}
+                    >
+                      С количеством
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewSubHasQty(false)}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${!newSubHasQty ? "bg-orange-500 text-white" : "text-gray-500 hover:text-gray-700"}`}
+                    >
+                      Текстовая
+                    </button>
+                  </div>
                   {/* Название отдельной строкой, ввод цифр/полей в сетке 2 колонки на мобиле */}
                   <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
                     <Input
                       value={newSubTitle}
                       onChange={(e) => setNewSubTitle(e.target.value)}
-                      placeholder="Название (напр. МС-1)"
+                      placeholder={newSubHasQty ? "Название (напр. МС-1)" : "Текст задачи (напр. выгрузить лист с машины)"}
                       className="sm:flex-1 sm:min-w-[160px] h-8 text-sm"
                       onKeyDown={(e) => { if (e.key === "Enter") addSubTask(); }}
                     />
                     <div className="grid grid-cols-2 gap-2 sm:contents">
+                      {newSubHasQty && (
+                        <>
                       <Input
                         value={newSubQty}
                         onChange={(e) => setNewSubQty(e.target.value)}
@@ -764,6 +788,8 @@ export default function TaskDetailPage() {
                         placeholder="ед."
                         className="h-8 text-sm sm:w-16"
                       />
+                        </>
+                      )}
                       <Select value={newSubPriority} onValueChange={setNewSubPriority}>
                         <SelectTrigger className="h-8 text-sm sm:w-[110px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -776,8 +802,10 @@ export default function TaskDetailPage() {
                         <SelectTrigger className="h-8 text-sm sm:w-[150px]"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Не назначен</SelectItem>
-                          {users.filter((u: any) => u.role === "EMPLOYEE").map((u: any) => (
-                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          {users.map((u: any) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.name}{(u.position || ROLE_LABELS[u.role]) ? ` · ${u.position || ROLE_LABELS[u.role]}` : ""}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

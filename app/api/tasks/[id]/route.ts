@@ -13,9 +13,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const role = (session.user as any).role;
   const userId = (session.user as any).id;
-  const canSeeAll = role === "ADMIN" || role === "MANAGER";
+  // Конструктор (ENGINEER) видит все задачи (в т.ч. где он отмечен исполнителем).
+  const canSeeAll = role === "ADMIN" || role === "MANAGER" || role === "ENGINEER";
 
-  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR";
+  const isAssigneeRole = role === "FOREMAN" || role === "CONTRACTOR";
 
   let noWsVisibleToEmployee = false;
   if (!canSeeAll && !isAssigneeRole) {
@@ -31,6 +32,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       id,
       ...(canSeeAll ? {} : isAssigneeRole ? { assignees: { some: { id: userId } } } : {
         OR: [
+          { assignees: { some: { id: userId } } },
           ...(noWsVisibleToEmployee ? [{ workshopId: null }] : []),
           { workshop: { members: { some: { id: userId } } } },
         ],
@@ -117,7 +119,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         assignees: { set: nextAssigneeIds.map((id) => ({ id })) },
       }),
     };
-  } else if (role === "FOREMAN" || role === "ENGINEER") {
+  } else if (role === "FOREMAN" || role === "ENGINEER" || role === "EMPLOYEE") {
+    // Мастер/инженер/оператор могут менять статус и статусы производства
+    // только в задачах, где они отмечены исполнителем.
     if (!oldAssigneeIds.includes(currentUserId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
