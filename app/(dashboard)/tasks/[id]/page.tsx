@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TASK_STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, ROLE_LABELS, TASK_PRODUCTION_FIELDS, CHANGELOG_FIELD_LABELS, formatDate, formatDateTime, hexToBadgeStyle } from "@/lib/utils";
 import {
   ArrowLeft, Send, Loader2, Clock, Paperclip, Trash2,
-  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File, Printer, Factory
+  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File, Printer, Factory, BookOpen
 } from "lucide-react";
+import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import Link from "next/link";
 
 const TAG_COLORS = [
@@ -103,6 +104,7 @@ export default function TaskDetailPage() {
   const [newSubTitle, setNewSubTitle] = useState("");
   // Тип подзадачи: с количеством (материал) или чисто текстовая (инструкция).
   const [newSubHasQty, setNewSubHasQty] = useState(true);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [newSubQty, setNewSubQty] = useState("");
   const [newSubUnit, setNewSubUnit] = useState("шт");
   const [newSubPriority, setNewSubPriority] = useState("MEDIUM");
@@ -746,22 +748,32 @@ export default function TaskDetailPage() {
 
                 {!isReadOnly && (
                 <div className="pt-2 border-t border-gray-100">
-                  {/* Тип подзадачи: с количеством (материал) или текстовая (инструкция) */}
-                  <div className="mb-2 inline-flex rounded-lg border border-gray-200 p-0.5 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setNewSubHasQty(true)}
-                      className={`px-2.5 py-1 rounded-md transition-colors ${newSubHasQty ? "bg-orange-500 text-white" : "text-gray-500 hover:text-gray-700"}`}
+                  {/* Тип подзадачи + добавление из каталога */}
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="inline-flex rounded-lg border border-gray-200 p-0.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setNewSubHasQty(true)}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${newSubHasQty ? "bg-orange-500 text-white" : "text-gray-500 hover:text-gray-700"}`}
+                      >
+                        С количеством
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewSubHasQty(false)}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${!newSubHasQty ? "bg-orange-500 text-white" : "text-gray-500 hover:text-gray-700"}`}
+                      >
+                        Текстовая
+                      </button>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      onClick={() => setCatalogOpen(true)}
                     >
-                      С количеством
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewSubHasQty(false)}
-                      className={`px-2.5 py-1 rounded-md transition-colors ${!newSubHasQty ? "bg-orange-500 text-white" : "text-gray-500 hover:text-gray-700"}`}
-                    >
-                      Текстовая
-                    </button>
+                      <BookOpen className="h-3.5 w-3.5 mr-1" /> Из каталога
+                    </Button>
                   </div>
                   {/* Название отдельной строкой, ввод цифр/полей в сетке 2 колонки на мобиле */}
                   <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
@@ -823,6 +835,19 @@ export default function TaskDetailPage() {
                   </div>
                 </div>
                 )}
+
+                <CatalogPickerDialog
+                  open={catalogOpen}
+                  onClose={() => setCatalogOpen(false)}
+                  onSelect={(item) => {
+                    // Подставляем позицию каталога в форму: название и единицу.
+                    // Кол-во/исполнителя пользователь указывает сам и жмёт «Добавить».
+                    setNewSubHasQty(true);
+                    setNewSubTitle(item.name);
+                    setNewSubUnit(item.unit || "шт");
+                    setCatalogOpen(false);
+                  }}
+                />
               </CardContent>
             </Card>
             )}
