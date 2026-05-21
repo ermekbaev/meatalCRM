@@ -30,6 +30,7 @@ export default function UsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [changePassword, setChangePassword] = useState(false);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { isSubmitting } } = useForm();
 
@@ -45,12 +46,14 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setEditUser(null);
+    setChangePassword(false);
     reset({ name: "", email: "", password: "", role: "EMPLOYEE", telegramChatId: "", position: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (user: any) => {
     setEditUser(user);
+    setChangePassword(false);
     reset({ name: user.name, email: user.email, password: "", role: user.role, telegramChatId: user.telegramChatId ?? "", phone: user.phone ?? "", position: user.position ?? "" });
     setDialogOpen(true);
   };
@@ -314,10 +317,31 @@ export default function UsersPage() {
               <Label>Email *</Label>
               <Input {...register("email", { required: true })} type="email" placeholder="user@metalcrm.ru" />
             </div>
-            <div className="space-y-2">
-              <Label>{editUser ? "Новый пароль (оставьте пустым)" : "Пароль *"}</Label>
-              <Input {...register("password", { required: !editUser })} type="password" placeholder="••••••••" />
-            </div>
+            {!editUser ? (
+              <div className="space-y-2">
+                <Label>Пароль *</Label>
+                <Input {...register("password", { required: true })} type="password" placeholder="Введите пароль" />
+              </div>
+            ) : !changePassword ? (
+              <div className="space-y-2">
+                <Label>Пароль</Label>
+                <Button type="button" variant="outline" className="w-full" onClick={() => setChangePassword(true)}>
+                  Изменить пароль
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Новый пароль</Label>
+                <Input {...register("password")} type="password" placeholder="Введите новый пароль" autoFocus />
+                <button
+                  type="button"
+                  onClick={() => { setValue("password", ""); setChangePassword(false); }}
+                  className="text-left text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Отменить смену пароля
+                </button>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Роль</Label>
               <Select value={role} onValueChange={(v) => setValue("role", v)}>
