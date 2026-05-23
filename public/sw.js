@@ -1,6 +1,6 @@
 // Service worker: install + push + lightweight offline cache.
 
-const SW_VERSION = "v2";
+const SW_VERSION = "v3";
 const RUNTIME_CACHE = `runtime-${SW_VERSION}`;
 const OFFLINE_URL = "/offline";
 const PRECACHE = [OFFLINE_URL, "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
