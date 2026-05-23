@@ -2,32 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { withErrorHandling, parseBody, unauthorized, forbidden, badRequest } from "@/lib/api-handler";
+import { workshopUpdateSchema } from "@/lib/validation";
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = session.user.role;
+  if (role !== "ADMIN") throw forbidden();
 
   const { id } = await params;
-  const data = await req.json();
-  const updateData: any = {};
+  const data = await parseBody(req, workshopUpdateSchema);
+  const updateData: Prisma.WorkshopUpdateInput = {};
 
-  if (data.name !== undefined) {
-    const name = String(data.name ?? "").trim();
-    if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
-    updateData.name = name;
-  }
-
-  if (data.order !== undefined) {
-    updateData.order = Number.isFinite(Number(data.order)) ? Number(data.order) : 0;
-  }
-
-  if (Array.isArray(data.memberIds)) {
-    updateData.members = {
-      set: data.memberIds.filter(Boolean).map((memberId: string) => ({ id: memberId })),
-    };
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.order !== undefined) updateData.order = data.order;
+  if (data.memberIds !== undefined) {
+    updateData.members = { set: data.memberIds.map((memberId) => ({ id: memberId })) };
   }
 
   const workshop = await prisma.workshop.update({
@@ -43,20 +36,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 
   return NextResponse.json(workshop);
-}
+});
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = session.user.role;
+  if (role !== "ADMIN") throw forbidden();
 
   const { id } = await params;
   const existing = await prisma.workshop.findUnique({ where: { id }, select: { isVirtual: true } });
-  if (existing?.isVirtual) {
-    return NextResponse.json({ error: "Виртуальный цех удалить нельзя" }, { status: 400 });
-  }
+  if (existing?.isVirtual) throw badRequest("Виртуальный цех удалить нельзя");
+
   await prisma.workshop.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-}
+});

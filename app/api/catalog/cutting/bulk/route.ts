@@ -2,43 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { cuttingBulkSchema } from "@/lib/validation";
 
 // POST /api/catalog/cutting/bulk
 // Body: { materialId, thickness, ranges: [{minLength, maxLength|null, pricePerMeter}] }
 // Replaces all entries for the given materialId+thickness combination.
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if ((session.user as any).role !== "ADMIN")
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session) throw unauthorized();
+  if (session.user.role !== "ADMIN") throw forbidden();
 
-  const { materialId, thickness, ranges } = await req.json();
-
-  if (!materialId || thickness == null || !Array.isArray(ranges)) {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
-  }
+  const { materialId, thickness, ranges } = await parseBody(req, cuttingBulkSchema);
 
   // Delete existing entries for this material+thickness
   await prisma.cuttingCatalogEntry.deleteMany({
-    where: { materialId, thickness: parseFloat(thickness) },
+    where: { materialId, thickness },
   });
 
   // Create new entries
   if (ranges.length > 0) {
     await prisma.cuttingCatalogEntry.createMany({
-      data: ranges.map((r: any) => ({
+      data: ranges.map((r) => ({
         materialId,
-        thickness: parseFloat(thickness),
-        minLength: parseFloat(r.minLength) || 0,
-        maxLength: r.maxLength !== "" && r.maxLength != null ? parseFloat(r.maxLength) : null,
-        pricePerMeter: parseFloat(r.pricePerMeter) || 0,
+        thickness,
+        minLength: r.minLength,
+        maxLength: r.maxLength ?? null,
+        pricePerMeter: r.pricePerMeter,
       })),
     });
   }
 
   const updated = await prisma.cuttingCatalogEntry.findMany({
-    where: { materialId, thickness: parseFloat(thickness) },
+    where: { materialId, thickness },
     orderBy: { minLength: "asc" },
   });
   return NextResponse.json(updated);
-}
+});

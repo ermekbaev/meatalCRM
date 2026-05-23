@@ -68,7 +68,7 @@ function ProductionSummaryCell({ request }: { request: any }) {
 export default function RequestsPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const role = (session?.user as any)?.role;
+  const role = session?.user?.role;
   const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
   const canManageRequests = role === "ADMIN" || role === "MANAGER";
   const [requests, setRequests] = useState<any[]>([]);

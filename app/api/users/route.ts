@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { UserRole } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { userCreateSchema } from "@/lib/validation";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
+  const role = session.user.role;
   const { searchParams } = new URL(req.url);
   const roleFilter = searchParams.getAll("role").filter(Boolean);
   const workshopId = searchParams.get("workshopId") || undefined;
@@ -18,7 +21,7 @@ export async function GET(req: NextRequest) {
     const users = await prisma.user.findMany({
       where: {
         isBlocked: false,
-        ...(roleFilter.length ? { role: { in: roleFilter as any } } : {}),
+        ...(roleFilter.length ? { role: { in: roleFilter as UserRole[] } } : {}),
         ...(workshopId ? { workshops: { some: { id: workshopId } } } : {}),
       },
       select: { id: true, name: true, role: true, position: true, avatarUrl: true },
@@ -37,22 +40,31 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(users);
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = session.user.role;
+  if (role !== "ADMIN") throw forbidden();
 
-  const { email, password, name, role: userRole, telegramChatId, phone, position } = await req.json();
+  const { email, password, name, role: userRole, telegramChatId, phone, position } =
+    await parseBody(req, userCreateSchema);
   const hashed = await hash(password, 12);
 
   const user = await prisma.user.create({
-    data: { email, password: hashed, name, role: userRole, telegramChatId: telegramChatId || null, phone: phone || null, position: position || null },
+    data: {
+      email,
+      password: hashed,
+      name,
+      role: userRole,
+      telegramChatId: telegramChatId || null,
+      phone: phone || null,
+      position: position || null,
+    },
     select: { id: true, email: true, name: true, role: true, isBlocked: true, telegramChatId: true, phone: true, position: true, createdAt: true },
   });
 
   return NextResponse.json(user, { status: 201 });
-}
+});

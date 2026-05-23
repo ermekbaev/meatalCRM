@@ -4,10 +4,12 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notify";
 import { canManageSubtasks, canForemanAccessTask } from "@/lib/acl";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { subTaskCreateSchema } from "@/lib/validation";
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
   const items = await prisma.subTask.findMany({
@@ -16,44 +18,41 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     orderBy: { order: "asc" },
   });
   return NextResponse.json(items);
-}
+});
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  const userId = (session.user as any).id;
-  if (!canManageSubtasks(role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const role = session.user.role;
+  const userId = session.user.id;
+  if (!canManageSubtasks(role)) throw forbidden();
 
   const { id } = await params;
   if ((role === "FOREMAN" || role === "ENGINEER") && !(await canForemanAccessTask(id, userId))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    throw forbidden();
   }
-  const body = await req.json();
-  if (!body.title?.trim()) return NextResponse.json({ error: "Название обязательно" }, { status: 400 });
+  const body = await parseBody(req, subTaskCreateSchema);
 
   const count = await prisma.subTask.count({ where: { taskId: id } });
 
   const item = await prisma.subTask.create({
     data: {
       taskId: id,
-      title: body.title.trim(),
+      title: body.title,
       quantity: body.quantity ?? null,
-      unit: body.unit?.trim() || null,
+      unit: body.unit || null,
       priority: body.priority ?? "MEDIUM",
       status: body.status ?? "TODO",
       assigneeId: body.assigneeId || null,
-      dueDate: body.dueDate ? new Date(body.dueDate) : null,
+      dueDate: body.dueDate ?? null,
       order: count,
     },
     include: { assignee: { select: { id: true, name: true } } },
   });
 
   // Уведомление исполнителю (не себе)
-  const currentUserId = (session.user as any).id;
+  const currentUserId = session.user.id;
   if (item.assigneeId && item.assigneeId !== currentUserId) {
     const task = await prisma.task.findUnique({ where: { id }, select: { title: true } });
     await createNotification({
@@ -66,4 +65,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   return NextResponse.json(item, { status: 201 });
-}
+});

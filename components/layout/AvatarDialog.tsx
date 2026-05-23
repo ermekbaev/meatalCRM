@@ -12,9 +12,9 @@ export function AvatarDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const userId = (session?.user as any)?.id as string | undefined;
+  const userId = session?.user?.id as string | undefined;
   const name = session?.user?.name;
-  const avatarUrl = (session?.user as any)?.avatarUrl as string | null | undefined;
+  const avatarUrl = session?.user?.avatarUrl as string | null | undefined;
 
   const upload = async (file: File) => {
     if (!userId) return;

@@ -2,52 +2,41 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { SAFETY_TAKE } from "@/lib/pagination";
+import { warehouseCreateSchema } from "@/lib/validation";
 
-function normalizeWarehousePayload(data: any) {
-  return {
-    metalType: String(data.metalType ?? "").trim(),
-    steelGrade: data.steelGrade ? String(data.steelGrade).trim() : null,
-    thickness: data.thickness ? String(data.thickness).trim() : null,
-    size: data.size ? String(data.size).trim() : null,
-    unit: String(data.unit ?? "шт").trim() || "шт",
-    quantity: data.quantity ? parseFloat(String(data.quantity)) : 0,
-    note: data.note ? String(data.note).trim() : null,
-  };
-}
-
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
+  // Фасетные фильтры строятся на клиенте из полного набора → не пагинируем,
+  // но ограничиваем защитным потолком (см. docs/REMEDIATION.md, п.6).
   const items = await prisma.warehouseItem.findMany({
     where: { isActive: true },
     orderBy: [{ metalType: "asc" }, { steelGrade: "asc" }, { createdAt: "asc" }],
     include: { updatedBy: { select: { id: true, name: true } } },
+    take: SAFETY_TAKE,
   });
 
   return NextResponse.json(items);
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const role = (session.user as any).role;
-  if (role !== "ADMIN" && role !== "EMPLOYEE") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session) throw unauthorized();
+  const role = session.user.role;
+  if (role !== "ADMIN" && role !== "EMPLOYEE") throw forbidden();
 
-  const data = normalizeWarehousePayload(await req.json());
-  if (!data.metalType) {
-    return NextResponse.json({ error: "metalType is required" }, { status: 400 });
-  }
+  const data = await parseBody(req, warehouseCreateSchema);
 
   const item = await prisma.warehouseItem.create({
     data: {
       ...data,
-      updatedById: (session.user as any).id,
+      updatedById: session.user.id,
     },
     include: { updatedBy: { select: { id: true, name: true } } },
   });
 
   return NextResponse.json(item, { status: 201 });
-}
+});

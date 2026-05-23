@@ -3,15 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
+import { withErrorHandling, parseBody, unauthorized } from "@/lib/api-handler";
+import { commentSchema } from "@/lib/validation";
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
-  const { text } = await req.json();
-  if (!text?.trim()) return NextResponse.json({ error: "Текст комментария не может быть пустым" }, { status: 400 });
-  const userId = (session.user as any).id;
+  const { text } = await parseBody(req, commentSchema);
+  const userId = session.user.id;
 
   const comment = await prisma.comment.create({
     data: { text, requestId: id, userId },
@@ -28,4 +29,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   return NextResponse.json(comment, { status: 201 });
-}
+});

@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { TaskStatus, RequestPriority } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
 import { createNotifications } from "@/lib/notify";
 import { PRIORITY_LABELS } from "@/lib/utils";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { SAFETY_TAKE } from "@/lib/pagination";
+import { taskCreateSchema } from "@/lib/validation";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { searchParams } = new URL(req.url);
   const search   = searchParams.get("search") ?? "";
@@ -19,8 +23,8 @@ export async function GET(req: NextRequest) {
   const priority = searchParams.get("priority") ?? "";
   const assigneeId = searchParams.get("assigneeId") ?? "";
   const workshopId = searchParams.get("workshopId") ?? "";
-  const role = (session.user as any).role;
-  const userId = (session.user as any).id;
+  const role = session.user.role;
+  const userId = session.user.id;
   // Конструктор (ENGINEER) видит все задачи (в т.ч. где он отмечен исполнителем).
   const canSeeAll = role === "ADMIN" || role === "MANAGER" || role === "ENGINEER";
 
@@ -43,8 +47,8 @@ export async function GET(req: NextRequest) {
           { title: { contains: search, mode: "insensitive" } },
           { description: { contains: search, mode: "insensitive" } },
         ]} : {},
-        statusList.length ? { status: { in: statusList as any } }            : {},
-        priority   ? { priority: priority as any }                          : {},
+        statusList.length ? { status: { in: statusList as TaskStatus[] } }   : {},
+        priority   ? { priority: priority as RequestPriority }              : {},
         assigneeId ? { assignees: { some: { id: assigneeId } } }            : {},
         workshopId === "none" ? { workshopId: null } : workshopId ? { workshopId } : {},
         canSeeAll ? {} : isAssigneeRole ? { assignees: { some: { id: userId } } } : {
@@ -68,25 +72,26 @@ export async function GET(req: NextRequest) {
       _count:    { select: { comments: true } },
     },
     orderBy: { createdAt: "desc" },
+    // Канбан-доска со счётчиками по табам/колонкам → не пагинируем,
+    // но ограничиваем защитным потолком (см. docs/REMEDIATION.md, п.6).
+    take: SAFETY_TAKE,
   });
 
   return NextResponse.json(tasks);
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN" && role !== "MANAGER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const role = session.user.role;
+  if (role !== "ADMIN" && role !== "MANAGER") throw forbidden();
 
-  const userId = (session.user as any).id;
-  const data = await req.json();
+  const userId = session.user.id;
+  const data = await parseBody(req, taskCreateSchema);
 
-  const assigneeIds: string[] = Array.isArray(data.assigneeIds)
-    ? data.assigneeIds.filter((x: any) => typeof x === "string" && x)
+  const assigneeIds: string[] = data.assigneeIds?.length
+    ? data.assigneeIds
     : data.assigneeId ? [data.assigneeId] : [];
 
   const task = await prisma.task.create({
@@ -95,7 +100,7 @@ export async function POST(req: NextRequest) {
       description: data.description || null,
       status:      data.status ?? "TODO",
       priority:    data.priority ?? "MEDIUM",
-      dueDate:     data.dueDate ? new Date(data.dueDate) : null,
+      dueDate:     data.dueDate ?? null,
       clientId:    data.clientId || null,
       workshopId:  data.workshopId || null,
       createdById: userId,
@@ -131,4 +136,4 @@ export async function POST(req: NextRequest) {
   );
 
   return NextResponse.json(task, { status: 201 });
-}
+});

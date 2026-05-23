@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadFile, deleteFile } from "@/lib/storage";
+import { withErrorHandling, unauthorized, forbidden, badRequest, notFound } from "@/lib/api-handler";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -13,25 +14,25 @@ function canEdit(session: any, targetId: string) {
   return role === "ADMIN" || session.user?.id === targetId;
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
-  if (!canEdit(session, id)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canEdit(session, id)) throw forbidden();
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
-  if (!file) return NextResponse.json({ error: "Файл не передан" }, { status: 400 });
+  if (!file) throw badRequest("Файл не передан");
   if (!ALLOWED.includes(file.type)) {
-    return NextResponse.json({ error: "Допустимы только изображения (PNG, JPG, WebP, GIF)" }, { status: 400 });
+    throw badRequest("Допустимы только изображения (PNG, JPG, WebP, GIF)");
   }
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "Файл слишком большой (макс. 5 МБ)" }, { status: 400 });
+    throw badRequest("Файл слишком большой (макс. 5 МБ)");
   }
 
   const existing = await prisma.user.findUnique({ where: { id }, select: { avatarUrl: true } });
-  if (!existing) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+  if (!existing) throw notFound("Пользователь не найден");
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const { key } = await uploadFile(buffer, file.name, file.type, "avatars");
@@ -45,18 +46,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   return NextResponse.json(user);
-}
+});
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
-  if (!canEdit(session, id)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canEdit(session, id)) throw forbidden();
 
   const existing = await prisma.user.findUnique({ where: { id }, select: { avatarUrl: true } });
   if (existing?.avatarUrl) await deleteFile(existing.avatarUrl);
 
   await prisma.user.update({ where: { id }, data: { avatarUrl: null } });
   return NextResponse.json({ ok: true });
-}
+});

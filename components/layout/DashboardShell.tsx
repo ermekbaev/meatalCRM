@@ -52,7 +52,7 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
   const pathname = usePathname();
   const { data: session } = useSession();
   const [avatarOpen, setAvatarOpen] = useState(false);
-  const role = (session?.user as any)?.role;
+  const role = session?.user?.role;
   const isAdmin = role === "ADMIN";
   const isForeman = role === "FOREMAN";
   const visibleNav = isForeman ? navItems.filter((i) => i.foreman) : navItems;
@@ -144,11 +144,11 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
               className="flex min-w-0 flex-1 items-center gap-3 text-left"
               title="Изменить фото"
             >
-              <Avatar name={session?.user?.name} src={(session?.user as any)?.avatarUrl} size={36} />
+              <Avatar name={session?.user?.name} src={session?.user?.avatarUrl} size={36} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-medium text-slate-800">{session?.user?.name}</p>
                 <p className="truncate text-[11px] text-slate-400">
-                  {ROLE_LABELS[(session?.user as any)?.role] ?? ""}
+                  {(session?.user?.role && ROLE_LABELS[session.user.role]) ?? ""}
                 </p>
               </div>
             </button>
@@ -171,7 +171,7 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
 function BottomTabBar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isForeman = (session?.user as any)?.role === "FOREMAN";
+  const isForeman = session?.user?.role === "FOREMAN";
   const items = isForeman ? navItems.filter((i) => i.foreman) : bottomTabItems;
 
   return (

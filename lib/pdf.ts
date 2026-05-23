@@ -18,8 +18,10 @@ async function loadImageBase64(key: string): Promise<string | null> {
   }
 }
 
-export async function generateOfferPDF(offer: any, company?: any) {
-  const subtotal = offer.items.reduce((s: number, i: any) => s + i.total, 0);
+import type { OfferForPdf, OfferItemForPdf, CompanyForPdf } from "./pdf-types";
+
+export async function generateOfferPDF(offer: OfferForPdf, company?: CompanyForPdf) {
+  const subtotal = offer.items.reduce((s: number, i: OfferItemForPdf) => s + i.total, 0);
   const afterDiscount =
     offer.discount > 0 ? subtotal * (1 - offer.discount / 100) : subtotal;
   const vatAmount =
@@ -68,7 +70,10 @@ export async function generateOfferPDF(offer: any, company?: any) {
           Коммерческое предложение №${offer.numberOverride ?? offer.number}
         </h1>
         ${company?.name ? `<p style="margin:2px 0;font-size:12px;color:#475569;">От: <strong>${company.name}</strong></p>` : ""}
-        ${offer.client || offer.request?.client ? `<p style="margin:4px 0 0 0;font-size:13px;color:#475569;">Клиент: <strong>${(offer.client || offer.request?.client).name}</strong></p>` : ""}
+        ${(() => {
+          const c = offer.client ?? offer.request?.client;
+          return c ? `<p style="margin:4px 0 0 0;font-size:13px;color:#475569;">Клиент: <strong>${c.name}</strong></p>` : "";
+        })()}
       </div>
       <div style="text-align:right;color:#64748b;font-size:12px;min-width:200px;line-height:1.4;">
         ${logoB64 ? `<img src="${logoB64}" style="max-height:36px;max-width:160px;object-fit:contain;display:block;margin-left:auto;margin-top:12px;margin-bottom:6px;" />` : ""}
@@ -96,7 +101,7 @@ export async function generateOfferPDF(offer: any, company?: any) {
       <tbody>
         ${offer.items
           .map(
-            (item: any, idx: number) => `
+            (item: OfferItemForPdf, idx: number) => `
           <tr style="border-bottom:1px solid #e2e8f0;background:${idx % 2 === 0 ? "white" : "#f8fafc"};">
             <td style="padding:8px;color:#94a3b8;">${idx + 1}</td>
             <td style="padding:8px;font-weight:500;">${item.service}</td>

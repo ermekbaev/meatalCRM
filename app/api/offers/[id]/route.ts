@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, notFound } from "@/lib/api-handler";
+import { offerUpdateSchema } from "@/lib/validation";
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
   const offer = await prisma.commercialOffer.findUnique({
@@ -18,17 +20,16 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     },
   });
 
-  if (!offer) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!offer) throw notFound();
   return NextResponse.json(offer);
-}
+});
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
-  const body = await req.json();
-  const { items } = body;
+  const { items, ...body } = await parseBody(req, offerUpdateSchema);
 
   const data = {
     status: body.status,
@@ -41,11 +42,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     numberOverride: body.numberOverride ?? null,
     vatRate: body.vatRate,
     managerId: body.managerId ?? null,
-    managerCustom: body.managerCustom?.trim() ?? null,
-    deliveryTerms: body.deliveryTerms?.trim() ?? null,
+    managerCustom: body.managerCustom ?? null,
+    deliveryTerms: body.deliveryTerms ?? null,
   };
 
-  const cleanItems = (items ?? []).map(({ id: _id, offerId: _offerId, ...item }: any) => item);
+  const cleanItems = (items ?? []).map((item) => ({
+    service: item.service,
+    description: item.description ?? null,
+    quantity: item.quantity,
+    unit: item.unit,
+    price: item.price,
+    total: item.total,
+  }));
 
   const offer = await prisma.$transaction(async (tx) => {
     await tx.offerItem.deleteMany({ where: { offerId: id } });
@@ -57,13 +65,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 
   return NextResponse.json(offer);
-}
+});
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
   await prisma.commercialOffer.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-}
+});

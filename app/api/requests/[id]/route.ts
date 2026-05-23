@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { RequestStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
 import { createNotification } from "@/lib/notify";
 import { REQUEST_STATUS_LABELS } from "@/lib/utils";
+import { withErrorHandling, parseBody, unauthorized, forbidden, notFound } from "@/lib/api-handler";
+import { requestUpdateSchema } from "@/lib/validation";
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  const sessionUserId = (session.user as any).id;
+  const role = session.user.role;
+  const sessionUserId = session.user.id;
   const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
 
   const { id } = await params;
@@ -39,26 +42,26 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     },
   });
 
-  if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!request) throw notFound();
   return NextResponse.json(request);
-}
+});
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  const userId = (session.user as any).id;
+  const role = session.user.role;
+  const userId = session.user.id;
 
   const { id } = await params;
-  const data = await req.json();
+  const data = await parseBody(req, requestUpdateSchema);
 
   const old = await prisma.request.findUnique({ where: { id } });
-  if (!old) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!old) throw notFound();
 
   // FOREMAN/ENGINEER могут править только свои заявки (где они в assignee)
   if ((role === "FOREMAN" || role === "ENGINEER") && old.assigneeId !== userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    throw forbidden();
   }
 
   const updated = await prisma.request.update({
@@ -80,11 +83,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           await sendTelegram(
             `🔄 <b>Статус заявки #${updated.number} изменён</b>\n` +
             `📌 ${updated.title}\n` +
-            `${REQUEST_STATUS_LABELS[oldVal as any] ?? oldVal} → <b>${REQUEST_STATUS_LABELS[newVal as any] ?? newVal}</b>`
+            `${REQUEST_STATUS_LABELS[oldVal as RequestStatus] ?? oldVal} → <b>${REQUEST_STATUS_LABELS[newVal as RequestStatus] ?? newVal}</b>`
           );
           if (updated.assigneeId && updated.assigneeId !== userId) {
-            const oldLabel = REQUEST_STATUS_LABELS[oldVal as any] ?? oldVal;
-            const newLabel = REQUEST_STATUS_LABELS[newVal as any] ?? newVal;
+            const oldLabel = REQUEST_STATUS_LABELS[oldVal as RequestStatus] ?? oldVal;
+            const newLabel = REQUEST_STATUS_LABELS[newVal as RequestStatus] ?? newVal;
             await createNotification({
               userId: updated.assigneeId,
               type: "STATUS_CHANGED",
@@ -108,18 +111,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json(updated);
-}
+});
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN" && role !== "MANAGER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const role = session.user.role;
+  if (role !== "ADMIN" && role !== "MANAGER") throw forbidden();
 
   const { id } = await params;
   await prisma.request.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-}
+});

@@ -3,25 +3,26 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/storage";
+import { withErrorHandling, unauthorized, forbidden, badRequest } from "@/lib/api-handler";
 
 const MAX_SIZE = 5 * 1024 * 1024;
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = session.user.role;
+  if (role !== "ADMIN") throw forbidden();
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
   const type = formData.get("type") as string | null; // "stamp" | "signature"
 
-  if (!file) return NextResponse.json({ error: "Файл не передан" }, { status: 400 });
+  if (!file) throw badRequest("Файл не передан");
   if (!["stamp", "signature", "logo"].includes(type ?? "")) {
-    return NextResponse.json({ error: "Неверный тип" }, { status: 400 });
+    throw badRequest("Неверный тип");
   }
-  if (file.size > MAX_SIZE) return NextResponse.json({ error: "Файл слишком большой (макс. 5 МБ)" }, { status: 400 });
+  if (file.size > MAX_SIZE) throw badRequest("Файл слишком большой (макс. 5 МБ)");
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const { key } = await uploadFile(buffer, file.name, file.type || "image/png", "company");
@@ -35,4 +36,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ path: key, settings });
-}
+});

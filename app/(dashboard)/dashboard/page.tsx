@@ -29,7 +29,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  const sessionRole = (session?.user as any)?.role;
+  const sessionRole = session?.user?.role;
   if (sessionRole === "FOREMAN" || sessionRole === "ENGINEER") redirect("/tasks");
 
   const { period = "month" } = await searchParams;

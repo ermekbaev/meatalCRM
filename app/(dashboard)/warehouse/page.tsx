@@ -143,7 +143,7 @@ function formatQuantity(value: number) {
 
 export default function WarehousePage() {
   const { data: session } = useSession();
-  const role = (session?.user as any)?.role;
+  const role = session?.user?.role;
   const canEdit = role === "ADMIN" || role === "EMPLOYEE";
 
   const [items, setItems] = useState<any[]>([]);

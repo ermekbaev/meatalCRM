@@ -16,60 +16,19 @@ import {
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
-
-const TAG_COLORS = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e",
-  "#3b82f6", "#8b5cf6", "#ec4899", "#6b7280",
-];
-
-type TaskDetailTab = "description" | "subtasks" | "chat" | "history";
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
-}
-
-function getFileIcon(mimeType?: string, fileName?: string) {
-  const ext = fileName?.split(".").pop()?.toLowerCase();
-  if (ext === "dxf") return <File className="h-4 w-4 text-purple-400" />;
-  if (ext === "rar" || ext === "zip") return <Archive className="h-4 w-4 text-yellow-500" />;
-  if (!mimeType) return <FileText className="h-4 w-4 text-gray-400" />;
-  if (mimeType.startsWith("image/")) return <FileText className="h-4 w-4 text-blue-400" />;
-  if (mimeType === "application/pdf") return <FileText className="h-4 w-4 text-red-400" />;
-  if (mimeType === "application/zip" || mimeType === "application/x-zip-compressed" || mimeType === "application/vnd.rar" || mimeType === "application/x-rar-compressed") return <Archive className="h-4 w-4 text-yellow-500" />;
-  return <FileText className="h-4 w-4 text-gray-400" />;
-}
-
-function formatDateInput(value?: string | Date | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-}
-
-function isSubTaskOverdue(item: any) {
-  if (!item.dueDate || item.status === "DONE") return false;
-  const due = new Date(item.dueDate);
-  if (Number.isNaN(due.getTime())) return false;
-  due.setHours(23, 59, 59, 999);
-  return due < new Date();
-}
-
-// Парсим @упоминания в тексте и подсвечиваем
-function renderCommentText(text: string) {
-  const parts = text.split(/(@\w+)/g);
-  return parts.map((part, i) =>
-    part.startsWith("@")
-      ? <span key={i} className="text-blue-600 font-medium">{part}</span>
-      : part
-  );
-}
+import {
+  formatFileSize,
+  getFileIcon,
+  formatDateInput,
+  isSubTaskOverdue,
+  renderCommentText,
+} from "./_utils";
+import { TAG_COLORS, type TaskDetailTab } from "./_types";
 
 export default function TaskDetailPage() {
   const params = useParams();
   const { data: session } = useSession();
-  const role = (session?.user as any)?.role;
+  const role = session?.user?.role;
   const canEditTask = role === "ADMIN" || role === "MANAGER";
   const canChangeStatus = canEditTask || role === "FOREMAN" || role === "ENGINEER" || role === "EMPLOYEE";
   // CONTRACTOR — только просмотр: комментарии/файлы/теги/подзадачи/чек-лист недоступны.
@@ -586,7 +545,7 @@ export default function TaskDetailPage() {
                       {TASK_PRODUCTION_FIELDS.map((f) => {
                         const current = (task as any)[f.key] ?? null;
                         const opt = current ? f.options.find((o) => o.value === current) : null;
-                        const canEditProd = canEditTask || ((role === "FOREMAN" || role === "ENGINEER" || role === "EMPLOYEE") && (task.assignees ?? []).some((a: any) => a.id === (session?.user as any)?.id));
+                        const canEditProd = canEditTask || ((role === "FOREMAN" || role === "ENGINEER" || role === "EMPLOYEE") && (task.assignees ?? []).some((a: any) => a.id === session?.user?.id));
                         if (!canEditProd) {
                           return (
                             <div key={f.key} className="space-y-1">

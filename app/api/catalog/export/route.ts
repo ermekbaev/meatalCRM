@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, unauthorized, forbidden } from "@/lib/api-handler";
 
 const MATERIAL_LABELS: Record<string, string> = {
   "hot-rolled":  "Г/К сталь (горячекатаная)",
@@ -11,11 +12,10 @@ const MATERIAL_LABELS: Record<string, string> = {
   "aluminum":    "Алюминий",
 };
 
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if ((session.user as any).role !== "ADMIN")
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session) throw unauthorized();
+  if (session.user.role !== "ADMIN") throw forbidden();
 
   const [cuttingRaw, bendingRaw, metalsRaw] = await Promise.all([
     prisma.cuttingCatalogEntry.findMany({
@@ -73,4 +73,4 @@ export async function GET() {
       "Content-Disposition": `attachment; filename="catalog-export-${new Date().toISOString().slice(0, 10)}.json"`,
     },
   });
-}
+});

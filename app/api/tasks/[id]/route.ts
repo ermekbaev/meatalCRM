@@ -5,14 +5,15 @@ import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
 import { createNotification } from "@/lib/notify";
 import { PRIORITY_LABELS, TASK_PRODUCTION_FIELDS, formatDate } from "@/lib/utils";
+import { withErrorHandling, unauthorized, forbidden, notFound } from "@/lib/api-handler";
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
-  const role = (session.user as any).role;
-  const userId = (session.user as any).id;
+  const role = session.user.role;
+  const userId = session.user.id;
   // Конструктор (ENGINEER) видит все задачи (в т.ч. где он отмечен исполнителем).
   const canSeeAll = role === "ADMIN" || role === "MANAGER" || role === "ENGINEER";
 
@@ -64,16 +65,16 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     },
   });
 
-  if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!task) throw notFound();
   return NextResponse.json(task);
-}
+});
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  const currentUserId = (session.user as any).id;
+  const role = session.user.role;
+  const currentUserId = session.user.id;
 
   const { id } = await params;
   const data = await req.json();
@@ -90,7 +91,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       assignees: { select: { id: true, name: true } },
     },
   });
-  if (!old) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!old) throw notFound();
   const oldAssigneeIds = old.assignees.map((a) => a.id);
 
   let updateData: any;
@@ -122,19 +123,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   } else if (role === "FOREMAN" || role === "ENGINEER" || role === "EMPLOYEE") {
     // Мастер/инженер/оператор могут менять статус и статусы производства
     // только в задачах, где они отмечены исполнителем.
-    if (!oldAssigneeIds.includes(currentUserId)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!oldAssigneeIds.includes(currentUserId)) throw forbidden();
     const productionPatch: any = {};
     for (const f of TASK_PRODUCTION_FIELDS) {
       if (data[f.key] !== undefined) productionPatch[f.key] = data[f.key] || null;
     }
     if (data.status === undefined && Object.keys(productionPatch).length === 0) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      throw forbidden();
     }
     updateData = { ...(data.status !== undefined && { status: data.status }), ...productionPatch };
   } else {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    throw forbidden();
   }
 
   const task = await prisma.task.update({
@@ -254,18 +253,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json(task);
-}
+});
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN" && role !== "MANAGER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const role = session.user.role;
+  if (role !== "ADMIN" && role !== "MANAGER") throw forbidden();
 
   const { id } = await params;
   await prisma.task.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-}
+});

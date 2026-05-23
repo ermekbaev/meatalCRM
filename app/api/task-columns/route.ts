@@ -2,27 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { taskColumnCreateSchema } from "@/lib/validation";
 
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const columns = await prisma.taskColumn.findMany({
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
   });
   return NextResponse.json(columns);
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = session.user.role;
+  if (role !== "ADMIN") throw forbidden();
 
-  const data = await req.json();
-  const name = String(data.name ?? "").trim();
-  if (!name) return NextResponse.json({ error: "Имя обязательно" }, { status: 400 });
+  const { name, color } = await parseBody(req, taskColumnCreateSchema);
 
   const last = await prisma.taskColumn.findFirst({ orderBy: { order: "desc" } });
   const key = `col_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
     data: {
       key,
       name,
-      color: data.color || "#94a3b8",
+      color: color || "#94a3b8",
       order: (last?.order ?? -1) + 1,
       isSystem: false,
     },
   });
   return NextResponse.json(column, { status: 201 });
-}
+});

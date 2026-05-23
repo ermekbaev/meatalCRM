@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, unauthorized } from "@/lib/api-handler";
 
-export async function POST(
-  _: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   const { id } = await params;
 
   await prisma.notification.updateMany({
@@ -19,4 +17,4 @@ export async function POST(
   });
 
   return NextResponse.json({ ok: true });
-}
+});

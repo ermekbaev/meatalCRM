@@ -13,8 +13,9 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
-      // API-ответы и динамические данные — any допустим
-      "@typescript-eslint/no-explicit-any": "off",
+      // Постепенный отказ от any: warn → видим оставшиеся места, build не ломаем.
+      // Цель — со временем перевести в "error" (см. docs/REMEDIATION.md, п.7).
+      "@typescript-eslint/no-explicit-any": "warn",
       // setState в useEffect — стандартный паттерн для fetch-on-mount
       "react-hooks/set-state-in-effect": "off",
       // react-hook-form watch() — известное ограничение, не ошибка

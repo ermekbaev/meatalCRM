@@ -40,7 +40,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [avatarOpen, setAvatarOpen] = useState(false);
-  const role = (session?.user as any)?.role;
+  const role = session?.user?.role;
   const isAdmin = role === "ADMIN";
   const isForeman = role === "FOREMAN";
   const visibleNav = isForeman ? navItems.filter((i) => i.foreman) : navItems;
@@ -126,11 +126,11 @@ export function Sidebar() {
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
             title="Изменить фото"
           >
-            <Avatar name={session?.user?.name} src={(session?.user as any)?.avatarUrl} size={28} />
+            <Avatar name={session?.user?.name} src={session?.user?.avatarUrl} size={28} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium text-slate-700">{session?.user?.name}</p>
               <p className="truncate text-[11px] text-slate-400">
-                {ROLE_LABELS[(session?.user as any)?.role] ?? ""}
+                {(session?.user?.role && ROLE_LABELS[session.user.role]) ?? ""}
               </p>
             </div>
           </button>

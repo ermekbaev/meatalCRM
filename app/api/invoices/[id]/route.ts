@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, notFound } from "@/lib/api-handler";
+import { invoiceUpdateSchema } from "@/lib/validation";
 
 const INCLUDE = {
   client: true,
@@ -10,22 +12,22 @@ const INCLUDE = {
   items: { orderBy: { id: "asc" as const } },
 };
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
   const invoice = await prisma.invoice.findUnique({ where: { id }, include: INCLUDE });
-  if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!invoice) throw notFound();
   return NextResponse.json(invoice);
-}
+});
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
-  const { items, ...data } = await req.json();
+  const { items, ...data } = await parseBody(req, invoiceUpdateSchema);
 
   // Лёгкий PATCH-режим: меняем только статус, не трогаем позиции
   if (data.paymentStatusOnly) {
@@ -44,17 +46,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data: {
         basis: data.basis ?? null,
         vatRate: data.vatRate ?? 0,
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
-        date: data.date ? new Date(data.date) : undefined,
+        dueDate: data.dueDate ?? null,
+        date: data.date ?? undefined,
         notes: data.notes ?? null,
         ...(data.paymentStatus ? { paymentStatus: data.paymentStatus } : {}),
         items: {
-          create: (items ?? []).map((it: any) => ({
+          create: (items ?? []).map((it) => ({
             name: it.name,
-            quantity: parseFloat(it.quantity) || 1,
-            unit: it.unit || "шт",
-            price: parseFloat(it.price) || 0,
-            total: parseFloat(it.total) || 0,
+            quantity: it.quantity,
+            unit: it.unit,
+            price: it.price,
+            total: it.total,
           })),
         },
       },
@@ -63,13 +65,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 
   return NextResponse.json(invoice);
-}
+});
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
   await prisma.invoice.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-}
+});

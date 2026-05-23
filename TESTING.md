@@ -1,5 +1,26 @@
 # Инструкция по тестированию MetalCRM
 
+## Автотесты (unit)
+
+```bash
+npm test            # один прогон
+npm run test:watch  # watch-режим
+npm run test:coverage
+```
+
+Раннер — **vitest** (`vitest.config.ts`). Тесты лежат в `tests/`, по одному файлу на модуль:
+
+- `tests/pagination.test.ts` — `getPageParams` (clamping, дефолты, потолок `MAX_PAGE_SIZE`), `paginated`.
+- `tests/rate-limit.test.ts` — блокировка после 5 неудач, истечение по времени (`vi.useFakeTimers`), сброс `registerSuccess`, нормализация ключа.
+- `tests/validation.test.ts` — образцы zod-схем (`userCreateSchema`, `clientCreateSchema`, `requestItemSchema`): нормализация email, длина пароля, неизвестные роли, отбрасывание посторонних полей (защита от mass-assignment), z.coerce для строк.
+- `tests/acl.test.ts` — критичное: **защита от IDOR в файлах** (`canAccessFileKey`). Покрыт path traversal (`..`, абсолютные пути, вложенные слеши, небезопасные символы), доступ по папкам (`requests/`, `tasks/`, `company/`, `avatars/`), ролевые ветки (ADMIN/MANAGER/ENGINEER видят всё; FOREMAN/CONTRACTOR — только свои; EMPLOYEE — цех + виртуальный «Без цеха»). Prisma замокана через `vi.mock`.
+
+Покрытие на текущий момент сосредоточено на security-критичном lib-слое — то, что мы защитили в пунктах 1–4, 6 REMEDIATION. Расширять можно на route-уровень через интеграционные тесты (отдельный план — playwright/supertest).
+
+---
+
+## Ручные проверки (smoke)
+
 ## Подготовка
 1. Запустить: `npm run dev`
 2. Открыть: http://localhost:3000

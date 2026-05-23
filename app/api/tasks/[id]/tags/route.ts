@@ -2,17 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { taskTagSchema } from "@/lib/validation";
 
 // POST — добавить тег к задаче, DELETE — убрать тег
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if ((session.user as any).role === "CONTRACTOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session) throw unauthorized();
+  if (session.user.role === "CONTRACTOR") throw forbidden();
 
   const { id } = await params;
-  const { tagId } = await req.json();
+  const { tagId } = await parseBody(req, taskTagSchema);
 
   await prisma.task.update({
     where: { id },
@@ -20,17 +20,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if ((session.user as any).role === "CONTRACTOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session) throw unauthorized();
+  if (session.user.role === "CONTRACTOR") throw forbidden();
 
   const { id } = await params;
-  const { tagId } = await req.json();
+  const { tagId } = await parseBody(req, taskTagSchema);
 
   await prisma.task.update({
     where: { id },
@@ -38,4 +36,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   });
 
   return NextResponse.json({ ok: true });
-}
+});

@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { workshopCreateSchema } from "@/lib/validation";
 
-export async function GET(_: NextRequest) {
+export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  const userId = (session.user as any).id;
+  const role = session.user.role;
+  const userId = session.user.id;
 
   const workshops = await prisma.workshop.findMany({
     where: role === "ADMIN" || role === "MANAGER"
@@ -25,27 +27,24 @@ export async function GET(_: NextRequest) {
   });
 
   return NextResponse.json(workshops);
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = session.user.role;
+  if (role !== "ADMIN") throw forbidden();
 
-  const data = await req.json();
-  const name = String(data.name ?? "").trim();
-  if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
-
-  const memberIds = Array.isArray(data.memberIds) ? data.memberIds.filter(Boolean) : [];
+  const { name, order, isVirtual, memberIds } = await parseBody(req, workshopCreateSchema);
 
   const workshop = await prisma.workshop.create({
     data: {
       name,
-      order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
-      members: memberIds.length
-        ? { connect: memberIds.map((id: string) => ({ id })) }
+      order: order ?? 0,
+      isVirtual: isVirtual ?? false,
+      members: memberIds?.length
+        ? { connect: memberIds.map((id) => ({ id })) }
         : undefined,
     },
     include: {
@@ -58,4 +57,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json(workshop, { status: 201 });
-}
+});

@@ -4,43 +4,36 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notify";
 import { canManageSubtasks, canForemanAccessTask } from "@/lib/acl";
+import { withErrorHandling, parseBody, unauthorized, forbidden, notFound } from "@/lib/api-handler";
+import { subTaskUpdateSchema } from "@/lib/validation";
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string; subId: string }> }
-) {
+export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id, subId } = await params;
-  const body = await req.json();
-  const role = (session.user as any).role;
-  const userId = (session.user as any).id;
+  const body = await parseBody(req, subTaskUpdateSchema);
+  const role = session.user.role;
+  const userId = session.user.id;
 
   const before = await prisma.subTask.findUnique({
     where: { id: subId },
     select: { assigneeId: true, title: true },
   });
-  if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!before) throw notFound();
 
   if (role === "ADMIN" || role === "MANAGER") {
     // полный доступ
   } else if (role === "FOREMAN" || role === "ENGINEER") {
-    if (!(await canForemanAccessTask(id, userId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!(await canForemanAccessTask(id, userId))) throw forbidden();
   } else if (role === "CONTRACTOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    throw forbidden();
   } else {
     // EMPLOYEE: только смена статуса своей подзадачи
-    if (before.assigneeId !== userId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (before.assigneeId !== userId) throw forbidden();
     const allowedKeys = ["status"];
     const submittedKeys = Object.keys(body);
-    if (submittedKeys.some((k) => !allowedKeys.includes(k))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (submittedKeys.some((k) => !allowedKeys.includes(k))) throw forbidden();
   }
 
   const item = await prisma.subTask.update({
@@ -52,14 +45,14 @@ export async function PUT(
       ...(body.priority !== undefined && { priority: body.priority }),
       ...(body.status !== undefined && { status: body.status }),
       ...(body.assigneeId !== undefined && { assigneeId: body.assigneeId || null }),
-      ...(body.dueDate !== undefined && { dueDate: body.dueDate ? new Date(body.dueDate) : null }),
+      ...(body.dueDate !== undefined && { dueDate: body.dueDate ?? null }),
       ...(body.order !== undefined && { order: body.order }),
     },
     include: { assignee: { select: { id: true, name: true } } },
   });
 
   // Уведомление при смене исполнителя
-  const currentUserId = (session.user as any).id;
+  const currentUserId = session.user.id;
   if (
     body.assigneeId !== undefined &&
     item.assigneeId &&
@@ -77,25 +70,20 @@ export async function PUT(
   }
 
   return NextResponse.json(item);
-}
+});
 
-export async function DELETE(
-  _: NextRequest,
-  { params }: { params: Promise<{ id: string; subId: string }> }
-) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  const userId = (session.user as any).id;
-  if (!canManageSubtasks(role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const role = session.user.role;
+  const userId = session.user.id;
+  if (!canManageSubtasks(role)) throw forbidden();
 
   const { id, subId } = await params;
   if ((role === "FOREMAN" || role === "ENGINEER") && !(await canForemanAccessTask(id, userId))) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    throw forbidden();
   }
   await prisma.subTask.delete({ where: { id: subId } });
   return NextResponse.json({ ok: true });
-}
+});

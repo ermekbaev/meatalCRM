@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { catalogCategoryCreateSchema } from "@/lib/validation";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const type = new URL(req.url).searchParams.get("type") ?? "service";
 
@@ -23,23 +25,20 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(categories.filter((c) => c.parentId === null));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN" && role !== "MANAGER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const role = session.user.role;
+  if (role !== "ADMIN" && role !== "MANAGER") throw forbidden();
 
-  const { name, parentId, type } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: "Название обязательно" }, { status: 400 });
+  const { name, parentId, type } = await parseBody(req, catalogCategoryCreateSchema);
 
   const category = await prisma.catalogCategory.create({
-    data: { name: name.trim(), parentId: parentId ?? null, type: type ?? "service" },
+    data: { name, parentId: parentId ?? null, type },
   });
 
   return NextResponse.json(category, { status: 201 });
-}
+});

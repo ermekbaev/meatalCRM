@@ -1,42 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { ClientType } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized } from "@/lib/api-handler";
+import { getPageParams, paginated } from "@/lib/pagination";
+import { clientCreateSchema } from "@/lib/validation";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") ?? "";
   const type = searchParams.get("type") ?? "";
+  const pp = getPageParams(searchParams);
 
-  const clients = await prisma.client.findMany({
-    where: {
-      AND: [
-        search ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { phone: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-            { inn: { contains: search, mode: "insensitive" } },
-          ],
-        } : {},
-        type ? { type: type as any } : {},
-      ],
-    },
-    include: { _count: { select: { requests: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  const where = {
+    AND: [
+      search ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { phone: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+          { inn: { contains: search, mode: "insensitive" as const } },
+        ],
+      } : {},
+      type ? { type: type as ClientType } : {},
+    ],
+  };
 
-  return NextResponse.json(clients);
-}
+  const [items, total] = await Promise.all([
+    prisma.client.findMany({
+      where,
+      include: { _count: { select: { requests: true } } },
+      orderBy: { createdAt: "desc" },
+      skip: pp.skip,
+      take: pp.take,
+    }),
+    prisma.client.count({ where }),
+  ]);
 
-export async function POST(req: NextRequest) {
+  return NextResponse.json(paginated(items, total, pp));
+});
+
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const data = await req.json();
+  const data = await parseBody(req, clientCreateSchema);
   const client = await prisma.client.create({ data });
   return NextResponse.json(client, { status: 201 });
-}
+});

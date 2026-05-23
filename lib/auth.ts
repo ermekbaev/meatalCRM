@@ -2,6 +2,13 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { prisma } from "./prisma";
+import {
+  makeLoginKey,
+  getLockRemainingSec,
+  registerFailure,
+  registerSuccess,
+  LOCKOUT_ERROR_PREFIX,
+} from "./rate-limit";
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -17,18 +24,39 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Пароль", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        // IP клиента (за прокси — первый адрес из x-forwarded-for).
+        const fwd = (req?.headers?.["x-forwarded-for"] as string | undefined) ?? "";
+        const ip =
+          fwd.split(",")[0]?.trim() ||
+          (req?.headers?.["x-real-ip"] as string | undefined) ||
+          "unknown";
+        const key = makeLoginKey(credentials.email, ip);
+
+        // Блокировка после серии неудачных попыток.
+        const lockSec = getLockRemainingSec(key);
+        if (lockSec > 0) {
+          throw new Error(`${LOCKOUT_ERROR_PREFIX}:${lockSec}`);
+        }
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
 
-        if (!user || user.isBlocked) return null;
+        if (!user || user.isBlocked) {
+          registerFailure(key);
+          return null;
+        }
 
         const isValid = await compare(credentials.password, user.password);
-        if (!isValid) return null;
+        if (!isValid) {
+          registerFailure(key);
+          return null;
+        }
 
+        registerSuccess(key);
         return {
           id: user.id,
           email: user.email,
@@ -43,8 +71,8 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
-        token.avatarUrl = (user as any).avatarUrl ?? null;
+        token.role = user.role;
+        token.avatarUrl = user.avatarUrl ?? null;
       }
       if (trigger === "update" && session?.avatarUrl !== undefined) {
         token.avatarUrl = session.avatarUrl;
@@ -53,9 +81,9 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id as string;
-        (session.user as any).role = token.role as string;
-        (session.user as any).avatarUrl = (token.avatarUrl as string | null) ?? null;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.avatarUrl = token.avatarUrl ?? null;
       }
       return session;
     },

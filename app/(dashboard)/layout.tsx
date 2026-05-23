@@ -9,14 +9,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const user = session.user as any;
+  const user = session.user;
   const role = user.role;
 
   if (role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR" || role === "EMPLOYEE") {
     return (
       <div className="flex h-screen flex-col bg-gray-50">
         <ForemanTopBar
-          userName={user.name}
+          userName={user.name ?? ""}
           roleLabel={ROLE_LABELS[role] ?? "Сотрудник"}
           variant={
             role === "CONTRACTOR" ? "tasksOnly"

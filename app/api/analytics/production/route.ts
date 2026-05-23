@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, unauthorized } from "@/lib/api-handler";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { searchParams } = new URL(req.url);
   const days = Math.min(Math.max(Number(searchParams.get("days") ?? 30), 1), 365);
@@ -96,4 +97,4 @@ export async function GET(req: NextRequest) {
     dailySeries,
     workshops,
   });
-}
+});

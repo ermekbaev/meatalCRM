@@ -3,12 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/storage";
+import { withErrorHandling, unauthorized, badRequest } from "@/lib/api-handler";
 
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
   const files = await prisma.requestFile.findMany({
@@ -18,20 +19,20 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   });
 
   return NextResponse.json(files);
-}
+});
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
 
-  if (!file) return NextResponse.json({ error: "Файл не передан" }, { status: 400 });
-  if (file.size > MAX_SIZE) return NextResponse.json({ error: "Файл слишком большой (макс. 20 МБ)" }, { status: 400 });
+  if (!file) throw badRequest("Файл не передан");
+  if (file.size > MAX_SIZE) throw badRequest("Файл слишком большой (макс. 20 МБ)");
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const { key } = await uploadFile(buffer, file.name, file.type, "requests");
@@ -49,4 +50,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   return NextResponse.json(record, { status: 201 });
-}
+});

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, unauthorized, forbidden } from "@/lib/api-handler";
 
 // Map label → internal code (accepts both)
 const MATERIAL_CODE: Record<string, string> = {
@@ -23,19 +24,12 @@ function resolveCode(materialId: string): string | null {
   return MATERIAL_CODE[materialId] ?? null;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if ((session.user as any).role !== "ADMIN")
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session) throw unauthorized();
+  if (session.user.role !== "ADMIN") throw forbidden();
 
-  let body: any;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
+  const body = await req.json();
   const { cutting, bending, metals } = body;
   const errors: string[] = [];
   let cuttingCount = 0;
@@ -134,4 +128,4 @@ export async function POST(req: NextRequest) {
     imported: { cutting: cuttingCount, bending: bendingCount, metals: metalsCount },
     errors: errors.length > 0 ? errors : undefined,
   });
-}
+});

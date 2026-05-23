@@ -1,4 +1,7 @@
 import { PRIORITY_LABELS } from "./utils";
+import type { TaskForPdf, SubtaskForPdf, CompanyForPdf } from "./pdf-types";
+
+type TaskColumn = { key: string; name: string };
 
 async function fetchColumnLabels(): Promise<Record<string, string>> {
   try {
@@ -6,7 +9,7 @@ async function fetchColumnLabels(): Promise<Record<string, string>> {
     if (!res.ok) return {};
     const cols = await res.json();
     if (!Array.isArray(cols)) return {};
-    return Object.fromEntries(cols.map((c: any) => [c.key, c.name]));
+    return Object.fromEntries((cols as TaskColumn[]).map((c) => [c.key, c.name]));
   } catch {
     return {};
   }
@@ -29,8 +32,14 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
-function buildTaskHtml(task: any, company: any, statusLabels: Record<string, string>): string {
-  const subtasks = (task.subtasks ?? []) as any[];
+/** Безопасное чтение метки из словаря по nullable-ключу. */
+function lookupLabel(dict: Record<string, string>, key: string | null | undefined): string {
+  if (!key) return "";
+  return dict[key] ?? key;
+}
+
+function buildTaskHtml(task: TaskForPdf, company: CompanyForPdf | null | undefined, statusLabels: Record<string, string>): string {
+  const subtasks: SubtaskForPdf[] = task.subtasks ?? [];
   const client = task.client;
   const workshop = task.workshop;
 
@@ -43,7 +52,7 @@ function buildTaskHtml(task: any, company: any, statusLabels: Record<string, str
           <td style="border:1px solid #000;padding:6px;text-align:center;">${s.quantity != null ? s.quantity : ""}</td>
           <td style="border:1px solid #000;padding:6px;text-align:center;">${s.unit ?? ""}</td>
           <td style="border:1px solid #000;padding:6px;">${escapeHtml(s.assignee?.name ?? "—")}</td>
-          <td style="border:1px solid #000;padding:6px;text-align:center;">${PRIORITY_LABELS[s.priority] ?? s.priority}</td>
+          <td style="border:1px solid #000;padding:6px;text-align:center;">${lookupLabel(PRIORITY_LABELS, s.priority)}</td>
           <td style="border:1px solid #000;padding:6px;text-align:center;">${fmtDate(s.dueDate)}</td>
         </tr>`).join("");
 
@@ -76,15 +85,15 @@ function buildTaskHtml(task: any, company: any, statusLabels: Record<string, str
       </tr>` : ""}
       <tr>
         <td style="padding:3px 0;color:#555;vertical-align:top;">Статус:</td>
-        <td style="padding:3px 8px;">${statusLabels[task.status] ?? task.status}</td>
+        <td style="padding:3px 8px;">${lookupLabel(statusLabels, task.status)}</td>
       </tr>
       <tr>
         <td style="padding:3px 0;color:#555;vertical-align:top;">Приоритет:</td>
-        <td style="padding:3px 8px;">${PRIORITY_LABELS[task.priority] ?? task.priority}</td>
+        <td style="padding:3px 8px;">${lookupLabel(PRIORITY_LABELS, task.priority)}</td>
       </tr>
       ${(() => {
         const names = Array.isArray(task.assignees) && task.assignees.length > 0
-          ? task.assignees.map((a: any) => a.name).filter(Boolean)
+          ? task.assignees.map((a) => a.name).filter(Boolean)
           : task.assignee?.name ? [task.assignee.name] : [];
         if (names.length === 0) return "";
         return `<tr>
@@ -133,7 +142,15 @@ function buildTaskHtml(task: any, company: any, statusLabels: Record<string, str
   </div>`;
 }
 
-async function renderTaskToPdf(pdf: any, html: string, isFirstPage: boolean) {
+// jsPDF instance — типизация бы потянула DOM-зависимый импорт; здесь принимаем как unknown-обёртку.
+type JsPdfInstance = {
+  internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
+  addPage: () => void;
+  addImage: (data: string, format: string, x: number, y: number, w: number, h: number) => void;
+  save: (name: string) => void;
+};
+
+async function renderTaskToPdf(pdf: JsPdfInstance, html: string, isFirstPage: boolean) {
   const { default: html2canvas } = await import("html2canvas");
 
   const container = document.createElement("div");
@@ -189,7 +206,7 @@ async function renderTaskToPdf(pdf: any, html: string, isFirstPage: boolean) {
   }
 }
 
-export async function generateProductionPDF(task: any, company: any) {
+export async function generateProductionPDF(task: TaskForPdf, company: CompanyForPdf | null | undefined) {
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "mm", "a4");
   const statusLabels = await fetchColumnLabels();
@@ -197,7 +214,7 @@ export async function generateProductionPDF(task: any, company: any) {
   pdf.save(`Задание-${task.title?.slice(0, 40) ?? task.id}.pdf`);
 }
 
-export async function generateProductionBulkPDF(tasks: any[], company: any) {
+export async function generateProductionBulkPDF(tasks: TaskForPdf[], company: CompanyForPdf | null | undefined) {
   if (tasks.length === 0) return;
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "mm", "a4");

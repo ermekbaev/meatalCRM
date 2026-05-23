@@ -51,17 +51,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import { AssigneeSearchPicker } from "@/components/AssigneeSearchPicker";
-
-function getFileIcon(mimeType?: string, fileName?: string) {
-  const ext = fileName?.split(".").pop()?.toLowerCase();
-  if (ext === "dxf") return <File className="h-4 w-4 shrink-0 text-purple-400" />;
-  if (ext === "rar" || ext === "zip") return <Archive className="h-4 w-4 shrink-0 text-yellow-500" />;
-  if (!mimeType) return <FileText className="h-4 w-4 shrink-0 text-slate-400" />;
-  if (mimeType.startsWith("image/")) return <FileText className="h-4 w-4 shrink-0 text-blue-400" />;
-  if (mimeType === "application/pdf") return <FileText className="h-4 w-4 shrink-0 text-red-400" />;
-  if (mimeType === "application/zip" || mimeType === "application/x-zip-compressed" || mimeType === "application/vnd.rar" || mimeType === "application/x-rar-compressed") return <Archive className="h-4 w-4 shrink-0 text-yellow-500" />;
-  return <FileText className="h-4 w-4 shrink-0 text-slate-400" />;
-}
+import { getFileIcon } from "./_utils";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -247,7 +237,7 @@ export default function RequestDetailPage() {
 
   if (!request) return null;
 
-  const isEmployee = (session?.user as any)?.role === "EMPLOYEE";
+  const isEmployee = session?.user?.role === "EMPLOYEE";
 
   return (
     <div>

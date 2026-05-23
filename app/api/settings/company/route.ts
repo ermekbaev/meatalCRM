@@ -2,24 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
+import { companySettingsSchema } from "@/lib/validation";
 
-export async function GET() {
+export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const settings = await prisma.companySettings.findUnique({ where: { id: "singleton" } });
   return NextResponse.json(settings ?? { id: "singleton" });
-}
+});
 
-export async function PUT(req: NextRequest) {
+export const PUT = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const role = session.user.role;
+  if (role !== "ADMIN") throw forbidden();
 
-  const data = await req.json();
-  const { id: _id, updatedAt: _u, ...fields } = data;
+  const fields = await parseBody(req, companySettingsSchema);
 
   const settings = await prisma.companySettings.upsert({
     where: { id: "singleton" },
@@ -28,4 +29,4 @@ export async function PUT(req: NextRequest) {
   });
 
   return NextResponse.json(settings);
-}
+});

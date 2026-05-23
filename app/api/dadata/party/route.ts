@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { withErrorHandling, parseBody, unauthorized } from "@/lib/api-handler";
+import { dadataQuerySchema } from "@/lib/validation";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const { query } = await req.json();
+  const { query } = await parseBody(req, dadataQuerySchema);
   if (!query) return NextResponse.json({ suggestions: [] });
 
   const apiKey = process.env.DADATA_API_KEY;
@@ -24,4 +26,4 @@ export async function POST(req: NextRequest) {
 
   const data = await res.json();
   return NextResponse.json(data);
-}
+});

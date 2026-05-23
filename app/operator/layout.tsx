@@ -7,11 +7,11 @@ export default async function OperatorLayout({ children }: { children: React.Rea
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const user = session.user as any;
+  const user = session.user;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <OperatorTopBar userName={user.name} role={user.role} />
+      <OperatorTopBar userName={user.name ?? ""} role={user.role} />
       <main className="flex-1 pb-6">{children}</main>
     </div>
   );

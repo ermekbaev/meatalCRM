@@ -3,23 +3,19 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteFile } from "@/lib/storage";
+import { withErrorHandling, unauthorized, forbidden, notFound } from "@/lib/api-handler";
 
-export async function DELETE(
-  _: NextRequest,
-  { params }: { params: Promise<{ id: string; fileId: string }> }
-) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if ((session.user as any).role === "CONTRACTOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session) throw unauthorized();
+  if (session.user.role === "CONTRACTOR") throw forbidden();
 
   const { fileId } = await params;
 
   const file = await prisma.taskFile.findUnique({ where: { id: fileId } });
-  if (!file) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!file) throw notFound();
 
   await deleteFile(file.filename);
   await prisma.taskFile.delete({ where: { id: fileId } });
   return NextResponse.json({ ok: true });
-}
+});

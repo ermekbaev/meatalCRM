@@ -28,7 +28,16 @@ export default function LoginPage() {
     setLoading(false);
 
     if (res?.error) {
-      setError("Неверный логин или пароль");
+      // Блокировка от перебора: ошибка вида "RATE_LIMITED:<секунды>".
+      const match = /RATE_LIMITED:(\d+)/.exec(res.error);
+      if (match) {
+        const minutes = Math.ceil(Number(match[1]) / 60);
+        setError(
+          `Слишком много попыток входа. Попробуйте через ${minutes} мин.`
+        );
+      } else {
+        setError("Неверный логин или пароль");
+      }
     } else {
       router.push("/");
     }

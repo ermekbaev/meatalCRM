@@ -48,8 +48,8 @@ type TaskColumn = {
 export default function TasksPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const role = (session?.user as any)?.role;
-  const userId = (session?.user as any)?.id as string | undefined;
+  const role = session?.user?.role;
+  const userId = session?.user?.id as string | undefined;
   const isAdmin = role === "ADMIN";
   const isForeman = role === "FOREMAN";
   const isContractor = role === "CONTRACTOR";

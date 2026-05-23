@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, unauthorized } from "@/lib/api-handler";
 
-export async function GET(_: NextRequest) {
+export const GET = withErrorHandling(async (_req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
 
   const subtasks = await prisma.subTask.findMany({
     where: { assigneeId: userId },
@@ -29,4 +30,4 @@ export async function GET(_: NextRequest) {
   });
 
   return NextResponse.json(subtasks);
-}
+});

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, forbidden, notFound } from "@/lib/api-handler";
+import { clientUpdateSchema } from "@/lib/validation";
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
   const client = await prisma.client.findUnique({
@@ -18,40 +20,28 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     },
   });
 
-  if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!client) throw notFound();
   return NextResponse.json(client);
-}
+});
 
-const CLIENT_UPDATE_FIELDS = [
-  "type", "name", "phone", "email", "inn", "comment",
-  "shortName", "source", "website", "director", "legalAddress", "postalAddress",
-  "ogrn", "kpp", "bankName", "bankAccount", "bankBik", "bankCorAccount",
-] as const;
-
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
-  const body = await req.json();
-  const data: Record<string, unknown> = {};
-  for (const key of CLIENT_UPDATE_FIELDS) {
-    if (key in body) data[key] = body[key];
-  }
+  const data = await parseBody(req, clientUpdateSchema);
   const client = await prisma.client.update({ where: { id }, data });
   return NextResponse.json(client);
-}
+});
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const role = (session.user as any).role;
-  if (role !== "ADMIN" && role !== "MANAGER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const role = session.user.role;
+  if (role !== "ADMIN" && role !== "MANAGER") throw forbidden();
 
   const { id } = await params;
   await prisma.client.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-}
+});

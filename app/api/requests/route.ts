@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { RequestStatus, RequestPriority, PaymentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
 import { createNotification } from "@/lib/notify";
 import { PRIORITY_LABELS, REQUEST_STATUS_LABELS } from "@/lib/utils";
+import { withErrorHandling, parseBody, unauthorized } from "@/lib/api-handler";
+import { SAFETY_TAKE } from "@/lib/pagination";
+import { requestCreateSchema } from "@/lib/validation";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") ?? "";
@@ -20,8 +24,8 @@ export async function GET(req: NextRequest) {
   const paymentStatus = searchParams.get("paymentStatus") ?? "";
   const clientId = searchParams.get("clientId") ?? "";
   const minimal = searchParams.get("minimal") === "true";
-  const role = (session.user as any).role;
-  const userId = (session.user as any).id;
+  const role = session.user.role;
+  const userId = session.user.id;
   const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
   const assigneeScope = isAssigneeRole ? { assigneeId: userId } : {};
 
@@ -46,9 +50,9 @@ export async function GET(req: NextRequest) {
             { client: { name: { contains: search, mode: "insensitive" } } },
           ],
         } : {},
-        statusList.length ? { status: { in: statusList as any } } : {},
-        priority ? { priority: priority as any } : {},
-        paymentStatus ? { paymentStatus: paymentStatus as any } : {},
+        statusList.length ? { status: { in: statusList as RequestStatus[] } } : {},
+        priority ? { priority: priority as RequestPriority } : {},
+        paymentStatus ? { paymentStatus: paymentStatus as PaymentStatus } : {},
         clientId ? { clientId } : {},
         assigneeScope,
       ],
@@ -59,29 +63,32 @@ export async function GET(req: NextRequest) {
       _count: { select: { comments: true } },
     },
     orderBy: { createdAt: "desc" },
+    // Канбан-доска со счётчиками по статусам → не пагинируем,
+    // но ограничиваем защитным потолком (см. docs/REMEDIATION.md, п.6).
+    take: SAFETY_TAKE,
   });
 
   return NextResponse.json(requests);
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const { items, ...data } = await req.json();
+  const { items, ...data } = await parseBody(req, requestCreateSchema);
 
   const request = await prisma.request.create({
     data: {
       ...data,
       items: items?.length
-        ? { create: items.map((item: any) => ({
+        ? { create: items.map((item) => ({
             name: item.name,
-            quantity: parseFloat(item.quantity) || 1,
-            unit: item.unit || "шт",
-            price: parseFloat(item.price) || 0,
-            discount: parseFloat(item.discount) || 0,
-            total: parseFloat(item.total) || 0,
-            isCustomerMaterial: item.isCustomerMaterial ?? false,
+            quantity: item.quantity,
+            unit: item.unit,
+            price: item.price,
+            discount: item.discount,
+            total: item.total,
+            isCustomerMaterial: item.isCustomerMaterial,
           })) }
         : undefined,
     },
@@ -96,7 +103,7 @@ export async function POST(req: NextRequest) {
     `👤 Ответственный: ${request.assignee?.name ?? "Не назначен"}`
   );
 
-  const currentUserId = (session.user as any).id as string | undefined;
+  const currentUserId = session.user.id as string | undefined;
   if (request.assigneeId && request.assigneeId !== currentUserId) {
     await createNotification({
       userId: request.assigneeId,
@@ -108,4 +115,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(request, { status: 201 });
-}
+});

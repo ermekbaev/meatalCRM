@@ -3,12 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadFile } from "@/lib/storage";
+import { withErrorHandling, unauthorized, forbidden } from "@/lib/api-handler";
 
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { id } = await params;
   const files = await prisma.taskFile.findMany({
@@ -18,17 +19,15 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   });
 
   return NextResponse.json(files);
-}
+});
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if ((session.user as any).role === "CONTRACTOR") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session) throw unauthorized();
+  if (session.user.role === "CONTRACTOR") throw forbidden();
 
   const { id } = await params;
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
@@ -52,4 +51,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   return NextResponse.json(record, { status: 201 });
-}
+});

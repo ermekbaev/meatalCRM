@@ -151,10 +151,12 @@ function fmtDate(d: string | Date): string {
   });
 }
 
-export async function generateInvoicePDF(invoice: any, company: any) {
-  const subtotal = invoice.items.reduce((s: number, i: any) => s + i.total, 0);
-  const vatAmount =
-    invoice.vatRate > 0 ? subtotal * (invoice.vatRate / 100) : 0;
+import type { InvoiceForPdf, InvoiceItemForPdf, CompanyForPdf } from "./pdf-types";
+
+export async function generateInvoicePDF(invoice: InvoiceForPdf, company: CompanyForPdf | null | undefined) {
+  const subtotal = invoice.items.reduce((s: number, i: InvoiceItemForPdf) => s + i.total, 0);
+  const vatRate = invoice.vatRate ?? 0;
+  const vatAmount = vatRate > 0 ? subtotal * (vatRate / 100) : 0;
   const total = subtotal + vatAmount;
   const itemsCount = invoice.items.length;
 
@@ -234,10 +236,10 @@ export async function generateInvoicePDF(invoice: any, company: any) {
     .join(", ");
 
   const vatRow =
-    invoice.vatRate > 0
+    vatRate > 0
       ? `
     <tr>
-      <td colspan="5" style="border:1px solid #000;padding:4px 6px;text-align:right;font-size:10px;">НДС ${invoice.vatRate}%:</td>
+      <td colspan="5" style="border:1px solid #000;padding:4px 6px;text-align:right;font-size:10px;">НДС ${vatRate}%:</td>
       <td style="border:1px solid #000;padding:4px 6px;text-align:right;font-size:10px;">${fmt(vatAmount)}</td>
     </tr>`
       : `
@@ -315,7 +317,7 @@ export async function generateInvoicePDF(invoice: any, company: any) {
       <tbody>
         ${invoice.items
           .map(
-            (item: any, idx: number) => `
+            (item: InvoiceItemForPdf, idx: number) => `
           <tr>
             <td style="border:1px solid #000;padding:4px;text-align:center;">${idx + 1}</td>
             <td style="border:1px solid #000;padding:4px 6px;">${item.name}</td>
@@ -327,7 +329,7 @@ export async function generateInvoicePDF(invoice: any, company: any) {
           )
           .join("")}
         <tr>
-          <td colspan="5" style="border:1px solid #000;padding:4px 6px;text-align:right;font-weight:700;">${invoice.vatRate > 0 ? "Без НДС:" : "Итого:"}</td>
+          <td colspan="5" style="border:1px solid #000;padding:4px 6px;text-align:right;font-weight:700;">${vatRate > 0 ? "Без НДС:" : "Итого:"}</td>
           <td style="border:1px solid #000;padding:4px;text-align:right;font-weight:700;">${fmt(subtotal)}</td>
         </tr>
         ${vatRow}

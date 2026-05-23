@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
+import { withErrorHandling, parseBody, unauthorized } from "@/lib/api-handler";
+import { getPageParams, paginated } from "@/lib/pagination";
+import { invoiceCreateSchema } from "@/lib/validation";
 
 const INCLUDE = {
   client: true,
@@ -11,50 +14,62 @@ const INCLUDE = {
   items: { orderBy: { id: "asc" as const } },
 };
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") ?? "";
   const clientId = searchParams.get("clientId") ?? "";
+  const pp = getPageParams(searchParams);
 
-  const invoices = await prisma.invoice.findMany({
-    where: {
-      AND: [
-        search ? { client: { name: { contains: search, mode: "insensitive" } } } : {},
-        clientId ? { clientId } : {},
-      ],
-    },
-    include: INCLUDE,
-    orderBy: { createdAt: "desc" },
-  });
+  const where = {
+    AND: [
+      search ? { client: { name: { contains: search, mode: "insensitive" as const } } } : {},
+      clientId ? { clientId } : {},
+    ],
+  };
 
-  return NextResponse.json(invoices);
-}
+  const [items, total] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      include: INCLUDE,
+      orderBy: { createdAt: "desc" },
+      skip: pp.skip,
+      take: pp.take,
+    }),
+    prisma.invoice.count({ where }),
+  ]);
 
-export async function POST(req: NextRequest) {
+  return NextResponse.json(paginated(items, total, pp));
+});
+
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const userId = (session.user as any).id;
-  const { items, ...data } = await req.json();
+  const userId = session.user.id;
+  const { items, ...data } = await parseBody(req, invoiceCreateSchema);
 
   const invoice = await prisma.invoice.create({
     data: {
-      ...data,
-      date: data.date ? new Date(data.date) : new Date(),
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      basis: data.basis ?? null,
+      notes: data.notes ?? null,
+      numberOverride: data.numberOverride ?? null,
+      clientId: data.clientId,
+      requestId: data.requestId ?? null,
+      date: data.date ?? new Date(),
+      dueDate: data.dueDate ?? null,
       vatRate: data.vatRate ?? 0,
       paymentStatus: data.paymentStatus ?? "WAITING",
       createdById: userId,
       items: {
-        create: (items ?? []).map((it: any) => ({
+        create: (items ?? []).map((it) => ({
           name: it.name,
-          quantity: parseFloat(it.quantity) || 1,
-          unit: it.unit || "шт",
-          price: parseFloat(it.price) || 0,
-          total: parseFloat(it.total) || 0,
+          quantity: it.quantity,
+          unit: it.unit,
+          price: it.price,
+          total: it.total,
         })),
       },
     },
@@ -68,4 +83,4 @@ export async function POST(req: NextRequest) {
   );
 
   return NextResponse.json(invoice, { status: 201 });
-}
+});

@@ -2,39 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withErrorHandling, parseBody, unauthorized, badRequest } from "@/lib/api-handler";
+import { pushSubscribeSchema } from "@/lib/validation";
+import { z } from "zod";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const userId = (session.user as any).id;
-  const body = await req.json();
-  const endpoint = body?.endpoint;
-  const p256dh = body?.keys?.p256dh;
-  const auth = body?.keys?.auth;
-
-  if (!endpoint || !p256dh || !auth) {
-    return NextResponse.json({ error: "Bad subscription" }, { status: 400 });
-  }
+  const userId = session.user.id;
+  const { endpoint, keys } = await parseBody(req, pushSubscribeSchema);
 
   // upsert по endpoint
   await prisma.pushSubscription.upsert({
     where: { endpoint },
-    update: { userId, p256dh, auth },
-    create: { userId, endpoint, p256dh, auth },
+    update: { userId, p256dh: keys.p256dh, auth: keys.auth },
+    create: { userId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
   });
 
   return NextResponse.json({ ok: true });
-}
+});
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session) throw unauthorized();
 
-  const body = await req.json().catch(() => ({}));
-  const endpoint = body?.endpoint;
-  if (!endpoint) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  const { endpoint } = await parseBody(req, z.object({ endpoint: z.string().url() }));
+  if (!endpoint) throw badRequest();
 
   await prisma.pushSubscription.deleteMany({ where: { endpoint } });
   return NextResponse.json({ ok: true });
-}
+});
