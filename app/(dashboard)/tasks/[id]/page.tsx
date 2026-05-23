@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import Link from "next/link";
+import { Avatar } from "@/components/ui/avatar";
 
 const TAG_COLORS = [
   "#ef4444", "#f97316", "#eab308", "#22c55e",
@@ -925,9 +926,7 @@ export default function TaskDetailPage() {
                   )}
                   {task.comments?.map((c: any) => (
                     <div key={c.id} className="flex gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-700">
-                        {c.user?.name?.charAt(0)}
-                      </div>
+                      <Avatar name={c.user?.name} src={c.user?.avatarUrl} size={32} />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-sm font-medium text-gray-900">{c.user?.name}</span>
@@ -963,9 +962,7 @@ export default function TaskDetailPage() {
                             className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 text-left"
                             onMouseDown={(e) => { e.preventDefault(); insertMention(u.name); }}
                           >
-                            <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-xs text-blue-700 font-medium shrink-0">
-                              {u.name.charAt(0)}
-                            </div>
+                            <Avatar name={u.name} src={(u as any).avatarUrl} size={24} />
                             {u.name}
                           </button>
                         ))}
@@ -1080,9 +1077,7 @@ export default function TaskDetailPage() {
                         key={a.id}
                         className="flex items-center gap-2 rounded-md border border-slate-200 px-2 py-1.5"
                       >
-                        <div className="h-7 w-7 shrink-0 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[11px] font-medium">
-                          {a.name.charAt(0).toUpperCase()}
-                        </div>
+                        <Avatar name={a.name} src={a.avatarUrl} size={28} className="text-[11px]" />
                         <div className="flex-1 min-w-0">
                           <p className="truncate text-sm text-slate-800">{a.name}</p>
                           {(a.position || ROLE_LABELS[a.role]) && (
@@ -1136,9 +1131,7 @@ export default function TaskDetailPage() {
                               onClick={() => { toggleAssignee(u.id); }}
                               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-slate-50"
                             >
-                              <div className="h-6 w-6 shrink-0 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-medium">
-                                {u.name.charAt(0).toUpperCase()}
-                              </div>
+                              <Avatar name={u.name} src={(u as any).avatarUrl} size={24} className="text-[10px]" />
                               <span className="flex-1 min-w-0">
                                 <span className="block truncate text-slate-800">{u.name}</span>
                                 {(u.position || ROLE_LABELS[u.role]) && (

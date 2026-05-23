@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const comment = await prisma.taskComment.create({
     data: { text, taskId: id, userId },
-    include: { user: { select: { id: true, name: true, position: true } } },
+    include: { user: { select: { id: true, name: true, position: true, avatarUrl: true } } },
   });
 
   // Уведомления при упоминании @Имя

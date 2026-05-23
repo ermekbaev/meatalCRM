@@ -39,13 +39,13 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       }),
     },
     include: {
-      assignees: { select: { id: true, name: true, position: true, role: true } },
+      assignees: { select: { id: true, name: true, position: true, role: true, avatarUrl: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },
       comments: {
         orderBy: { createdAt: "asc" },
-        include: { user: { select: { id: true, name: true, position: true } } },
+        include: { user: { select: { id: true, name: true, position: true, avatarUrl: true } } },
       },
       files: {
         orderBy: { createdAt: "asc" },
@@ -141,7 +141,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     data: updateData,
     include: {
-      assignees: { select: { id: true, name: true, position: true, role: true } },
+      assignees: { select: { id: true, name: true, position: true, role: true, avatarUrl: true } },
       createdBy: { select: { id: true, name: true } },
       client:    { select: { id: true, name: true } },
       workshop:  { select: { id: true, name: true, order: true } },

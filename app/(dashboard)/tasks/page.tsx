@@ -14,6 +14,7 @@ import { StatusMultiSelect } from "@/components/ui/status-multi-select";
 import { PRIORITY_LABELS, PRIORITY_COLORS, TASK_PRODUCTION_FIELDS, formatDate, hexToBadgeStyle } from "@/lib/utils";
 import { Building2, Check, Factory, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X, Columns3, Pencil } from "lucide-react";
 import Link from "next/link";
+import { Avatar } from "@/components/ui/avatar";
 import {
   DndContext,
   DragEndEvent,
@@ -1149,13 +1150,13 @@ function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDel
         {task.assignees && task.assignees.length > 0 && (
           <div className="flex shrink-0 -space-x-1.5">
             {task.assignees.slice(0, 3).map((a: any) => (
-              <div
+              <Avatar
                 key={a.id}
-                className="h-7 w-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[11px] font-medium ring-2 ring-white"
-                title={a.name}
-              >
-                {a.name.charAt(0).toUpperCase()}
-              </div>
+                name={a.name}
+                src={a.avatarUrl}
+                size={28}
+                className="ring-2 ring-white text-[11px]"
+              />
             ))}
             {task.assignees.length > 3 && (
               <div
