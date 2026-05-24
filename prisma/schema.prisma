@@ -8,81 +8,93 @@ datasource db {
 }
 
 model User {
-  id                String            @id @default(cuid())
-  email             String            @unique
-  password          String
-  name              String
-  role              UserRole          @default(EMPLOYEE)
-  isBlocked         Boolean           @default(false)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  telegramChatId    String?
-  phone             String?
-  position          String?
-  avatarUrl         String?
-  changeLogs        ChangeLog[]
-  taskChangeLogs    TaskChangeLog[]
-  comments          Comment[]
-  offers            CommercialOffer[]  @relation("OfferCreatedBy")
-  managedOffers     CommercialOffer[]  @relation("OfferManager")
-  invoices          Invoice[]
-  requests          Request[]         @relation("AssignedRequests")
-  uploadedFiles     RequestFile[]
-  assignedTasks     Task[]            @relation("AssignedTasks")
-  createdTasks      Task[]            @relation("CreatedTasks")
-  taskComments      TaskComment[]
-  uploadedTaskFiles TaskFile[]
-  assignedSubTasks  SubTask[]         @relation("AssignedSubTasks")
-  workshops         Workshop[]        @relation("WorkshopMembers")
-  notifications     Notification[]
-  pushSubscriptions PushSubscription[]
-  updatedWarehouseItems WarehouseItem[] @relation("WarehouseUpdatedBy")
+  id                    String             @id @default(cuid())
+  email                 String             @unique
+  password              String
+  name                  String
+  role                  UserRole           @default(EMPLOYEE)
+  isBlocked             Boolean            @default(false)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  telegramChatId        String?
+  phone                 String?
+  position              String?
+  avatarUrl             String?
+  changeLogs            ChangeLog[]
+  taskChangeLogs        TaskChangeLog[]
+  comments              Comment[]
+  offers                CommercialOffer[]  @relation("OfferCreatedBy")
+  managedOffers         CommercialOffer[]  @relation("OfferManager")
+  invoices              Invoice[]
+  requests              Request[]          @relation("AssignedRequests")
+  uploadedFiles         RequestFile[]
+  assignedTasks         Task[]             @relation("AssignedTasks")
+  createdTasks          Task[]             @relation("CreatedTasks")
+  taskComments          TaskComment[]
+  uploadedTaskFiles     TaskFile[]
+  assignedSubTasks      SubTask[]          @relation("AssignedSubTasks")
+  workshops             Workshop[]         @relation("WorkshopMembers")
+  notifications         Notification[]
+  pushSubscriptions     PushSubscription[]
+  updatedWarehouseItems WarehouseItem[]    @relation("WarehouseUpdatedBy")
+  companyId             String?
+  company               Client?            @relation("CompanyUsers", fields: [companyId], references: [id], onDelete: SetNull)
+  managedClients        Client[]           @relation("ClientManager")
+  portalRequests        PortalRequest[]    @relation("PortalRequestCreatedBy")
+  portalComments        PortalComment[]
+  portalFiles           PortalFile[]
 }
 
 model Client {
-  id             String            @id @default(cuid())
-  type           ClientType        @default(INDIVIDUAL)
-  name           String
-  phone          String?
-  email          String?
-  inn            String?
-  comment        String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  bankAccount    String?
-  bankBik        String?
-  bankCorAccount String?
-  bankName       String?
-  director       String?
-  kpp            String?
-  legalAddress   String?
-  ogrn           String?
-  postalAddress  String?
-  shortName      String?
-  source         String?
-  website        String?
-  offers         CommercialOffer[]
-  invoices       Invoice[]
-  requests       Request[]
-  tasks          Task[]
+  id              String            @id @default(cuid())
+  type            ClientType        @default(INDIVIDUAL)
+  name            String
+  phone           String?
+  email           String?
+  inn             String?
+  comment         String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  bankAccount     String?
+  bankBik         String?
+  bankCorAccount  String?
+  bankName        String?
+  director        String?
+  kpp             String?
+  legalAddress    String?
+  ogrn            String?
+  postalAddress   String?
+  shortName       String?
+  source          String?
+  website         String?
+  offers          CommercialOffer[]
+  invoices        Invoice[]
+  requests        Request[]
+  tasks           Task[]
+  managerId       String?
+  manager         User?             @relation("ClientManager", fields: [managerId], references: [id], onDelete: SetNull)
+  isPortalEnabled Boolean           @default(false)
+  portalUsers     User[]            @relation("CompanyUsers")
+  portalRequests  PortalRequest[]
+  clientPositions ClientPosition[]
 }
 
 model Request {
-  id              String            @id @default(cuid())
-  number          Int               @unique @default(autoincrement())
-  title           String
-  description     String?
-  status          RequestStatus     @default(NEW)
-  priority        RequestPriority   @default(MEDIUM)
-  amount          Float?
-  services        String[]          @default([])
-  clientId        String
-  assigneeId      String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  vatIncluded     Boolean           @default(false)
-  paymentMethod   String?
-  paymentStatus   PaymentStatus     @default(NONE)
+  id                 String            @id @default(cuid())
+  number             Int               @unique @default(autoincrement())
+  title              String
+  description        String?
+  status             RequestStatus     @default(NEW)
+  priority           RequestPriority   @default(MEDIUM)
+  amount             Float?
+  services           String[]          @default([])
+  clientId           String
+  assigneeId         String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  vatIncluded        Boolean           @default(false)
+  paymentMethod      String?
+  paymentStatus      PaymentStatus     @default(NONE)
   hasMetal           String?
   metalOwner         String?
   laserStatus        String?
@@ -92,14 +104,14 @@ model Request {
   sandblastingStatus String?
   extraWorkStatus    String?
   deliveryStatus     String?
-  changeLogs      ChangeLog[]
-  comments        Comment[]
-  offers          CommercialOffer[]
-  invoices        Invoice[]
-  assignee        User?             @relation("AssignedRequests", fields: [assigneeId], references: [id])
-  client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  files           RequestFile[]
-  items           RequestItem[]
+  changeLogs         ChangeLog[]
+  comments           Comment[]
+  offers             CommercialOffer[]
+  invoices           Invoice[]
+  assignee           User?             @relation("AssignedRequests", fields: [assigneeId], references: [id])
+  client             Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  files              RequestFile[]
+  items              RequestItem[]
 }
 
 model RequestFile {
@@ -189,17 +201,17 @@ model OfferItem {
 }
 
 model Task {
-  id          String          @id @default(cuid())
-  title       String
-  description String?
-  status      String          @default("TODO")
-  priority    RequestPriority @default(MEDIUM)
-  dueDate     DateTime?
-  createdById String
-  clientId    String?
-  workshopId  String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id                 String          @id @default(cuid())
+  title              String
+  description        String?
+  status             String          @default("TODO")
+  priority           RequestPriority @default(MEDIUM)
+  dueDate            DateTime?
+  createdById        String
+  clientId           String?
+  workshopId         String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
   hasMetal           String?
   metalOwner         String?
   laserStatus        String?
@@ -209,16 +221,16 @@ model Task {
   sandblastingStatus String?
   extraWorkStatus    String?
   deliveryStatus     String?
-  checklist   ChecklistItem[]
-  subtasks    SubTask[]
-  assignees   User[]          @relation("AssignedTasks")
-  client      Client?         @relation(fields: [clientId], references: [id])
-  createdBy   User            @relation("CreatedTasks", fields: [createdById], references: [id])
-  workshop    Workshop?       @relation(fields: [workshopId], references: [id], onDelete: SetNull)
-  comments    TaskComment[]
-  files       TaskFile[]
-  tags        Tag[]           @relation("TagToTask")
-  changeLogs  TaskChangeLog[]
+  checklist          ChecklistItem[]
+  subtasks           SubTask[]
+  assignees          User[]          @relation("AssignedTasks")
+  client             Client?         @relation(fields: [clientId], references: [id])
+  createdBy          User            @relation("CreatedTasks", fields: [createdById], references: [id])
+  workshop           Workshop?       @relation(fields: [workshopId], references: [id], onDelete: SetNull)
+  comments           TaskComment[]
+  files              TaskFile[]
+  tags               Tag[]           @relation("TagToTask")
+  changeLogs         TaskChangeLog[]
 }
 
 model TaskChangeLog {
@@ -296,20 +308,20 @@ model ChecklistItem {
 }
 
 model SubTask {
-  id          String          @id @default(cuid())
-  taskId      String
-  title       String
-  quantity    Float?
-  unit        String?
-  priority    RequestPriority @default(MEDIUM)
-  status      TaskStatus      @default(TODO)
-  assigneeId  String?
-  order       Int             @default(0)
-  dueDate     DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  task        Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  assignee    User?           @relation("AssignedSubTasks", fields: [assigneeId], references: [id])
+  id         String          @id @default(cuid())
+  taskId     String
+  title      String
+  quantity   Float?
+  unit       String?
+  priority   RequestPriority @default(MEDIUM)
+  status     TaskStatus      @default(TODO)
+  assigneeId String?
+  order      Int             @default(0)
+  dueDate    DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  task       Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  assignee   User?           @relation("AssignedSubTasks", fields: [assigneeId], references: [id])
 }
 
 model CatalogCategory {
@@ -456,6 +468,7 @@ enum UserRole {
   ENGINEER
   EMPLOYEE
   CONTRACTOR
+  CLIENT
 }
 
 enum ClientType {
@@ -506,6 +519,13 @@ enum NotificationType {
   COMMENT_MENTION
   STATUS_CHANGED
   REQUEST_ASSIGNED
+  PORTAL_REQUEST_CREATED
+}
+
+enum PortalRequestStatus {
+  NEW
+  IN_PROGRESS
+  READY
 }
 
 model Notification {
@@ -532,4 +552,78 @@ model PushSubscription {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model PortalRequest {
+  id              String              @id @default(cuid())
+  number          Int                 @unique @default(autoincrement())
+  companyId       String
+  createdByUserId String
+  title           String
+  description     String?
+  status          PortalRequestStatus @default(NEW)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  // Производственные подстатусы, которые клиент проставляет сам при создании
+  // заявки (какие операции ему нужны). Поля «металл» (hasMetal/metalOwner) сюда
+  // сознательно НЕ включены — это внутренняя информация по закупкам.
+  laserStatus        String?
+  bendingStatus      String?
+  weldingStatus      String?
+  paintingStatus     String?
+  sandblastingStatus String?
+  extraWorkStatus    String?
+  deliveryStatus     String?
+  company         Client              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser   User                @relation("PortalRequestCreatedBy", fields: [createdByUserId], references: [id])
+  items           PortalRequestItem[]
+  comments        PortalComment[]
+  files           PortalFile[]
+
+  @@index([companyId, createdAt])
+}
+
+model PortalRequestItem {
+  id              String        @id @default(cuid())
+  portalRequestId String
+  name            String
+  quantity        Float         @default(1)
+  unit            String        @default("шт")
+  portalRequest   PortalRequest @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
+}
+
+model PortalComment {
+  id              String        @id @default(cuid())
+  portalRequestId String
+  userId          String
+  text            String
+  createdAt       DateTime      @default(now())
+  portalRequest   PortalRequest @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@index([portalRequestId, createdAt])
+}
+
+model PortalFile {
+  id              String        @id @default(cuid())
+  portalRequestId String
+  filename        String
+  originalName    String
+  size            Int
+  mimeType        String?
+  uploadedById    String
+  createdAt       DateTime      @default(now())
+  portalRequest   PortalRequest @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
+  uploadedBy      User          @relation(fields: [uploadedById], references: [id])
+}
+
+model ClientPosition {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  unit      String   @default("шт")
+  createdAt DateTime @default(now())
+  company   Client   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }

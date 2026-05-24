@@ -10,12 +10,22 @@ async function sendToChat(chatId: string, text: string): Promise<void> {
   });
 }
 
-/** Sends a Telegram notification to all users who have a telegramChatId set. */
+/**
+ * Sends a Telegram notification to all internal users who have a telegramChatId set.
+ *
+ * CLIENT-роль (пользователи кабинета портала) исключена сознательно: это внешние
+ * пользователи компаний, им не должны прилетать общие CRM-уведомления о заявках,
+ * статусах и комментариях во внутреннем флоу.
+ */
 export async function sendTelegram(text: string): Promise<void> {
   if (!BOT_TOKEN) return;
   try {
     const users = await prisma.user.findMany({
-      where: { telegramChatId: { not: null }, isBlocked: false },
+      where: {
+        telegramChatId: { not: null },
+        isBlocked: false,
+        role: { not: "CLIENT" },
+      },
       select: { telegramChatId: true },
     });
     await Promise.all(

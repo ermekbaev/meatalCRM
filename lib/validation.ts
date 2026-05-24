@@ -22,6 +22,7 @@ export const userRoleEnum = z.enum([
   "ENGINEER",
   "EMPLOYEE",
   "CONTRACTOR",
+  "CLIENT",
 ]);
 export const clientTypeEnum = z.enum(["INDIVIDUAL", "COMPANY"]);
 export const requestStatusEnum = z.enum([
@@ -396,6 +397,101 @@ export const companySettingsSchema = z.object({
 
 // ─── DaData (внешние подсказки) ──────────────────────────────────────────────
 export const dadataQuerySchema = z.object({ query: z.string().trim().max(300).optional() });
+
+// ─── Companies (кабинеты клиентов в портале) ────────────────────────────────
+//
+// «Компания» = Client(type=COMPANY, isPortalEnabled=true) + один CLIENT-пользователь.
+// При создании ADMIN указывает данные компании, ответственного менеджера и одного
+// пользователя-клиента. См. docs/client-portal-plan.md (раздел 3).
+export const companyCreateSchema = z.object({
+  name: z.string().trim().min(1, "Укажите название компании").max(300),
+  shortName: optStr,
+  inn: optStr,
+  kpp: optStr,
+  ogrn: optStr,
+  legalAddress: optStr,
+  director: optStr,
+  phone: optStr,
+  email: z.string().email().nullish().or(z.literal("")),
+  managerId: cuid,
+  user: z.object({
+    email: z.string().email().toLowerCase(),
+    password: z.string().min(6, "Минимум 6 символов").max(200),
+    name: z.string().trim().min(1, "Укажите имя пользователя").max(200),
+    phone: optStr,
+  }),
+});
+
+/**
+ * Привязка кабинета к УЖЕ существующему контрагенту (по ИНН в UI).
+ * Реквизиты не передаются — берутся из существующего Client. Сервер только
+ * выставит `isPortalEnabled=true`, проставит `managerId` и создаст одного
+ * CLIENT-пользователя с `companyId`.
+ */
+export const companyAttachExistingSchema = z.object({
+  existingClientId: cuid,
+  managerId: cuid,
+  user: z.object({
+    email: z.string().email().toLowerCase(),
+    password: z.string().min(6, "Минимум 6 символов").max(200),
+    name: z.string().trim().min(1, "Укажите имя пользователя").max(200),
+    phone: optStr,
+  }),
+});
+
+export const companyUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(300).optional(),
+  shortName: optStr,
+  inn: optStr,
+  kpp: optStr,
+  ogrn: optStr,
+  legalAddress: optStr,
+  director: optStr,
+  phone: optStr,
+  email: z.string().email().nullish().or(z.literal("")),
+  managerId: cuid.optional(),
+  isPortalEnabled: z.boolean().optional(),
+});
+
+// ─── Portal: заявки кабинета клиента ─────────────────────────────────────────
+//
+// Источник истины для companyId/createdByUserId — серверная сессия, в схеме их
+// нет (mass-assignment защита). См. app/api/portal/requests/route.ts.
+export const portalRequestItemSchema = z.object({
+  name: z.string().trim().min(1, "Укажите название позиции").max(500),
+  quantity: qty.default(1),
+  unit: z.string().trim().max(50).default("шт"),
+});
+
+// Производственные подстатусы, доступные клиенту в портале. Подмножество
+// `requestStatusFields` из CRM-заявки: убраны `hasMetal` и `metalOwner` —
+// материалы это внутренняя кухня, клиент проставляет только нужные операции.
+const portalProductionFields = {
+  laserStatus: optStr,
+  bendingStatus: optStr,
+  weldingStatus: optStr,
+  paintingStatus: optStr,
+  sandblastingStatus: optStr,
+  extraWorkStatus: optStr,
+  deliveryStatus: optStr,
+};
+
+export const portalRequestCreateSchema = z.object({
+  title: z.string().trim().min(1, "Укажите название заявки").max(500),
+  description: optStr,
+  ...portalProductionFields,
+  items: z.array(portalRequestItemSchema).optional(),
+});
+
+export const portalRequestStatusSchema = z.object({
+  status: z.enum(["NEW", "IN_PROGRESS", "READY"]),
+});
+
+// ─── Portal: номенклатура клиента ────────────────────────────────────────────
+export const clientPositionCreateSchema = z.object({
+  name: z.string().trim().min(1, "Укажите название").max(500),
+  unit: z.string().trim().max(50).default("шт"),
+});
 
 // ─── Push subscription ────────────────────────────────────────────────────────
 export const pushSubscribeSchema = z.object({

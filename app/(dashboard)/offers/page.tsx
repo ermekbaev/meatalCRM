@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { OffersView, PAGE_SIZE } from "./OffersView";
+import { DEFAULT_PAGE_SIZE as PAGE_SIZE } from "@/lib/pagination";
+import { OffersView } from "./OffersView";
 
 /**
  * Server component для списка КП.

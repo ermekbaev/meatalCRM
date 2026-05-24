@@ -12,6 +12,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = session.user;
   const role = user.role;
 
+  // CLIENT — внешний пользователь компании, в основной CRM ему делать нечего.
+  if (role === "CLIENT") redirect("/portal");
+
   if (role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR" || role === "EMPLOYEE") {
     return (
       <div className="flex h-screen flex-col bg-gray-50">

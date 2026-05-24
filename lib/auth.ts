@@ -63,6 +63,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           avatarUrl: user.avatarUrl,
+          companyId: user.companyId ?? null,
         };
       },
     }),
@@ -73,6 +74,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.avatarUrl = user.avatarUrl ?? null;
+        token.companyId = user.companyId ?? null;
       }
       if (trigger === "update" && session?.avatarUrl !== undefined) {
         token.avatarUrl = session.avatarUrl;
@@ -84,6 +86,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.avatarUrl = token.avatarUrl ?? null;
+        session.user.companyId = token.companyId ?? null;
       }
       return session;
     },

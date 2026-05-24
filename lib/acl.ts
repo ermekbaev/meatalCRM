@@ -1,10 +1,62 @@
 import { prisma } from "@/lib/prisma";
+import type { Session } from "next-auth";
 
-export type Role = "ADMIN" | "MANAGER" | "FOREMAN" | "ENGINEER" | "EMPLOYEE" | "CONTRACTOR";
+export type Role = "ADMIN" | "MANAGER" | "FOREMAN" | "ENGINEER" | "EMPLOYEE" | "CONTRACTOR" | "CLIENT";
 
 export const isAdmin = (role: Role) => role === "ADMIN";
 export const isAdminOrManager = (role: Role) => role === "ADMIN" || role === "MANAGER";
+export const isClient = (role: Role) => role === "CLIENT";
 export const canManageTasks = (role: Role) => role === "ADMIN" || role === "MANAGER";
+
+/**
+ * Возвращает companyId клиента-портала из сессии. Используется в /api/portal/*:
+ * companyId в запросе игнорируется, источник истины — сессия.
+ * Возвращает null, если сессии нет, роль не CLIENT, либо у пользователя не задана компания.
+ */
+export function getPortalScope(session: Session | null): string | null {
+  if (!session?.user) return null;
+  if (session.user.role !== "CLIENT") return null;
+  return session.user.companyId ?? null;
+}
+
+/**
+ * Доступ к портальной заявке для роли запросившего:
+ *  - CLIENT  → только если companyId заявки совпадает с session.user.companyId;
+ *  - ADMIN   → к любой;
+ *  - MANAGER → только если он `managerId` компании-владельца заявки;
+ *  - прочие  → 403.
+ *
+ * Используется во всех `/api/portal/requests/[id]/*` для единой проверки.
+ * Возвращает { id, companyId } или null (вызывающий бросает 404).
+ */
+export async function getPortalRequestAccess(
+  session: Session | null,
+  requestId: string
+): Promise<{ id: string; companyId: string } | null> {
+  if (!session?.user) return null;
+  const role = session.user.role;
+
+  if (role === "CLIENT") {
+    if (!session.user.companyId) return null;
+    return prisma.portalRequest.findFirst({
+      where: { id: requestId, companyId: session.user.companyId },
+      select: { id: true, companyId: true },
+    });
+  }
+  if (role === "ADMIN") {
+    return prisma.portalRequest.findFirst({
+      where: { id: requestId },
+      select: { id: true, companyId: true },
+    });
+  }
+  if (role === "MANAGER") {
+    return prisma.portalRequest.findFirst({
+      where: { id: requestId, company: { managerId: session.user.id } },
+      select: { id: true, companyId: true },
+    });
+  }
+  return null;
+}
 // Видит только задачи, где он среди исполнителей. CONTRACTOR — только read-only.
 export const isAssigneeRole = (role: Role) =>
   role === "FOREMAN" || role === "ENGINEER" || role === "CONTRACTOR";
@@ -26,7 +78,7 @@ export async function canForemanAccessTask(taskId: string, userId: string) {
 // Ключи в S3 имеют вид `<folder>/<uuid>.<ext>` (см. lib/storage.ts → uploadFile).
 // Разрешённые папки и допустимые символы строго ограничены, чтобы исключить
 // path traversal (`..`, вложенные слеши, абсолютные пути).
-const FILE_KEY_RE = /^(requests|tasks|company|avatars)\/[A-Za-z0-9._-]+$/;
+const FILE_KEY_RE = /^(requests|tasks|company|avatars|portal)\/[A-Za-z0-9._-]+$/;
 
 /**
  * Проверяет, имеет ли пользователь право получить файл по S3-ключу.
@@ -48,6 +100,13 @@ export async function canAccessFileKey(
 
   const folder = key.split("/")[0];
 
+  // CLIENT — внешний пользователь компании. Файлы CRM (requests/, tasks/)
+  // ему недоступны принципиально, независимо от знания ключа. Разрешены
+  // только: portal/* (с проверкой ниже) и company/, avatars/ (низкочувствит.).
+  if (role === "CLIENT" && folder !== "portal" && folder !== "company" && folder !== "avatars") {
+    return false;
+  }
+
   if (folder === "company" || folder === "avatars") {
     // Низкочувствительные ресурсы, видимые всем авторизованным пользователям.
     return true;
@@ -63,6 +122,36 @@ export async function canAccessFileKey(
       select: { id: true },
     });
     return file !== null;
+  }
+
+  if (folder === "portal") {
+    // CLIENT — только файлы заявок своей компании; ADMIN — все;
+    // MANAGER — заявок компаний, где он ответственный.
+    if (role === "CLIENT") {
+      const file = await prisma.portalFile.findFirst({
+        where: {
+          filename: key,
+          portalRequest: { company: { portalUsers: { some: { id: userId } } } },
+        },
+        select: { id: true },
+      });
+      return file !== null;
+    }
+    if (role === "ADMIN") {
+      const file = await prisma.portalFile.findFirst({
+        where: { filename: key },
+        select: { id: true },
+      });
+      return file !== null;
+    }
+    if (role === "MANAGER") {
+      const file = await prisma.portalFile.findFirst({
+        where: { filename: key, portalRequest: { company: { managerId: userId } } },
+        select: { id: true },
+      });
+      return file !== null;
+    }
+    return false;
   }
 
   if (folder === "tasks") {

@@ -8,7 +8,7 @@ import { AvatarDialog } from "./AvatarDialog";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, LogOut, Factory, BookOpen, ChevronRight, Calculator,
-  Layers, Scissors, Box, BarChart2, Receipt, Warehouse,
+  Layers, Scissors, Box, BarChart2, Receipt, Warehouse, Building2,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { href: "/analytics",  label: "Аналитика",    icon: BarChart2 },
   { href: "/calculator", label: "Калькулятор",  icon: Calculator },
   { href: "/warehouse",  label: "Склад",         icon: Warehouse, foreman: true },
+  { href: "/companies",  label: "Компании",     icon: Building2 },
 ];
 
 const settingsItems = [

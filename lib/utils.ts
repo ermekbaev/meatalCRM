@@ -234,6 +234,12 @@ export const PRODUCTION_FIELDS: Array<{
 // На уровне задачи доступны все производственные статусы, как в заявках
 export const TASK_PRODUCTION_FIELDS = PRODUCTION_FIELDS;
 
+// Поднабор для портала: клиент сам отмечает, какие операции ему нужны.
+// Поля «материалы» (hasMetal, metalOwner) исключены — это внутренняя кухня.
+export const PORTAL_PRODUCTION_FIELDS = PRODUCTION_FIELDS.filter(
+  (f) => f.key !== "hasMetal" && f.key !== "metalOwner"
+);
+
 export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   status:     "Статус",
   priority:   "Приоритет",

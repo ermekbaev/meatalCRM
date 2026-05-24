@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ClientsView, PAGE_SIZE } from "./ClientsView";
+import { DEFAULT_PAGE_SIZE as PAGE_SIZE } from "@/lib/pagination";
+import { ClientsView } from "./ClientsView";
 
 /**
  * Server component для списка контрагентов.

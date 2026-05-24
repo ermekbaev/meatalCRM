@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   REQUEST_STATUS_LABELS,
   PRIORITY_LABELS,
+  PRODUCTION_FIELDS,
   formatCurrency,
 } from "@/lib/utils";
 import { getUnitOptions } from "@/lib/unit-options";
@@ -32,6 +33,7 @@ import {
   BookOpen,
   Paperclip,
   X,
+  Factory,
 } from "lucide-react";
 import Link from "next/link";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
@@ -66,28 +68,54 @@ export default function NewRequestPage() {
       clientId: clientId ?? "",
       assigneeId: "",
       items: [] as any[],
+      // Производственные подстатусы (как в просмотре заявки). null = «не указано».
+      hasMetal: null as string | null,
+      metalOwner: null as string | null,
+      laserStatus: null as string | null,
+      bendingStatus: null as string | null,
+      weldingStatus: null as string | null,
+      paintingStatus: null as string | null,
+      sandblastingStatus: null as string | null,
+      extraWorkStatus: null as string | null,
+      deliveryStatus: null as string | null,
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
   useEffect(() => {
+    // /api/clients отдаёт paginated { items, total, ... } (см. lib/pagination.ts).
+    // Берём максимально допустимый pageSize, чтобы в выпадашке хватало контрагентов;
+    // если предвыбранный clientId из URL не попал в первую партию, отдельно догружаем
+    // его карточку и добавляем в список — иначе ClientSearchInput не покажет badge.
     Promise.all([
-      fetch("/api/clients")
+      fetch("/api/clients?pageSize=200")
         .then((r) => r.json())
-        .catch(() => []),
+        .catch(() => ({ items: [] })),
       fetch("/api/users")
         .then((r) => r.json())
         .catch(() => []),
       fetch("/api/catalog")
         .then((r) => r.json())
         .catch(() => []),
-    ]).then(([c, u, cat]) => {
-      setClients(Array.isArray(c) ? c : []);
+    ]).then(async ([c, u, cat]) => {
+      const items: { id: string }[] = Array.isArray(c?.items) ? c.items : Array.isArray(c) ? c : [];
+      if (clientId && !items.some((x) => x.id === clientId)) {
+        try {
+          const res = await fetch(`/api/clients/${clientId}`);
+          if (res.ok) {
+            const extra = await res.json();
+            if (extra?.id) items.push(extra);
+          }
+        } catch {
+          // молча — пользователь увидит пустой поиск и сможет выбрать вручную
+        }
+      }
+      setClients(items);
       setUsers(Array.isArray(u) ? u : []);
       setCatalog(Array.isArray(cat) ? cat : []);
     });
-  }, []);
+  }, [clientId]);
 
   const items = watch("items");
   const status = watch("status");
@@ -115,6 +143,7 @@ export default function NewRequestPage() {
       quantity: 1,
       unit: "шт",
       price: 0,
+      purchasePrice: null,
       discount: 0,
       total: 0,
       isCustomerMaterial: false,
@@ -127,6 +156,7 @@ export default function NewRequestPage() {
       quantity: 1,
       unit: item.unit ?? "шт",
       price: item.price ?? 0,
+      purchasePrice: item.purchasePrice ?? null,
       discount: 0,
       total: item.price ?? 0,
       isCustomerMaterial: false,
@@ -134,10 +164,13 @@ export default function NewRequestPage() {
   };
 
   async function onSubmit(data: any) {
-    const itemsWithTotal = data.items.map((item: any, i: number) => ({
-      ...item,
-      total: calcTotal(i),
-    }));
+    // Отбрасываем строки с пустым наименованием — это «черновые» позиции,
+    // которые пользователь добавил, но не заполнил. Серверная схема требует
+    // name >= 1 символа, иначе zod валит весь запрос 400-ой.
+    type RequestItemDraft = { name?: string; total?: number };
+    const itemsWithTotal = data.items
+      .map((item: RequestItemDraft, i: number) => ({ ...item, total: calcTotal(i) }))
+      .filter((it: RequestItemDraft) => (it.name ?? "").trim().length > 0);
     const amount = itemsWithTotal.reduce(
       (s: number, it: any) => s + it.total,
       0,
@@ -152,6 +185,15 @@ export default function NewRequestPage() {
       assigneeId: data.assigneeId || null,
       amount: amount || null,
       vatIncluded,
+      hasMetal: data.hasMetal,
+      metalOwner: data.metalOwner,
+      laserStatus: data.laserStatus,
+      bendingStatus: data.bendingStatus,
+      weldingStatus: data.weldingStatus,
+      paintingStatus: data.paintingStatus,
+      sandblastingStatus: data.sandblastingStatus,
+      extraWorkStatus: data.extraWorkStatus,
+      deliveryStatus: data.deliveryStatus,
       items: itemsWithTotal,
     };
 
@@ -238,6 +280,53 @@ export default function NewRequestPage() {
               </CardContent>
             </Card>
 
+            {/* Производство — те же подстатусы, что и в карточке заявки.
+                Сделано 1:1 как в /requests/[id], чтобы менеджеру не приходилось
+                «дозаполнять» после ручного переноса из портальной заявки. */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Factory className="h-4 w-4 text-slate-400" />
+                  Производство
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {PRODUCTION_FIELDS.map((f) => {
+                    const current = (watch(f.key) as string | null) ?? null;
+                    const opt = current ? f.options.find((o) => o.value === current) : null;
+                    return (
+                      <div key={f.key} className="space-y-1">
+                        <p className="text-xs font-medium text-slate-500">{f.label}</p>
+                        <Select
+                          value={current ?? "__none__"}
+                          onValueChange={(v) =>
+                            setValue(f.key, v === "__none__" ? null : v, { shouldDirty: true })
+                          }
+                        >
+                          <SelectTrigger
+                            className={`h-8 w-full px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${
+                              opt ? opt.className : "bg-slate-50 text-slate-400 ring-1 ring-slate-200"
+                            }`}
+                          >
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__" className="text-xs">—</SelectItem>
+                            {f.options.map((o) => (
+                              <SelectItem key={o.value} value={o.value} className="text-xs">
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Позиции */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -287,7 +376,7 @@ export default function NewRequestPage() {
                 ) : (
                   <>
                     <div className="overflow-x-auto -mx-px">
-                      <table className="min-w-205 text-sm table-fixed">
+                      <table className="min-w-245 text-sm table-fixed">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50">
                             <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-60">
@@ -301,6 +390,9 @@ export default function NewRequestPage() {
                             </th>
                             <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-32">
                               Цена, ₽
+                            </th>
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-32">
+                              Себест., ₽
                             </th>
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-24">
                               Скидка %
@@ -370,6 +462,16 @@ export default function NewRequestPage() {
                                   step="0.01"
                                   className="h-8 text-sm text-right w-full"
                                   placeholder="0"
+                                />
+                              </td>
+                              <td className="px-2 py-2">
+                                <Input
+                                  {...register(`items.${index}.purchasePrice`)}
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  className="h-8 text-sm text-right w-full"
+                                  placeholder="—"
                                 />
                               </td>
                               <td className="px-2 py-2">
