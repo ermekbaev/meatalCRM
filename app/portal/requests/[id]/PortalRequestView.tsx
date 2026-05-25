@@ -93,17 +93,33 @@ export function PortalRequestView({
     deliveryStatus: request.deliveryStatus,
   });
 
+  const [prodError, setProdError] = useState<string | null>(null);
+
   async function updateProduction(key: ProductionKey, value: string | null) {
     const prev = production[key];
     setProduction((cur) => ({ ...cur, [key]: value }));
-    const res = await fetch(`/api/portal/requests/${request.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [key]: value }),
-    });
-    if (!res.ok) {
-      // откатываем — сеть/валидация подвела
+    setProdError(null);
+    try {
+      const res = await fetch(`/api/portal/requests/${request.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (!res.ok) {
+        // Откатываем optimistic-обновление и показываем причину пользователю.
+        // Часто это 500 от Prisma, если на проде миграция production-полей
+        // ещё не накатилась (надо перезапустить pm2 metalcrm).
+        const data = await res.json().catch(() => ({}));
+        setProduction((cur) => ({ ...cur, [key]: prev }));
+        setProdError(data?.error ?? `Не удалось сохранить (HTTP ${res.status})`);
+        return;
+      }
+      // Серверный re-render: server component перечитает значения из БД и
+      // подтвердит реальное сохранение (а не только локальный state).
+      router.refresh();
+    } catch (e) {
       setProduction((cur) => ({ ...cur, [key]: prev }));
+      setProdError(e instanceof Error ? e.message : "Сетевая ошибка");
     }
   }
 
@@ -192,6 +208,11 @@ export function PortalRequestView({
         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
           <Factory className="h-4 w-4 text-slate-400" /> Производство
         </h3>
+        {prodError && (
+          <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {prodError}
+          </div>
+        )}
         <div className="rounded-xl border border-slate-200 bg-white p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
           {PORTAL_PRODUCTION_FIELDS.map((f) => {
             const key = f.key as ProductionKey;
