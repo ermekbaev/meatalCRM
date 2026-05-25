@@ -226,10 +226,10 @@ export default function CuttingReferencePage() {
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-2xl mx-auto space-y-5">
 
-          {/* Subtitle + import/export */}
-          <div className="flex items-center justify-between">
+          {/* Subtitle + import/export — на мобилке стек, иначе кнопки уезжают. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">Справочник цен для расчёта стоимости резки</p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="outline" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-1.5" />
                 Экспорт

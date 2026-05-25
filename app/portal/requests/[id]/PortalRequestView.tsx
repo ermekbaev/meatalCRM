@@ -5,8 +5,24 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft, Factory, FileText, MessageSquare, Paperclip, Trash2, Upload } from "lucide-react";
 import { formatDate, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
+
+type ProductionKey =
+  | "laserStatus"
+  | "bendingStatus"
+  | "weldingStatus"
+  | "paintingStatus"
+  | "sandblastingStatus"
+  | "extraWorkStatus"
+  | "deliveryStatus";
 
 type Item = { id: string; name: string; quantity: number; unit: string };
 type Comment = {
@@ -62,6 +78,34 @@ export function PortalRequestView({
   currentUserId: string;
 }) {
   const router = useRouter();
+
+  // ─── Производственные подстатусы ───────────────────────────────────────────
+  // Клиент может корректировать их в любой момент: «забыли отметить покраску».
+  // Сервер пишет только присланные ключи (см. PUT /api/portal/requests/[id]),
+  // поэтому шлём по одному полю.
+  const [production, setProduction] = useState<Record<ProductionKey, string | null>>({
+    laserStatus: request.laserStatus,
+    bendingStatus: request.bendingStatus,
+    weldingStatus: request.weldingStatus,
+    paintingStatus: request.paintingStatus,
+    sandblastingStatus: request.sandblastingStatus,
+    extraWorkStatus: request.extraWorkStatus,
+    deliveryStatus: request.deliveryStatus,
+  });
+
+  async function updateProduction(key: ProductionKey, value: string | null) {
+    const prev = production[key];
+    setProduction((cur) => ({ ...cur, [key]: value }));
+    const res = await fetch(`/api/portal/requests/${request.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [key]: value }),
+    });
+    if (!res.ok) {
+      // откатываем — сеть/валидация подвела
+      setProduction((cur) => ({ ...cur, [key]: prev }));
+    }
+  }
 
   // ─── Комментарии ───────────────────────────────────────────────────────────
   const [comments, setComments] = useState(request.comments);
@@ -141,29 +185,41 @@ export function PortalRequestView({
         )}
       </div>
 
-      {/* Производство — клиент видит, что сам выбрал при создании. Менять
-          нельзя: правки производственного флоу — задача менеджера, статусы
-          в портале и в CRM-заявке после ручного переноса могут расходиться. */}
+      {/* Производство — клиент сам отмечает, какие операции нужны. Можно
+          менять в любой момент: PUT /api/portal/requests/[id] принимает
+          production-поля от CLIENT (см. portalRequestUpdateSchema). */}
       <section>
         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
           <Factory className="h-4 w-4 text-slate-400" /> Производство
         </h3>
         <div className="rounded-xl border border-slate-200 bg-white p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
           {PORTAL_PRODUCTION_FIELDS.map((f) => {
-            const current = request[f.key as keyof Request] as string | null;
+            const key = f.key as ProductionKey;
+            const current = production[key];
             const opt = current ? f.options.find((o) => o.value === current) : null;
             return (
               <div key={f.key} className="space-y-1">
                 <p className="text-xs font-medium text-slate-500">{f.label}</p>
-                {opt ? (
-                  <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium ${opt.className}`}>
-                    {opt.label}
-                  </span>
-                ) : (
-                  <span className="inline-flex h-6 items-center rounded-full bg-slate-50 px-2.5 text-xs font-medium text-slate-400 ring-1 ring-slate-200">
-                    —
-                  </span>
-                )}
+                <Select
+                  value={current ?? "__none__"}
+                  onValueChange={(v) => updateProduction(key, v === "__none__" ? null : v)}
+                >
+                  <SelectTrigger
+                    className={`h-8 w-full px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${
+                      opt ? opt.className : "bg-slate-50 text-slate-400 ring-1 ring-slate-200"
+                    }`}
+                  >
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">—</SelectItem>
+                    {f.options.map((o) => (
+                      <SelectItem key={o.value} value={o.value} className="text-xs">
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             );
           })}

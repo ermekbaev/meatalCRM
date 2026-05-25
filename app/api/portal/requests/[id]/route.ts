@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling, parseBody, unauthorized, notFound, forbidden } from "@/lib/api-handler";
 import { getPortalRequestAccess } from "@/lib/acl";
-import { portalRequestStatusSchema } from "@/lib/validation";
+import { portalRequestUpdateSchema } from "@/lib/validation";
 
 /**
  * Детали портальной заявки (позиции, файлы, общий тред комментариев).
@@ -39,24 +39,55 @@ export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
 });
 
 /**
- * Смена статуса заявки (NEW / IN_PROGRESS / READY).
- * Только внутренние ADMIN / MANAGER (ответственный за компанию). CLIENT — 403.
+ * Частичное обновление портальной заявки.
+ *   - status         — только ADMIN/MANAGER (общий флоу-статус ведёт менеджер).
+ *   - production-поля — клиент тоже может (поправить «забыл указать покраску»);
+ *     это не меняет ничего «снаружи», просто метаданные для менеджера.
  */
 export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
   if (!session) throw unauthorized();
-  if (session.user.role === "CLIENT") throw forbidden();
 
   const { id } = await params;
   const access = await getPortalRequestAccess(session, id);
   if (!access) throw notFound();
 
-  const { status } = await parseBody(req, portalRequestStatusSchema);
+  const data = await parseBody(req, portalRequestUpdateSchema);
+
+  if (data.status !== undefined && session.user.role === "CLIENT") {
+    throw forbidden("Сменить статус может только менеджер");
+  }
+
+  // Собираем только присланные поля — не затираем то, чего нет в теле.
+  const patch: Record<string, unknown> = {};
+  if (data.status !== undefined) patch.status = data.status;
+  for (const key of [
+    "laserStatus",
+    "bendingStatus",
+    "weldingStatus",
+    "paintingStatus",
+    "sandblastingStatus",
+    "extraWorkStatus",
+    "deliveryStatus",
+  ] as const) {
+    if (data[key] !== undefined) patch[key] = data[key] ?? null;
+  }
 
   const updated = await prisma.portalRequest.update({
     where: { id },
-    data: { status },
-    select: { id: true, status: true, updatedAt: true },
+    data: patch,
+    select: {
+      id: true,
+      status: true,
+      updatedAt: true,
+      laserStatus: true,
+      bendingStatus: true,
+      weldingStatus: true,
+      paintingStatus: true,
+      sandblastingStatus: true,
+      extraWorkStatus: true,
+      deliveryStatus: true,
+    },
   });
   return NextResponse.json(updated);
 });

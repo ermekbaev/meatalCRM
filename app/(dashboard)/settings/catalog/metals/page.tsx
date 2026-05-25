@@ -198,33 +198,36 @@ export default function MetalsReferencePage() {
       <Header title="Справочник металлов" />
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-5xl mx-auto space-y-4">
-          {/* Tabs */}
-          <div className="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit">
-            {MATERIAL_TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
-                  tab === t.id
-                    ? "bg-white shadow text-slate-800"
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
+          {/* Tabs — на мобилке могут не поместиться (Г/К, Х/К, Оцинковка,
+              Нержавейка), даём горизонтальный скролл и фиксируем строку. */}
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="inline-flex gap-1 bg-slate-100 rounded-lg p-1">
+              {MATERIAL_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+                    tab === t.id
+                      ? "bg-white shadow text-slate-800"
+                      : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-between">
+          {/* Actions — на мобилке счётчик и группа кнопок стекаются. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
               {filtered.length} записей для{" "}
               <span className="font-medium text-slate-700">
                 {MATERIAL_TABS.find((t) => t.id === tab)?.label}
               </span>
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {items.length === 0 && (
                 <Button variant="outline" size="sm" onClick={seedFromGost} disabled={seeding}>
                   {seeding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}

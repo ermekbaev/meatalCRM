@@ -387,23 +387,26 @@ export function MetalCalculator({ mode }: { mode: CalcMode }) {
 
   return (
     <div className="space-y-4">
-      {/* ── Описание материала + история ── */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-4 py-2.5 flex-1">
+      {/* ── Описание материала + история ──
+          На мобилке кнопка «История» уезжала за край: «История» имеет popover
+          шириной w-96, а левый блок без min-w-0 распирал родителя. Стек на
+          мобилке (flex-col), горизонталь от sm:. */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-4 py-2.5 flex-1 min-w-0">
           <Info className="h-4 w-4 shrink-0 text-slate-400" />
-          <span>{material.description}</span>
+          <span className="min-w-0 wrap-break-word">{material.description}</span>
           {weightMode === "auto" && refEntry && (
-            <span className="ml-2 text-xs text-green-600 font-medium">
+            <span className="ml-2 text-xs text-green-600 font-medium shrink-0">
               · справочник ГОСТ
             </span>
           )}
           {weightMode === "invoice" && (
-            <span className="ml-2 text-xs text-orange-600 font-medium">
+            <span className="ml-2 text-xs text-orange-600 font-medium shrink-0">
               · вес из накладной
             </span>
           )}
         </div>
-        <div className="relative">
+        <div className="relative shrink-0 self-start sm:self-auto">
           <Button
             variant="outline"
             size="sm"

@@ -227,11 +227,11 @@ export default function RequestsPage() {
                 )}
               </div>
               <div className="flex items-center justify-between gap-2">
-                <div className="text-xs text-gray-500 min-w-0 flex-1">
+                <div className="text-xs text-gray-500 min-w-0 flex-1 truncate">
                   <span className="font-medium text-gray-800">{r.amount ? formatCurrency(r.amount) : "—"}</span>
                   <span className="mx-1.5">·</span>
                   <span>{formatDate(r.createdAt)}</span>
-                  {r.assignee?.name && <><span className="mx-1.5">·</span><span className="truncate">{r.assignee.name}</span></>}
+                  {r.assignee?.name && <><span className="mx-1.5">·</span><span>{r.assignee.name}</span></>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => router.push(`/requests/${r.id}`)}>

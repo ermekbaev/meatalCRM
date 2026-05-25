@@ -53,14 +53,17 @@ function StatCard({ icon: Icon, label, value, sub, accent = "orange" }: any) {
   const c = colors[accent];
   return (
     <Card className="border-slate-200">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          {/* min-w-0 + flex-1 — иначе длинный sub распирает колонку и обрезается
+              об иконку. break-words чтобы «491 тыс. ₽» не ломалось по словам в
+              три строки на узких мобильных карточках. */}
+          <div className="space-y-1 min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
-            <p className={`text-2xl font-bold tracking-tight ${c.text}`}>{value}</p>
+            <p className={`text-xl sm:text-2xl font-bold tracking-tight wrap-break-word ${c.text}`}>{value}</p>
             {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
           </div>
-          <div className={`rounded-xl ${c.bg} p-2.5`}>
+          <div className={`rounded-xl ${c.bg} p-2.5 shrink-0`}>
             <Icon className={`h-5 w-5 ${c.icon}`} />
           </div>
         </div>

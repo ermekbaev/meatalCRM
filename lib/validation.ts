@@ -487,6 +487,17 @@ export const portalRequestStatusSchema = z.object({
   status: z.enum(["NEW", "IN_PROGRESS", "READY"]),
 });
 
+/**
+ * Частичное обновление портальной заявки.
+ *  - `status` — менять может только внутренний пользователь (роль проверяется в API).
+ *  - Производственные поля (`laserStatus`, …) клиент может корректировать у себя
+ *    уже после создания: «забыл отметить покраску».
+ */
+export const portalRequestUpdateSchema = z.object({
+  status: z.enum(["NEW", "IN_PROGRESS", "READY"]).optional(),
+  ...portalProductionFields,
+});
+
 // ─── Portal: номенклатура клиента ────────────────────────────────────────────
 export const clientPositionCreateSchema = z.object({
   name: z.string().trim().min(1, "Укажите название").max(500),

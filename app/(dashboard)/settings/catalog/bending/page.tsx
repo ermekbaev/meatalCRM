@@ -135,33 +135,35 @@ export default function BendingReferencePage() {
       <Header title="Справочник гибки" />
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-3xl mx-auto space-y-4">
-          {/* Tabs */}
-          <div className="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit">
-            {MATERIAL_TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
-                  tab === t.id
-                    ? "bg-white shadow text-slate-800"
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
+          {/* Tabs — горизонтальный скролл на узких экранах. */}
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="inline-flex gap-1 bg-slate-100 rounded-lg p-1">
+              {MATERIAL_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+                    tab === t.id
+                      ? "bg-white shadow text-slate-800"
+                      : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
               Цена за один гиб —{" "}
               <span className="font-medium text-slate-700">
                 {MATERIAL_TABS.find((t) => t.id === tab)?.label}
               </span>
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="outline" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-1.5" />
                 Экспорт
