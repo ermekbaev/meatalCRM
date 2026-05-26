@@ -12,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Factory, FileText, MessageSquare, Paperclip, Trash2, Upload } from "lucide-react";
-import { formatDate, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
+import { ArrowLeft, Factory, FileText, FileSpreadsheet, MessageSquare, Paperclip, Pencil, Trash2, Upload } from "lucide-react";
+import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
 
 type ProductionKey =
   | "laserStatus"
@@ -36,6 +36,7 @@ type FileRec = {
   filename: string;
   originalName: string;
   size: number;
+  kind: "DRAWING" | "DOCUMENT";
   createdAt: Date | string;
   uploadedById: string;
   uploadedBy: { id: string; name: string };
@@ -46,6 +47,8 @@ type Request = {
   title: string;
   description: string | null;
   status: "NEW" | "IN_PROGRESS" | "READY";
+  paymentStatus: PortalPaymentStatus;
+  createdByUserId: string;
   createdAt: Date | string;
   laserStatus: string | null;
   bendingStatus: string | null;
@@ -156,6 +159,9 @@ export function PortalRequestView({
     setUploading(true);
     const fd = new FormData();
     fd.append("file", file);
+    // С клиента грузим только чертежи. Документы (kind=DOCUMENT) — прерогатива
+    // менеджера; на сервере для CLIENT этот kind возвращает 400.
+    fd.append("kind", "DRAWING");
     const res = await fetch(`/api/portal/requests/${request.id}/files`, {
       method: "POST",
       body: fd,
@@ -167,6 +173,42 @@ export function PortalRequestView({
       setFiles((cur) => [...cur, created]);
     }
   }
+
+  // ─── Описание ──────────────────────────────────────────────────────────────
+  // Менять может только автор заявки. Остальные пользователи компании видят
+  // как read-only (на случай нескольких CLIENT-юзеров в одном кабинете).
+  const canEditDescription = request.createdByUserId === currentUserId;
+  const [description, setDescription] = useState(request.description ?? "");
+  const [descEditing, setDescEditing] = useState(false);
+  const [descSaving, setDescSaving] = useState(false);
+  const [descError, setDescError] = useState<string | null>(null);
+
+  async function saveDescription() {
+    setDescSaving(true);
+    setDescError(null);
+    try {
+      const res = await fetch(`/api/portal/requests/${request.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDescError(data?.error ?? `Не удалось сохранить (HTTP ${res.status})`);
+        return;
+      }
+      setDescEditing(false);
+      router.refresh();
+    } catch (err) {
+      setDescError(err instanceof Error ? err.message : "Сетевая ошибка");
+    } finally {
+      setDescSaving(false);
+    }
+  }
+
+  const drawings = files.filter((f) => f.kind !== "DOCUMENT");
+  const documents = files.filter((f) => f.kind === "DOCUMENT");
+  const paymentOpt = PORTAL_PAYMENT_OPTIONS.find((o) => o.value === request.paymentStatus) ?? PORTAL_PAYMENT_OPTIONS[0];
 
   async function handleDeleteFile(fileId: string) {
     if (!confirm("Удалить файл?")) return;
@@ -190,15 +232,72 @@ export function PortalRequestView({
             <p className="text-xs text-slate-400">Заявка #{request.number} · {formatDate(request.createdAt)}</p>
             <h1 className="mt-0.5 text-lg font-semibold text-slate-900">{request.title}</h1>
           </div>
-          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[request.status]}`}>
-            {STATUS_LABELS[request.status]}
-          </span>
-        </div>
-        {request.description && (
-          <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700 whitespace-pre-wrap">
-            {request.description}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${paymentOpt.className}`}>
+              {paymentOpt.label}
+            </span>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[request.status]}`}>
+              {STATUS_LABELS[request.status]}
+            </span>
           </div>
-        )}
+        </div>
+
+        {descEditing ? (
+          <div className="space-y-2">
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              maxLength={5000}
+              placeholder="Описание заявки"
+            />
+            {descError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {descError}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDescription(request.description ?? "");
+                  setDescEditing(false);
+                  setDescError(null);
+                }}
+                disabled={descSaving}
+              >
+                Отмена
+              </Button>
+              <Button type="button" size="sm" onClick={saveDescription} disabled={descSaving}>
+                {descSaving ? "Сохранение..." : "Сохранить"}
+              </Button>
+            </div>
+          </div>
+        ) : description ? (
+          <div className="group rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700 whitespace-pre-wrap relative">
+            {description}
+            {canEditDescription && (
+              <button
+                type="button"
+                onClick={() => setDescEditing(true)}
+                className="absolute right-2 top-2 rounded p-1 text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-white hover:text-slate-700 transition-opacity"
+                title="Редактировать"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        ) : canEditDescription ? (
+          <button
+            type="button"
+            onClick={() => setDescEditing(true)}
+            className="text-sm text-slate-400 hover:text-orange-600 inline-flex items-center gap-1"
+          >
+            <Pencil className="h-3 w-3" /> Добавить описание
+          </button>
+        ) : null}
       </div>
 
       {/* Производство — клиент сам отмечает, какие операции нужны. Можно
@@ -273,16 +372,16 @@ export function PortalRequestView({
 
       <section>
         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <Paperclip className="h-4 w-4 text-slate-400" /> Файлы и чертежи ({files.length})
+          <Paperclip className="h-4 w-4 text-slate-400" /> Чертежи ({drawings.length})
         </h3>
         <div className="space-y-2">
-          {files.length === 0 ? (
+          {drawings.length === 0 ? (
             <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
-              Файлов пока нет
+              Чертежей пока нет
             </div>
           ) : (
             <ul className="space-y-1.5">
-              {files.map((f) => (
+              {drawings.map((f) => (
                 <li
                   key={f.id}
                   className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
@@ -324,9 +423,41 @@ export function PortalRequestView({
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
           >
-            <Upload className="mr-1 h-4 w-4" /> {uploading ? "Загрузка..." : "Прикрепить файл"}
+            <Upload className="mr-1 h-4 w-4" /> {uploading ? "Загрузка..." : "Прикрепить чертёж"}
           </Button>
         </div>
+      </section>
+
+      {/* Документы от менеджера: счета, договоры, акты. Только скачивание —
+          загружают и удаляют только внутренние роли (см. /api/portal/.../files). */}
+      <section>
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <FileSpreadsheet className="h-4 w-4 text-slate-400" /> Документы ({documents.length})
+        </h3>
+        {documents.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
+            Документов пока нет
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {documents.map((f) => (
+              <li
+                key={f.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                <a
+                  href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                  className="truncate text-slate-700 hover:text-orange-600"
+                >
+                  {f.originalName}
+                </a>
+                <span className="text-xs text-slate-400 whitespace-nowrap">
+                  {(f.size / 1024).toFixed(0)} КБ
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section>

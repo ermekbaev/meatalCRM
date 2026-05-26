@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { ArrowLeft, Building2, User, Mail, Phone, Hash } from "lucide-react";
 import { formatDate, cn } from "@/lib/utils";
+import { PortalUsersCard } from "./PortalUsersCard";
 
 type PortalRequest = {
   id: string;
@@ -81,30 +82,7 @@ export function CompanyDetail({ company }: { company: Company }) {
             </dl>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <User className="h-4 w-4 text-emerald-500" />
-              <h2 className="text-sm font-semibold text-slate-800">Пользователь кабинета</h2>
-            </div>
-            {company.portalUsers.length === 0 ? (
-              <p className="text-sm text-slate-400">Пользователь не привязан</p>
-            ) : (
-              company.portalUsers.map((u) => (
-                <div key={u.id} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-medium text-slate-900">{u.name}</p>
-                    {u.isBlocked && (
-                      <span className="rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-red-200">
-                        заблокирован
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-600">{u.email}</p>
-                  {u.phone && <p className="text-sm text-slate-600">{u.phone}</p>}
-                </div>
-              ))
-            )}
-          </div>
+          <PortalUsersCard companyId={company.id} users={company.portalUsers} />
 
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <div className="flex items-center gap-2 mb-3">

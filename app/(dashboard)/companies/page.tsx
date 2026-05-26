@@ -16,23 +16,42 @@ export default async function CompaniesPage() {
   const role = session.user.role;
   if (role !== "ADMIN" && role !== "MANAGER") redirect("/dashboard");
 
-  const companies = await prisma.client.findMany({
-    where: {
-      isPortalEnabled: true,
-      ...(role === "MANAGER" ? { managerId: session.user.id } : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      inn: true,
-      phone: true,
-      email: true,
-      createdAt: true,
-      manager: { select: { id: true, name: true } },
-      _count: { select: { portalRequests: true, portalUsers: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const where = {
+    isPortalEnabled: true,
+    ...(role === "MANAGER" ? { managerId: session.user.id } : {}),
+  };
 
-  return <CompaniesView companies={companies} canCreate={role === "ADMIN"} />;
+  const [companies, newGroups] = await Promise.all([
+    prisma.client.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        inn: true,
+        phone: true,
+        email: true,
+        createdAt: true,
+        manager: { select: { id: true, name: true } },
+        _count: { select: { portalRequests: true, portalUsers: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    // Отдельным запросом — счётчик заявок со статусом NEW по каждой компании.
+    // _count.select не умеет два разных фильтра на одну и ту же связь, поэтому
+    // считаем groupBy и потом мёрджим. Как только менеджер переключает статус
+    // заявки, метка исчезает.
+    prisma.portalRequest.groupBy({
+      by: ["companyId"],
+      where: { status: "NEW", company: where },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const newByCompany = new Map(newGroups.map((g) => [g.companyId, g._count._all]));
+  const companiesWithNew = companies.map((c) => ({
+    ...c,
+    newRequestsCount: newByCompany.get(c.id) ?? 0,
+  }));
+
+  return <CompaniesView companies={companiesWithNew} canCreate={role === "ADMIN"} />;
 }

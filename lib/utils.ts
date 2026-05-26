@@ -240,6 +240,18 @@ export const PORTAL_PRODUCTION_FIELDS = PRODUCTION_FIELDS.filter(
   (f) => f.key !== "hasMetal" && f.key !== "metalOwner"
 );
 
+// Платёжный подстатус портальной заявки — управляет только менеджер,
+// клиент видит как read-only бейдж.
+export type PortalPaymentStatus = "NONE" | "AWAITING" | "PAID";
+export const PORTAL_PAYMENT_OPTIONS: { value: PortalPaymentStatus; label: string; className: string }[] = [
+  { value: "NONE", label: "Без оплаты", className: "bg-slate-100 text-slate-600 ring-1 ring-slate-200" },
+  { value: "AWAITING", label: "Ждём оплату", className: "bg-amber-100 text-amber-700" },
+  { value: "PAID", label: "Оплачено", className: "bg-emerald-100 text-emerald-700" },
+];
+export const PORTAL_PAYMENT_LABELS: Record<PortalPaymentStatus, string> = Object.fromEntries(
+  PORTAL_PAYMENT_OPTIONS.map((o) => [o.value, o.label])
+) as Record<PortalPaymentStatus, string>;
+
 export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   status:     "Статус",
   priority:   "Приоритет",

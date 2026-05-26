@@ -81,7 +81,7 @@ export function PortalPositionsView({ initialPositions }: { initialPositions: Po
   }
 
   return (
-    <div className="p-4 lg:p-6 max-w-3xl mx-auto space-y-5">
+    <div className="p-4 lg:p-6 space-y-5">
       <h1 className="text-lg font-semibold text-slate-900">Моя номенклатура</h1>
       <p className="text-sm text-slate-500 -mt-3">
         Список ваших позиций — их удобно вставлять в заявки одним кликом.

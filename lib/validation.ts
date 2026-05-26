@@ -439,6 +439,24 @@ export const companyAttachExistingSchema = z.object({
   }),
 });
 
+// Управление CLIENT-пользователями кабинета (отдельно от глобального
+// userUpdateSchema, потому что роль и telegramChatId менять нельзя, а email
+// должен быть уникальным в рамках всей таблицы User).
+export const portalUserCreateSchema = z.object({
+  email: z.string().email().toLowerCase(),
+  password: z.string().min(6, "Минимум 6 символов").max(200),
+  name: z.string().trim().min(1, "Укажите имя").max(200),
+  phone: optStr,
+});
+
+export const portalUserUpdateSchema = z.object({
+  email: z.string().email().toLowerCase().optional(),
+  password: z.string().min(6).max(200).optional().or(z.literal("")),
+  name: z.string().trim().min(1).max(200).optional(),
+  phone: optStr,
+  isBlocked: z.boolean().optional(),
+});
+
 export const companyUpdateSchema = z.object({
   name: z.string().trim().min(1).max(300).optional(),
   shortName: optStr,
@@ -495,6 +513,10 @@ export const portalRequestStatusSchema = z.object({
  */
 export const portalRequestUpdateSchema = z.object({
   status: z.enum(["NEW", "IN_PROGRESS", "READY"]).optional(),
+  // Платёжный статус — только внутренние (проверяется в API).
+  paymentStatus: z.enum(["NONE", "AWAITING", "PAID"]).optional(),
+  // Описание заявки — может менять и клиент (её автор), и внутренний (см. API).
+  description: z.string().trim().max(5000).nullish(),
   ...portalProductionFields,
 });
 

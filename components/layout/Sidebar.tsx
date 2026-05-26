@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AvatarDialog } from "./AvatarDialog";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
@@ -37,14 +37,36 @@ const settingsItems = [
   { href: "/settings/company",         label: "Реквизиты",       icon: Factory },
 ];
 
+// Опрос счётчика новых портальных заявок. Не SWR, чтобы не тащить лишнюю
+// зависимость только ради одного индикатора.
+const NEW_POLL_MS = 60_000;
+
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [newPortalCount, setNewPortalCount] = useState(0);
   const role = session?.user?.role;
   const isAdmin = role === "ADMIN";
+  const isManager = role === "MANAGER";
   const isForeman = role === "FOREMAN";
   const visibleNav = isForeman ? navItems.filter((i) => i.foreman) : navItems;
+
+  const fetchNewCount = useCallback(async () => {
+    if (!isAdmin && !isManager) return;
+    try {
+      const res = await fetch("/api/portal/new-count");
+      if (!res.ok) return;
+      const data = await res.json();
+      setNewPortalCount(data.count ?? 0);
+    } catch {}
+  }, [isAdmin, isManager]);
+
+  useEffect(() => {
+    fetchNewCount();
+    const t = setInterval(fetchNewCount, NEW_POLL_MS);
+    return () => clearInterval(t);
+  }, [fetchNewCount, pathname]);
 
   return (
     <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-slate-50 border-r border-slate-200">
@@ -80,8 +102,21 @@ export function Sidebar() {
                 "h-4 w-4 shrink-0 transition-colors",
                 active ? "text-orange-100" : "text-slate-400 group-hover:text-slate-600"
               )} />
-              {item.label}
-              {active && <ChevronRight className="ml-auto h-3 w-3 text-slate-400" />}
+              <span className="flex-1 truncate">{item.label}</span>
+              {item.href === "/companies" && newPortalCount > 0 && (
+                <span
+                  className={cn(
+                    "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                    active ? "bg-white text-orange-600" : "bg-orange-500 text-white"
+                  )}
+                  title="Новых заявок"
+                >
+                  {newPortalCount}
+                </span>
+              )}
+              {active && item.href !== "/companies" && (
+                <ChevronRight className="ml-auto h-3 w-3 text-slate-400" />
+              )}
             </Link>
           );
         })}

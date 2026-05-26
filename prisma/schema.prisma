@@ -528,6 +528,21 @@ enum PortalRequestStatus {
   READY
 }
 
+// Платёжный подстатус — управляется только внутренней ролью (ADMIN/MANAGER),
+// клиент видит как read-only бейдж.
+enum PortalPaymentStatus {
+  NONE      // Без оплаты
+  AWAITING  // Ждём оплату
+  PAID      // Оплачено
+}
+
+// Разделение портальных файлов на чертежи (грузит клиент) и документы
+// (грузит менеджер — счета, договоры, акты). Клиент документы только скачивает.
+enum PortalFileKind {
+  DRAWING
+  DOCUMENT
+}
+
 model Notification {
   id        String           @id @default(cuid())
   userId    String
@@ -562,6 +577,7 @@ model PortalRequest {
   title           String
   description     String?
   status          PortalRequestStatus @default(NEW)
+  paymentStatus   PortalPaymentStatus @default(NONE)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   // Производственные подстатусы, которые клиент проставляет сам при создании
@@ -605,16 +621,19 @@ model PortalComment {
 }
 
 model PortalFile {
-  id              String        @id @default(cuid())
+  id              String          @id @default(cuid())
   portalRequestId String
   filename        String
   originalName    String
   size            Int
   mimeType        String?
+  // DRAWING — чертежи клиента (старое поведение, дефолт для совместимости);
+  // DOCUMENT — внутренние документы (счета, договоры, акты), грузит менеджер.
+  kind            PortalFileKind  @default(DRAWING)
   uploadedById    String
-  createdAt       DateTime      @default(now())
-  portalRequest   PortalRequest @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
-  uploadedBy      User          @relation(fields: [uploadedById], references: [id])
+  createdAt       DateTime        @default(now())
+  portalRequest   PortalRequest   @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
+  uploadedBy      User            @relation(fields: [uploadedById], references: [id])
 }
 
 model ClientPosition {

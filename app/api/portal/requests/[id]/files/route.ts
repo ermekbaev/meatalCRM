@@ -18,9 +18,16 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
+  // kind: DRAWING — клиент или менеджер; DOCUMENT — только внутренние роли
+  // (счета, договоры). По умолчанию DRAWING для совместимости со старым клиентом.
+  const rawKind = (formData.get("kind") as string | null) ?? "DRAWING";
+  const kind = rawKind === "DOCUMENT" ? "DOCUMENT" : "DRAWING";
 
   if (!file) throw badRequest("Файл не передан");
   if (file.size > MAX_SIZE) throw badRequest("Файл слишком большой (макс. 20 МБ)");
+  if (kind === "DOCUMENT" && session.user.role === "CLIENT") {
+    throw badRequest("Документы загружает менеджер");
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const { key } = await uploadFile(buffer, file.name, file.type, "portal");
@@ -31,6 +38,7 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
       originalName: file.name,
       size: file.size,
       mimeType: file.type || null,
+      kind,
       portalRequestId: id,
       uploadedById: session.user.id,
     },

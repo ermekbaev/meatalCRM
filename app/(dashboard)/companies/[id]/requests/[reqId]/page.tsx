@@ -6,10 +6,13 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Factory, FileText, MessageSquare, Paperclip } from "lucide-react";
+import { ArrowLeft, ArrowRight, Factory, FileText, FileSpreadsheet, MessageSquare, Paperclip } from "lucide-react";
 import { formatDate, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
 import { PortalStatusPicker } from "./PortalStatusPicker";
+import { PortalPaymentPicker } from "./PortalPaymentPicker";
 import { PortalCommentForm } from "./PortalCommentForm";
+import { PortalDescriptionEditor } from "./PortalDescriptionEditor";
+import { PortalDocumentsSection } from "./PortalDocumentsSection";
 
 export default async function PortalRequestViewPage({
   params,
@@ -74,13 +77,12 @@ export default async function PortalRequestViewPage({
                 от {request.createdByUser.name} · {formatDate(request.createdAt)}
               </p>
             </div>
-            <PortalStatusPicker requestId={request.id} initial={request.status} />
-          </div>
-          {request.description && (
-            <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700 whitespace-pre-wrap">
-              {request.description}
+            <div className="flex flex-wrap items-center gap-2">
+              <PortalPaymentPicker requestId={request.id} initial={request.paymentStatus} />
+              <PortalStatusPicker requestId={request.id} initial={request.status} />
             </div>
-          )}
+          </div>
+          <PortalDescriptionEditor requestId={request.id} initial={request.description} />
         </div>
 
         {/* Ручной перенос в основную CRM.
@@ -159,36 +161,53 @@ export default async function PortalRequestViewPage({
           )}
         </section>
 
-        {/* Файлы */}
-        <section>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Paperclip className="h-4 w-4 text-slate-400" /> Файлы ({request.files.length})
-          </h3>
-          {request.files.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-400 text-center">
-              Файлов нет
-            </div>
-          ) : (
-            <ul className="space-y-1.5">
-              {request.files.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-                >
-                  <a
-                    href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
-                    className="truncate text-slate-700 hover:text-orange-600"
-                  >
-                    {f.originalName}
-                  </a>
-                  <span className="text-xs text-slate-400 whitespace-nowrap">
-                    {(f.size / 1024).toFixed(0)} КБ · {f.uploadedBy.name}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        {/* Чертежи и файлы клиента (kind=DRAWING) — read-only для менеджера. */}
+        {(() => {
+          const drawings = request.files.filter((f) => f.kind === "DRAWING");
+          const documents = request.files.filter((f) => f.kind === "DOCUMENT");
+          return (
+            <>
+              <section>
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <Paperclip className="h-4 w-4 text-slate-400" /> Чертежи ({drawings.length})
+                </h3>
+                {drawings.length === 0 ? (
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-400 text-center">
+                    Чертежей нет
+                  </div>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {drawings.map((f) => (
+                      <li
+                        key={f.id}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                      >
+                        <a
+                          href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                          className="truncate text-slate-700 hover:text-orange-600"
+                        >
+                          {f.originalName}
+                        </a>
+                        <span className="text-xs text-slate-400 whitespace-nowrap">
+                          {(f.size / 1024).toFixed(0)} КБ · {f.uploadedBy.name}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              {/* Документы (счета, договоры, акты) — загружает менеджер,
+                  клиент только скачивает. */}
+              <section>
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <FileSpreadsheet className="h-4 w-4 text-slate-400" /> Документы ({documents.length})
+                </h3>
+                <PortalDocumentsSection requestId={request.id} initial={documents} />
+              </section>
+            </>
+          );
+        })()}
 
         {/* Комментарии */}
         <section>

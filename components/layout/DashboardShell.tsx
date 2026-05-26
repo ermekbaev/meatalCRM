@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -49,14 +49,38 @@ const settingsItems = [
   { href: "/settings/company",         label: "Реквизиты",     icon: Factory },
 ];
 
+// Тот же эндпоинт, что в десктопном Sidebar — счётчик NEW портальных заявок.
+const NEW_POLL_MS = 60_000;
+
+function useNewPortalCount(enabled: boolean) {
+  const [count, setCount] = useState(0);
+  const fetchCount = useCallback(async () => {
+    if (!enabled) return;
+    try {
+      const res = await fetch("/api/portal/new-count");
+      if (!res.ok) return;
+      const data = await res.json();
+      setCount(data.count ?? 0);
+    } catch {}
+  }, [enabled]);
+  useEffect(() => {
+    fetchCount();
+    const t = setInterval(fetchCount, NEW_POLL_MS);
+    return () => clearInterval(t);
+  }, [fetchCount]);
+  return count;
+}
+
 function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const role = session?.user?.role;
   const isAdmin = role === "ADMIN";
+  const isManager = role === "MANAGER";
   const isForeman = role === "FOREMAN";
   const visibleNav = isForeman ? navItems.filter((i) => i.foreman) : navItems;
+  const newPortalCount = useNewPortalCount(isAdmin || isManager);
 
   return (
     <div
@@ -103,7 +127,17 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
                 )}
               >
                 <Icon className={cn("h-5 w-5 shrink-0", active ? "text-orange-100" : "text-slate-400")} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.href === "/companies" && newPortalCount > 0 && (
+                  <span
+                    className={cn(
+                      "ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none",
+                      active ? "bg-white text-orange-600" : "bg-orange-500 text-white"
+                    )}
+                  >
+                    {newPortalCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -172,8 +206,12 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
 function BottomTabBar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const isForeman = session?.user?.role === "FOREMAN";
+  const role = session?.user?.role;
+  const isForeman = role === "FOREMAN";
   const items = isForeman ? navItems.filter((i) => i.foreman) : bottomTabItems;
+  // Боттом-бар не содержит «Компании», но если когда-нибудь добавят — индикатор
+  // переиспользуется. Hook вызываем всегда, чтобы не нарушать порядок.
+  const newPortalCount = useNewPortalCount(role === "ADMIN" || role === "MANAGER");
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-slate-200 bg-white safe-area-inset-bottom">
@@ -181,6 +219,7 @@ function BottomTabBar() {
         {items.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const showBadge = item.href === "/companies" && newPortalCount > 0;
           return (
             <Link
               key={item.href}
@@ -190,7 +229,14 @@ function BottomTabBar() {
                 active ? "text-slate-800" : "text-slate-400 hover:text-slate-600"
               )}
             >
-              <Icon className="h-5 w-5 shrink-0" />
+              <span className="relative">
+                <Icon className="h-5 w-5 shrink-0" />
+                {showBadge && (
+                  <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-orange-500 px-1 text-center text-[10px] font-semibold leading-4 text-white">
+                    {newPortalCount}
+                  </span>
+                )}
+              </span>
               <span className="text-[10px] font-medium leading-tight">{item.mobileLabel}</span>
             </Link>
           );

@@ -53,14 +53,24 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   if (!access) throw notFound();
 
   const data = await parseBody(req, portalRequestUpdateSchema);
+  const isClient = session.user.role === "CLIENT";
 
-  if (data.status !== undefined && session.user.role === "CLIENT") {
+  if (data.status !== undefined && isClient) {
     throw forbidden("Сменить статус может только менеджер");
+  }
+  if (data.paymentStatus !== undefined && isClient) {
+    throw forbidden("Платёжный статус ведёт менеджер");
   }
 
   // Собираем только присланные поля — не затираем то, чего нет в теле.
   const patch: Record<string, unknown> = {};
   if (data.status !== undefined) patch.status = data.status;
+  if (data.paymentStatus !== undefined) patch.paymentStatus = data.paymentStatus;
+  if (data.description !== undefined) {
+    // Пустая строка → null, чтобы UI единообразно показывал «нет описания».
+    const trimmed = typeof data.description === "string" ? data.description.trim() : null;
+    patch.description = trimmed ? trimmed : null;
+  }
   for (const key of [
     "laserStatus",
     "bendingStatus",
@@ -79,6 +89,8 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
     select: {
       id: true,
       status: true,
+      paymentStatus: true,
+      description: true,
       updatedAt: true,
       laserStatus: true,
       bendingStatus: true,

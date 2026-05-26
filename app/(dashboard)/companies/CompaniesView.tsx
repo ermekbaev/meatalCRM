@@ -17,6 +17,7 @@ type Company = {
   createdAt: Date | string;
   manager: { id: string; name: string } | null;
   _count: { portalRequests: number; portalUsers: number };
+  newRequestsCount: number;
 };
 
 export function CompaniesView({ companies, canCreate }: { companies: Company[]; canCreate: boolean }) {
@@ -79,6 +80,11 @@ export function CompaniesView({ companies, canCreate }: { companies: Company[]; 
                       <span>{c._count.portalUsers} польз.</span>
                       <span>·</span>
                       <span>{c._count.portalRequests} заявок</span>
+                      {c.newRequestsCount > 0 && (
+                        <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          {c.newRequestsCount} новых
+                        </span>
+                      )}
                       {c.manager && (
                         <>
                           <span>·</span>
@@ -139,9 +145,19 @@ export function CompaniesView({ companies, canCreate }: { companies: Company[]; 
                       </span>
                     </TableCell>
                     <TableCell>
-                      <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
-                        {c._count.portalRequests}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
+                          {c._count.portalRequests}
+                        </span>
+                        {c.newRequestsCount > 0 && (
+                          <span
+                            className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                            title="Новые заявки"
+                          >
+                            +{c.newRequestsCount}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{formatDate(c.createdAt as any)}</TableCell>
                     <TableCell>
