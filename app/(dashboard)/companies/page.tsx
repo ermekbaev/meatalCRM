@@ -36,13 +36,13 @@ export default async function CompaniesPage() {
       },
       orderBy: { createdAt: "desc" },
     }),
-    // Отдельным запросом — счётчик заявок со статусом NEW по каждой компании.
-    // _count.select не умеет два разных фильтра на одну и ту же связь, поэтому
-    // считаем groupBy и потом мёрджим. Как только менеджер переключает статус
-    // заявки, метка исчезает.
+    // Отдельным запросом — счётчик ещё не открытых заявок по каждой компании
+    // (firstViewedAt IS NULL). Гаснет автоматически, как только менеджер
+    // открывает страницу заявки. _count.select не поддерживает два разных
+    // фильтра на одну и ту же связь, поэтому считаем groupBy.
     prisma.portalRequest.groupBy({
       by: ["companyId"],
-      where: { status: "NEW", company: where },
+      where: { firstViewedAt: null, company: where },
       _count: { _all: true },
     }),
   ]);

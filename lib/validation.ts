@@ -481,6 +481,13 @@ export const portalRequestItemSchema = z.object({
   unit: z.string().trim().max(50).default("шт"),
 });
 
+// Частичное обновление существующей позиции в портальной заявке.
+export const portalRequestItemUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(500).optional(),
+  quantity: qty.optional(),
+  unit: z.string().trim().max(50).optional(),
+});
+
 // Производственные подстатусы, доступные клиенту в портале. Подмножество
 // `requestStatusFields` из CRM-заявки: убраны `hasMetal` и `metalOwner` —
 // материалы это внутренняя кухня, клиент проставляет только нужные операции.

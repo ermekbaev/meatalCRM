@@ -580,6 +580,10 @@ model PortalRequest {
   paymentStatus   PortalPaymentStatus @default(NONE)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+  // Когда заявку впервые открыл внутренний пользователь (ADMIN/MANAGER).
+  // Используется для бейджа «новые» в списке компаний и в сайдбаре: пока null —
+  // считается непрочитанной, по факту открытия страницы заявки проставляется now().
+  firstViewedAt   DateTime?
   // Производственные подстатусы, которые клиент проставляет сам при создании
   // заявки (какие операции ему нужны). Поля «металл» (hasMetal/metalOwner) сюда
   // сознательно НЕ включены — это внутренняя информация по закупкам.

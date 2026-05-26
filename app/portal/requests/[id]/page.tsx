@@ -13,21 +13,35 @@ export default async function PortalRequestPage({
   if (!session?.user.companyId) redirect("/login");
 
   const { id } = await params;
-  const request = await prisma.portalRequest.findFirst({
-    where: { id, companyId: session.user.companyId },
-    include: {
-      items: { orderBy: { name: "asc" } },
-      comments: {
-        include: { user: { select: { id: true, name: true, role: true, avatarUrl: true } } },
-        orderBy: { createdAt: "asc" },
+  const [request, positions] = await Promise.all([
+    prisma.portalRequest.findFirst({
+      where: { id, companyId: session.user.companyId },
+      include: {
+        items: { orderBy: { name: "asc" } },
+        comments: {
+          include: { user: { select: { id: true, name: true, role: true, avatarUrl: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+        files: {
+          include: { uploadedBy: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
-      files: {
-        include: { uploadedBy: { select: { id: true, name: true } } },
-        orderBy: { createdAt: "asc" },
-      },
-    },
-  });
+    }),
+    // Номенклатура компании — для быстрого добавления позиций в существующую заявку.
+    prisma.clientPosition.findMany({
+      where: { companyId: session.user.companyId },
+      select: { id: true, name: true, unit: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
   if (!request) notFound();
 
-  return <PortalRequestView request={request} currentUserId={session.user.id} />;
+  return (
+    <PortalRequestView
+      request={request}
+      currentUserId={session.user.id}
+      positions={positions}
+    />
+  );
 }

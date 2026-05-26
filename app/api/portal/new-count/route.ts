@@ -5,10 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 
 /**
- * Счётчик портальных заявок со статусом NEW для индикатора в сайдбаре.
- * ADMIN — все; MANAGER — заявки в его компаниях; остальные — 0.
- * Не падает на неавторизованных (возвращает 0), потому что вызывается
- * из клиентского Sidebar до завершения сессии.
+ * Счётчик ещё не открытых портальных заявок для индикатора в сайдбаре.
+ * «Не открытая» = firstViewedAt IS NULL: бейдж гаснет, как только менеджер
+ * откроет страницу заявки (а не когда сменит статус). Так интуитивнее:
+ * есть «прочитано / не прочитано», независимое от воркфлоу.
+ *
+ * ADMIN — все; MANAGER — только заявки своих компаний; остальные — 0.
  */
 export const GET = withErrorHandling(async (_req: NextRequest) => {
   const session = await getServerSession(authOptions);
@@ -21,7 +23,7 @@ export const GET = withErrorHandling(async (_req: NextRequest) => {
 
   const count = await prisma.portalRequest.count({
     where: {
-      status: "NEW",
+      firstViewedAt: null,
       ...(role === "MANAGER" ? { company: { managerId: session.user.id } } : {}),
     },
   });

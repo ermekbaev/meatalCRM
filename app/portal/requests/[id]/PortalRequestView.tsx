@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Factory, FileText, FileSpreadsheet, MessageSquare, Paperclip, Pencil, Trash2, Upload } from "lucide-react";
 import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
+import { PortalItemsEditor } from "./PortalItemsEditor";
 
 type ProductionKey =
   | "laserStatus"
@@ -73,12 +74,16 @@ const STATUS_COLORS = {
   READY: "bg-emerald-100 text-emerald-700",
 } as const;
 
+type Position = { id: string; name: string; unit: string };
+
 export function PortalRequestView({
   request,
   currentUserId,
+  positions,
 }: {
   request: Request;
   currentUserId: string;
+  positions: Position[];
 }) {
   const router = useRouter();
 
@@ -350,24 +355,11 @@ export function PortalRequestView({
         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
           <FileText className="h-4 w-4 text-slate-400" /> Состав ({request.items.length})
         </h3>
-        {request.items.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
-            Позиции не указаны
-          </div>
-        ) : (
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <ul className="divide-y divide-slate-100">
-              {request.items.map((it) => (
-                <li key={it.id} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-slate-800">{it.name}</span>
-                  <span className="text-sm text-slate-600 whitespace-nowrap">
-                    {it.quantity} {it.unit}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <PortalItemsEditor
+          requestId={request.id}
+          initialItems={request.items}
+          positions={positions}
+        />
       </section>
 
       <section>

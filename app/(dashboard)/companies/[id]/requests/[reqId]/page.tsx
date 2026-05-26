@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -54,6 +55,20 @@ export default async function PortalRequestViewPage({
     },
   });
   if (!request) notFound();
+
+  // Первое открытие заявки внутренним пользователем — гасит бейдж «новая»
+  // в списке компаний и сайдбаре. updateMany с фильтром на null делает это
+  // транзакционно: если кто-то открыл заявку параллельно, мы просто не запишем.
+  // revalidatePath инвалидирует серверный кэш списка компаний, чтобы при
+  // возврате назад счётчик уже был свежим (сайдбар обновится сам на следующем polling).
+  if (request.firstViewedAt === null) {
+    await prisma.portalRequest.updateMany({
+      where: { id: reqId, firstViewedAt: null },
+      data: { firstViewedAt: new Date() },
+    });
+    revalidatePath("/companies");
+    revalidatePath(`/companies/${id}`);
+  }
 
   return (
     <div>
