@@ -157,6 +157,8 @@ export function PortalRequestView({
   const [files, setFiles] = useState(request.files);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Активная вкладка в едином блоке файлов: чертежи или документы.
+  const [fileTab, setFileTab] = useState<"drawings" | "documents">("drawings");
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -226,7 +228,7 @@ export function PortalRequestView({
   }
 
   return (
-    <div className="p-4 lg:p-6 max-w-3xl mx-auto space-y-5">
+    <div className="p-4 lg:p-6 space-y-5">
       <Link href="/portal" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
         <ArrowLeft className="h-4 w-4" /> К списку
       </Link>
@@ -305,6 +307,12 @@ export function PortalRequestView({
         ) : null}
       </div>
 
+      {/* На lg+ контент разбит на две колонки: основная информация (производство,
+          состав, файлы) слева, тред комментариев — справа. На мобилке всё
+          выстраивается в один столбец, комментарии остаются внизу. */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
+
       {/* Производство — клиент сам отмечает, какие операции нужны. Можно
           менять в любой момент: PUT /api/portal/requests/[id] принимает
           production-поля от CLIENT (см. portalRequestUpdateSchema). */}
@@ -362,71 +370,89 @@ export function PortalRequestView({
         />
       </section>
 
+      {/* Чертежи и документы — один блок с табами. Чертежи грузит клиент,
+          документы (счета/договоры) только скачивает: менеджер загружает их
+          на админской стороне. */}
       <section>
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <Paperclip className="h-4 w-4 text-slate-400" /> Чертежи ({drawings.length})
-        </h3>
-        <div className="space-y-2">
-          {drawings.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
-              Чертежей пока нет
-            </div>
-          ) : (
-            <ul className="space-y-1.5">
-              {drawings.map((f) => (
-                <li
-                  key={f.id}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                >
-                  <a
-                    href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
-                    className="truncate text-slate-700 hover:text-orange-600"
-                  >
-                    {f.originalName}
-                  </a>
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <span className="text-xs text-slate-400">{(f.size / 1024).toFixed(0)} КБ</span>
-                    {f.uploadedById === currentUserId && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteFile(f.id)}
-                        className="text-red-500 hover:text-red-600"
-                        title="Удалить"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            onChange={handleUpload}
-          />
-          <Button
+        <div className="mb-2 flex items-center gap-1 border-b border-slate-200">
+          <button
             type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            onClick={() => setFileTab("drawings")}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+              fileTab === "drawings"
+                ? "border-orange-500 text-orange-600 font-medium"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
           >
-            <Upload className="mr-1 h-4 w-4" /> {uploading ? "Загрузка..." : "Прикрепить чертёж"}
-          </Button>
+            <Paperclip className="h-4 w-4" /> Чертежи ({drawings.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFileTab("documents")}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+              fileTab === "documents"
+                ? "border-orange-500 text-orange-600 font-medium"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <FileSpreadsheet className="h-4 w-4" /> Документы ({documents.length})
+          </button>
         </div>
-      </section>
 
-      {/* Документы от менеджера: счета, договоры, акты. Только скачивание —
-          загружают и удаляют только внутренние роли (см. /api/portal/.../files). */}
-      <section>
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <FileSpreadsheet className="h-4 w-4 text-slate-400" /> Документы ({documents.length})
-        </h3>
-        {documents.length === 0 ? (
+        {fileTab === "drawings" ? (
+          <div className="space-y-2">
+            {drawings.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
+                Чертежей пока нет
+              </div>
+            ) : (
+              <ul className="space-y-1.5">
+                {drawings.map((f) => (
+                  <li
+                    key={f.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <a
+                      href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                      className="truncate text-slate-700 hover:text-orange-600"
+                    >
+                      {f.originalName}
+                    </a>
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <span className="text-xs text-slate-400">{(f.size / 1024).toFixed(0)} КБ</span>
+                      {f.uploadedById === currentUserId && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFile(f.id)}
+                          className="text-red-500 hover:text-red-600"
+                          title="Удалить"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <Upload className="mr-1 h-4 w-4" /> {uploading ? "Загрузка..." : "Прикрепить чертёж"}
+            </Button>
+          </div>
+        ) : documents.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
             Документов пока нет
           </div>
@@ -452,47 +478,55 @@ export function PortalRequestView({
         )}
       </section>
 
-      <section>
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <MessageSquare className="h-4 w-4 text-slate-400" /> Комментарии ({comments.length})
-        </h3>
-        <div className="space-y-2 mb-3">
-          {comments.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
-              Сообщений пока нет
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {comments.map((c) => (
-                <li key={c.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Avatar name={c.user.name} src={c.user.avatarUrl} size={24} />
-                    <span className="text-sm font-medium text-slate-800">{c.user.name}</span>
-                    <span className="text-[11px] text-slate-400">
-                      {c.user.role === "CLIENT" ? "вы / клиент" : "менеджер"} · {formatDate(c.createdAt)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.text}</p>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
-        <form onSubmit={submitComment} className="space-y-2">
-          <Textarea
-            placeholder="Написать сообщение..."
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            rows={2}
-            maxLength={5000}
-          />
-          <div className="flex justify-end">
-            <Button type="submit" size="sm" disabled={!commentText.trim() || sendingComment}>
-              {sendingComment ? "Отправка..." : "Отправить"}
-            </Button>
+
+        {/* Правая колонка: тред общения с менеджером. На lg+ становится sticky
+            на уровне шапки страницы, чтобы при скролле состава/чертежей переписка
+            всегда оставалась на виду. */}
+        <section className="lg:col-span-1">
+          <div className="lg:sticky lg:top-4">
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <MessageSquare className="h-4 w-4 text-slate-400" /> Комментарии ({comments.length})
+            </h3>
+            <div className="space-y-2 mb-3 lg:max-h-[60vh] lg:overflow-y-auto lg:pr-1">
+              {comments.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
+                  Сообщений пока нет
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {comments.map((c) => (
+                    <li key={c.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Avatar name={c.user.name} src={c.user.avatarUrl} size={24} />
+                        <span className="text-sm font-medium text-slate-800">{c.user.name}</span>
+                        <span className="text-[11px] text-slate-400">
+                          {c.user.role === "CLIENT" ? "вы / клиент" : "менеджер"} · {formatDate(c.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{c.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <form onSubmit={submitComment} className="space-y-2">
+              <Textarea
+                placeholder="Написать сообщение..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                rows={2}
+                maxLength={5000}
+              />
+              <div className="flex justify-end">
+                <Button type="submit" size="sm" disabled={!commentText.trim() || sendingComment}>
+                  {sendingComment ? "Отправка..." : "Отправить"}
+                </Button>
+              </div>
+            </form>
           </div>
-        </form>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

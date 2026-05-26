@@ -38,6 +38,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           number: true,
           title: true,
           status: true,
+          paymentStatus: true,
+          firstViewedAt: true,
           createdAt: true,
           createdByUser: { select: { id: true, name: true } },
           _count: { select: { items: true, comments: true, files: true } },

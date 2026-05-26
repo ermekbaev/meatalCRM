@@ -99,7 +99,7 @@ export function NewPortalRequestForm({ positions }: { positions: Position[] }) {
   }
 
   return (
-    <div className="p-4 lg:p-6 max-w-3xl mx-auto">
+    <div className="p-4 lg:p-6 max-w-5xl mx-auto">
       <Link href="/portal" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
         <ArrowLeft className="h-4 w-4" /> К списку
       </Link>
