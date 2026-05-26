@@ -1,9 +1,11 @@
 "use client";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Building2, Eye } from "lucide-react";
+import { Plus, Building2, Eye, Search } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 type Company = {
@@ -18,28 +20,50 @@ type Company = {
 };
 
 export function CompaniesView({ companies, canCreate }: { companies: Company[]; canCreate: boolean }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return companies;
+    // Ищем по названию, ИНН, телефону, email и имени менеджера —
+    // совпадение хотя бы в одном поле.
+    return companies.filter((c) => {
+      const haystacks = [c.name, c.inn, c.phone, c.email, c.manager?.name];
+      return haystacks.some((v) => v?.toLowerCase().includes(q));
+    });
+  }, [companies, search]);
+
   return (
     <div>
       <Header title="Компании" subtitle="Кабинеты клиентов в портале" />
       <div className="p-4 lg:p-6 space-y-4">
-        {canCreate && (
-          <div className="flex justify-end">
-            <Link href="/companies/new">
-              <Button>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:flex-1 sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск по названию, ИНН, телефону, email, менеджеру..."
+              className="pl-9"
+            />
+          </div>
+          {canCreate && (
+            <Link href="/companies/new" className="w-full sm:w-auto sm:ml-auto">
+              <Button className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" /> Создать кабинет
               </Button>
             </Link>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Mobile cards */}
         <div className="md:hidden space-y-2">
-          {companies.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
-              Кабинетов пока нет
+              {companies.length === 0 ? "Кабинетов пока нет" : "Ничего не найдено"}
             </div>
           ) : (
-            companies.map((c) => (
+            filtered.map((c) => (
               <Link
                 key={c.id}
                 href={`/companies/${c.id}`}
@@ -86,14 +110,14 @@ export function CompaniesView({ companies, canCreate }: { companies: Company[]; 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {companies.length === 0 ? (
+              {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8 text-gray-400">
-                    Кабинетов пока нет
+                    {companies.length === 0 ? "Кабинетов пока нет" : "Ничего не найдено"}
                   </TableCell>
                 </TableRow>
               ) : (
-                companies.map((c) => (
+                filtered.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Factory, FileText, MessageSquare, Paperclip } from "lucide-react";
 import { formatDate, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
 import { PortalStatusPicker } from "./PortalStatusPicker";
+import { PortalCommentForm } from "./PortalCommentForm";
 
 export default async function PortalRequestViewPage({
   params,
@@ -174,7 +175,12 @@ export default async function PortalRequestViewPage({
                   key={f.id}
                   className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
                 >
-                  <span className="truncate text-slate-700">{f.originalName}</span>
+                  <a
+                    href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                    className="truncate text-slate-700 hover:text-orange-600"
+                  >
+                    {f.originalName}
+                  </a>
                   <span className="text-xs text-slate-400 whitespace-nowrap">
                     {(f.size / 1024).toFixed(0)} КБ · {f.uploadedBy.name}
                   </span>
@@ -190,11 +196,11 @@ export default async function PortalRequestViewPage({
             <MessageSquare className="h-4 w-4 text-slate-400" /> Комментарии ({request.comments.length})
           </h3>
           {request.comments.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-400 text-center">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-400 text-center mb-3">
               Комментариев нет
             </div>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 mb-3">
               {request.comments.map((c) => (
                 <li key={c.id} className="rounded-xl border border-gray-200 bg-white p-3">
                   <div className="flex items-center gap-2 mb-1">
@@ -209,6 +215,7 @@ export default async function PortalRequestViewPage({
               ))}
             </ul>
           )}
+          <PortalCommentForm requestId={request.id} />
         </section>
       </div>
     </div>
