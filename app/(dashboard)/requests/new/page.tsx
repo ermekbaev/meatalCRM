@@ -412,12 +412,30 @@ export default function NewRequestPage() {
                             <tr key={field.id} className="hover:bg-slate-50/50">
                               <td className="px-4 py-2">
                                 <div className="space-y-1">
-                                  <Input
-                                    {...register(`items.${index}.name`)}
-                                    placeholder="Наименование"
-                                    className="h-8 text-sm"
-                                    list={`catalog-list-${index}`}
-                                  />
+                                  {(() => {
+                                    const reg = register(`items.${index}.name`);
+                                    return (
+                                      <Input
+                                        {...reg}
+                                        onChange={(e) => {
+                                          reg.onChange(e);
+                                          // Точное совпадение с каталогом — подтягиваем себестоимость/единицу.
+                                          const match = catalog.find((c) => c.name === e.target.value);
+                                          if (match) {
+                                            if (match.purchasePrice != null) {
+                                              setValue(`items.${index}.purchasePrice`, match.purchasePrice, { shouldDirty: true });
+                                            }
+                                            if (match.unit) {
+                                              setValue(`items.${index}.unit`, match.unit, { shouldDirty: true });
+                                            }
+                                          }
+                                        }}
+                                        placeholder="Наименование"
+                                        className="h-8 text-sm"
+                                        list={`catalog-list-${index}`}
+                                      />
+                                    );
+                                  })()}
                                   <datalist id={`catalog-list-${index}`}>
                                     {catalog.map((s) => (
                                       <option key={s.id} value={s.name} />

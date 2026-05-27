@@ -198,6 +198,16 @@ export default function RequestDetailPage() {
     setItems((prev) => {
       const next = [...prev];
       next[idx] = { ...next[idx], [field]: value };
+      // Если меняется наименование и оно точно совпадает с позицией каталога —
+      // подтягиваем себестоимость и единицу автоматически. Цену не трогаем, чтобы
+      // не затереть введённое менеджером значение.
+      if (field === "name") {
+        const match = catalog.find((c) => c.name === value);
+        if (match) {
+          if (match.purchasePrice != null) next[idx].purchasePrice = match.purchasePrice;
+          if (match.unit) next[idx].unit = match.unit;
+        }
+      }
       // пересчёт суммы
       const q =
         parseFloat(field === "quantity" ? value : next[idx].quantity) || 0;

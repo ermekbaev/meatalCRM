@@ -27,7 +27,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
         updatedAt: true,
         clientId: true,
         client: { select: { name: true } },
-        items: { select: { quantity: true, purchasePrice: true } },
+        items: { select: { quantity: true, purchasePrice: true, total: true } },
       },
       orderBy: { updatedAt: "asc" },
     }),
@@ -38,17 +38,21 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 
   const totalRevenue = completedWithItems.reduce((s, r) => s + (r.amount ?? 0), 0);
 
-  // Считаем себестоимость только по позициям с указанной закупочной ценой
+  // Прибыль и маржу считаем ТОЛЬКО по позициям с заполненной себестоимостью.
+  // Если у услуги не указана покупочная цена — мы не знаем её затраты и не вправе
+  // считать всю выручку «чистой прибылью» (раньше так было — totalProfit раздувался).
+  let profitableRevenue = 0;
   let totalCost = 0;
   completedWithItems.forEach((r) => {
     r.items.forEach((item) => {
       if (item.purchasePrice != null) {
         totalCost += item.purchasePrice * item.quantity;
+        profitableRevenue += item.total ?? 0;
       }
     });
   });
-  const totalProfit = totalRevenue - totalCost;
-  const margin = totalRevenue > 0 && totalCost > 0 ? (totalProfit / totalRevenue) * 100 : null;
+  const totalProfit = profitableRevenue - totalCost;
+  const margin = profitableRevenue > 0 ? (totalProfit / profitableRevenue) * 100 : null;
 
   // 2. Заявки по статусам
   const byStatus = await prisma.request.groupBy({
@@ -58,21 +62,26 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   });
 
   // 3. Выручка и прибыль по месяцам
-  const revenueByMonth: Record<string, { revenue: number; profit: number; cost: number }> = {};
+  // profit считаем по той же логике: только из позиций с указанной себестоимостью.
+  const revenueByMonth: Record<string, { revenue: number; profitableRevenue: number; cost: number }> = {};
   completedWithItems.forEach((r) => {
     const key = r.updatedAt.toISOString().slice(0, 7);
-    if (!revenueByMonth[key]) revenueByMonth[key] = { revenue: 0, profit: 0, cost: 0 };
+    if (!revenueByMonth[key]) revenueByMonth[key] = { revenue: 0, profitableRevenue: 0, cost: 0 };
     revenueByMonth[key].revenue += r.amount ?? 0;
-    let reqCost = 0;
     r.items.forEach((item) => {
-      if (item.purchasePrice != null) reqCost += item.purchasePrice * item.quantity;
+      if (item.purchasePrice != null) {
+        revenueByMonth[key].cost += item.purchasePrice * item.quantity;
+        revenueByMonth[key].profitableRevenue += item.total ?? 0;
+      }
     });
-    revenueByMonth[key].cost += reqCost;
-    revenueByMonth[key].profit += (r.amount ?? 0) - reqCost;
   });
   const revenueChart = Object.entries(revenueByMonth)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, d]) => ({ month, revenue: d.revenue, profit: d.cost > 0 ? d.profit : null }));
+    .map(([month, d]) => ({
+      month,
+      revenue: d.revenue,
+      profit: d.cost > 0 ? d.profitableRevenue - d.cost : null,
+    }));
 
   // 4. Топ клиентов по выручке
   const clientMap: Record<string, { name: string; revenue: number; count: number }> = {};
