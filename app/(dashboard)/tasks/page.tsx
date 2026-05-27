@@ -65,8 +65,10 @@ export default function TasksPage() {
   // ответственных — UI у них одинаковый (доска с колонками).
   const isAssigneeView = isForeman || isContractor || isEmployee;
   const canManageTasks = role === "ADMIN" || role === "MANAGER";
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [archivedTasks, setArchivedTasks] = useState<any[]>([]);
+  // Все задачи (активные + архивные) хранятся одним массивом — это позволяет
+  // делать единственный запрос /api/tasks?archived=any вместо двух параллельных.
+  // Split на active/archived делается ниже через useMemo.
+  const [allTasks, setAllTasks] = useState<any[]>([]);
   // Раскрытые блоки «Архив» в колонках (по колонке-key).
   const [archiveOpen, setArchiveOpen] = useState<Record<string, boolean>>({});
   // Авто-архивация: через сколько часов в DONE задача уезжает в архив. 0 — выключено.
@@ -106,25 +108,52 @@ export default function TasksPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
+  // Дебаунсим строку поиска, чтобы каждое нажатие клавиши не дёргало API
+  // (а вместе с ним и updateMany авто-архивации на бэке).
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (search) params.set("search", search);
+    if (debouncedSearch) params.set("search", debouncedSearch);
     if (statuses.length) params.set("status", statuses.join(","));
     if (priority !== "ALL") params.set("priority", priority);
     // Для FOREMAN/CONTRACTOR фильтр по цеху делаем на клиенте, чтобы счётчики на табах оставались валидными
     if (!isAssigneeView && activeWorkshopId !== "ALL") params.set("workshopId", activeWorkshopId);
-    const archParams = new URLSearchParams(params);
-    archParams.set("archived", "only");
-    const [activeRes, archRes] = await Promise.all([
-      fetch(`/api/tasks?${params}`),
-      fetch(`/api/tasks?${archParams}`),
-    ]);
-    const [activeData, archData] = await Promise.all([activeRes.json(), archRes.json()]);
-    setTasks(Array.isArray(activeData) ? activeData : []);
-    setArchivedTasks(Array.isArray(archData) ? archData : []);
+    // Тянем активные и архивные одним запросом — split идёт на клиенте.
+    params.set("archived", "any");
+    const res = await fetch(`/api/tasks?${params}`);
+    const data = await res.json();
+    setAllTasks(Array.isArray(data) ? data : []);
     setLoading(false);
-  }, [search, statuses, priority, activeWorkshopId, isAssigneeView]);
+  }, [debouncedSearch, statuses, priority, activeWorkshopId, isAssigneeView]);
+
+  // Совместимый split: остальной код продолжает работать с двумя массивами.
+  const tasks = useMemo(() => allTasks.filter((t) => !t.archivedAt), [allTasks]);
+  const archivedTasks = useMemo(() => allTasks.filter((t) => t.archivedAt), [allTasks]);
+
+  // Обёртки в стиле setState, чтобы оптимистичные апдейты ниже остались без правок:
+  // меняем единый allTasks, а split произойдёт автоматически через useMemo.
+  const setTasks = (updater: (prev: any[]) => any[]) => {
+    setAllTasks((prev) => {
+      const active = prev.filter((t) => !t.archivedAt);
+      const arch = prev.filter((t) => t.archivedAt);
+      const nextActive = updater(active);
+      return [...nextActive, ...arch];
+    });
+  };
+  const setArchivedTasks = (updater: (prev: any[]) => any[]) => {
+    setAllTasks((prev) => {
+      const active = prev.filter((t) => !t.archivedAt);
+      const arch = prev.filter((t) => t.archivedAt);
+      const nextArch = updater(arch);
+      return [...active, ...nextArch];
+    });
+  };
 
   const fetchWorkshops = useCallback(async () => {
     const data = await fetch("/api/workshops").then((r) => r.json()).catch(() => []);
@@ -433,17 +462,22 @@ export default function TasksPage() {
     const task = [...tasks, ...archivedTasks].find((t) => t.id === taskId);
     if (!task) return;
 
-    // Дроп на блок «Архив» — отправляем в архив (если ещё не там).
+    // Дроп на блок «Архив» — отправляем в архив + одновременно переводим в статус
+    // целевой колонки (drop-зона показана только в колонке DONE, поэтому архивная
+    // задача всегда оказывается в архиве «Выполнено», а не «зависает» в исходной
+    // колонке — иначе пользователь видит, что бросил в DONE, а задача появилась
+    // под TODO).
     if (overId.startsWith("archive:")) {
       if (task.archivedAt) return;
+      const targetStatus = overId.slice("archive:".length);
       const archivedAt = new Date().toISOString();
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-      setArchivedTasks((prev) => [{ ...task, archivedAt }, ...prev]);
+      const optimistic = { ...task, status: targetStatus, archivedAt };
+      setAllTasks((prev) => prev.map((t) => t.id === taskId ? optimistic : t));
       try {
         const res = await fetch(`/api/tasks/${taskId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...task, archivedAt }),
+          body: JSON.stringify(optimistic),
         });
         if (!res.ok) throw new Error("archive failed");
       } catch {
