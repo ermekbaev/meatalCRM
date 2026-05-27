@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Readable } from "stream";
-import archiver from "archiver";
+import { createRequire } from "module";
+import type ArchiverNS from "archiver";
 import { z } from "zod";
+
+// archiver — CJS-пакет, Turbopack не разрешает default-импорт. Подгружаем
+// через createRequire, типы берём из @types/archiver.
+const archiver = createRequire(import.meta.url)("archiver") as typeof ArchiverNS;
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
