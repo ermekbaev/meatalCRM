@@ -15,6 +15,11 @@ export const s3 = new S3Client({
     secretAccessKey: process.env.S3_SECRET_KEY ?? "",
   },
   forcePathStyle: false, // Yandex использует virtual-hosted style
+  // Отключаем авто-checksum: иначе в presigned URL прилетают x-amz-checksum-*
+  // и x-amz-sdk-checksum-algorithm — браузер обязан слать соответствующие
+  // хедеры в PUT, что ломает простой fetch и заставляет делать preflight.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 export const S3_BUCKET = process.env.S3_BUCKET ?? "";

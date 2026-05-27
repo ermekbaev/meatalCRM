@@ -25,6 +25,7 @@ import {
   formatCurrency,
 } from "@/lib/utils";
 import { getUnitOptions } from "@/lib/unit-options";
+import { uploadViaPresign } from "@/lib/upload-client";
 import {
   ArrowLeft,
   Loader2,
@@ -218,14 +219,17 @@ export default function NewRequestPage() {
       });
     }
 
-    // Загружаем файлы после создания заявки
+    // Загружаем файлы после создания заявки (через presigned PUT)
     for (const file of pendingFiles) {
-      const fd = new FormData();
-      fd.append("file", file);
-      await fetch(`/api/requests/${created.id}/files`, {
-        method: "POST",
-        body: fd,
-      });
+      try {
+        await uploadViaPresign(`/api/requests/${created.id}/files`, file);
+      } catch (err) {
+        alert(
+          err instanceof Error
+            ? `Не удалось загрузить ${file.name}: ${err.message}`
+            : `Не удалось загрузить ${file.name}`
+        );
+      }
     }
 
     router.push(`/requests/${created.id}`);
