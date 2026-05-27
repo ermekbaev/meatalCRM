@@ -14,6 +14,7 @@ declare module "next-auth" {
       role: UserRole;
       avatarUrl: string | null;
       companyId: string | null;
+      position: string | null;
     } & DefaultSession["user"];
   }
 
@@ -22,6 +23,7 @@ declare module "next-auth" {
     role: UserRole;
     avatarUrl: string | null;
     companyId: string | null;
+    position: string | null;
   }
 }
 
@@ -31,5 +33,6 @@ declare module "next-auth/jwt" {
     role: UserRole;
     avatarUrl: string | null;
     companyId: string | null;
+    position: string | null;
   }
 }

@@ -183,7 +183,9 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-medium text-slate-800">{session?.user?.name}</p>
                 <p className="truncate text-[11px] text-slate-400">
-                  {(session?.user?.role && ROLE_LABELS[session.user.role]) ?? ""}
+                  {session?.user?.position
+                    || (session?.user?.role && ROLE_LABELS[session.user.role])
+                    || ""}
                 </p>
               </div>
             </button>

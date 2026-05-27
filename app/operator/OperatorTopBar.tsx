@@ -5,12 +5,23 @@ import { LogOut, LayoutGrid } from "lucide-react";
 import { NotificationsBell } from "@/components/layout/NotificationsBell";
 import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 
-export function OperatorTopBar({ userName, role }: { userName: string; role: string }) {
+export function OperatorTopBar({
+  userName,
+  role,
+  position,
+}: {
+  userName: string;
+  role: string;
+  position?: string | null;
+}) {
   const canSwitchToCrm = role === "ADMIN" || role === "MANAGER";
+  // Показываем должность сотрудника. Если её нет — fallback на «Оператор»
+  // (визуально-нейтральный, так как этот бар используется только для EMPLOYEE).
+  const label = position?.trim() || "Оператор";
   return (
     <header className="safe-area-inset-top sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2">
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-400">Оператор</p>
+        <p className="text-xs text-slate-400">{label}</p>
         <p className="text-sm font-semibold text-slate-900 truncate">{userName}</p>
       </div>
       <PushSubscribeButton compact />

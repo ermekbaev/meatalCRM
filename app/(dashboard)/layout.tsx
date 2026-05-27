@@ -20,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="flex h-screen flex-col bg-gray-50">
         <ForemanTopBar
           userName={user.name ?? ""}
-          roleLabel={ROLE_LABELS[role] ?? "Сотрудник"}
+          roleLabel={user.position || ROLE_LABELS[role] || "Сотрудник"}
           variant={
             role === "CONTRACTOR" ? "tasksOnly"
             : role === "EMPLOYEE" ? "operator"

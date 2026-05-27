@@ -64,6 +64,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           avatarUrl: user.avatarUrl,
           companyId: user.companyId ?? null,
+          position: user.position ?? null,
         };
       },
     }),
@@ -75,9 +76,25 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.avatarUrl = user.avatarUrl ?? null;
         token.companyId = user.companyId ?? null;
+        token.position = user.position ?? null;
       }
       if (trigger === "update" && session?.avatarUrl !== undefined) {
         token.avatarUrl = session.avatarUrl;
+      }
+      if (trigger === "update" && session?.position !== undefined) {
+        token.position = session.position;
+      }
+      // Бэкфил для старых токенов, выпущенных до того, как мы стали класть position
+      // в JWT. Без этого пользователю пришлось бы перелогиниться, чтобы увидеть
+      // свою должность в шапке. Запрос идёт ровно один раз — после первого вызова
+      // token.position становится определённым (null или строкой) и условие больше
+      // не срабатывает.
+      if (token.position === undefined && token.id) {
+        const u = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { position: true },
+        });
+        token.position = u?.position ?? null;
       }
       return token;
     },
@@ -87,6 +104,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role;
         session.user.avatarUrl = token.avatarUrl ?? null;
         session.user.companyId = token.companyId ?? null;
+        session.user.position = token.position ?? null;
       }
       return session;
     },
