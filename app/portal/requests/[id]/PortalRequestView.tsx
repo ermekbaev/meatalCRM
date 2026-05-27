@@ -15,6 +15,7 @@ import {
 import { ArrowLeft, Factory, FileText, FileSpreadsheet, MessageSquare, Paperclip, Pencil, Trash2, Upload } from "lucide-react";
 import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
 import { PortalItemsEditor } from "./PortalItemsEditor";
+import { uploadViaPresign } from "@/lib/upload-client";
 
 type ProductionKey =
   | "laserStatus"
@@ -164,21 +165,20 @@ export function PortalRequestView({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
     // С клиента грузим только чертежи. Документы (kind=DOCUMENT) — прерогатива
     // менеджера; на сервере для CLIENT этот kind возвращает 400.
-    fd.append("kind", "DRAWING");
-    const res = await fetch(`/api/portal/requests/${request.id}/files`, {
-      method: "POST",
-      body: fd,
-    });
+    try {
+      const created = await uploadViaPresign<any>(
+        `/api/portal/requests/${request.id}/files`,
+        file,
+        { kind: "DRAWING" }
+      );
+      setFiles((cur) => [...cur, created]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Не удалось загрузить файл");
+    }
     setUploading(false);
     e.target.value = "";
-    if (res.ok) {
-      const created = await res.json();
-      setFiles((cur) => [...cur, created]);
-    }
   }
 
   // ─── Описание ──────────────────────────────────────────────────────────────

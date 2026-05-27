@@ -52,6 +52,7 @@ import { useSession } from "next-auth/react";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import { AssigneeSearchPicker } from "@/components/AssigneeSearchPicker";
 import { getFileIcon } from "./_utils";
+import { uploadViaPresign } from "@/lib/upload-client";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -108,12 +109,11 @@ export default function RequestDetailPage() {
     if (!fileList.length) return;
     setUploading(true);
     for (const file of fileList) {
-      const fd = new FormData();
-      fd.append("file", file);
-      await fetch(`/api/requests/${params.id}/files`, {
-        method: "POST",
-        body: fd,
-      });
+      try {
+        await uploadViaPresign(`/api/requests/${params.id}/files`, file);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Не удалось загрузить файл");
+      }
     }
     await fetchFiles();
     setUploading(false);

@@ -24,6 +24,7 @@ import {
   renderCommentText,
 } from "./_utils";
 import { TAG_COLORS, type TaskDetailTab } from "./_types";
+import { uploadViaPresign } from "@/lib/upload-client";
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -143,12 +144,11 @@ export default function TaskDetailPage() {
   // --- Файлы ---
   const uploadFile = async (file: File) => {
     setUploadingFile(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch(`/api/tasks/${params.id}/files`, { method: "POST", body: fd });
-    if (res.ok) {
-      const record = await res.json();
+    try {
+      const record = await uploadViaPresign<any>(`/api/tasks/${params.id}/files`, file);
       setTask((prev: any) => ({ ...prev, files: [...(prev.files ?? []), record] }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Не удалось загрузить файл");
     }
     setUploadingFile(false);
   };

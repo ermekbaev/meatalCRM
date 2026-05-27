@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Trash2, Upload } from "lucide-react";
+import { uploadViaPresign } from "@/lib/upload-client";
 
 type FileRec = {
   id: string;
@@ -37,20 +38,12 @@ export function PortalDocumentsSection({
     if (!file) return;
     setUploading(true);
     setError(null);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("kind", "DOCUMENT");
     try {
-      const res = await fetch(`/api/portal/requests/${requestId}/files`, {
-        method: "POST",
-        body: fd,
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.error ?? `Не удалось загрузить (HTTP ${res.status})`);
-        return;
-      }
-      const created = (await res.json()) as FileRec;
+      const created = await uploadViaPresign<FileRec>(
+        `/api/portal/requests/${requestId}/files`,
+        file,
+        { kind: "DOCUMENT" }
+      );
       setFiles((cur) => [...cur, created]);
       router.refresh();
     } catch (err) {
