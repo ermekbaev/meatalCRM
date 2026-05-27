@@ -393,6 +393,7 @@ export const companySettingsSchema = z.object({
   signatureImage: optStr,
   stampImage: optStr,
   logoImage: optStr,
+  taskAutoArchiveHours: z.coerce.number().int().min(0).max(8760).optional(),
 });
 
 // ─── DaData (внешние подсказки) ──────────────────────────────────────────────

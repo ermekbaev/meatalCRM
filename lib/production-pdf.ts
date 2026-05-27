@@ -39,7 +39,8 @@ function lookupLabel(dict: Record<string, string>, key: string | null | undefine
 }
 
 function buildTaskHtml(task: TaskForPdf, company: CompanyForPdf | null | undefined, statusLabels: Record<string, string>): string {
-  const subtasks: SubtaskForPdf[] = task.subtasks ?? [];
+  // В печать попадают только невыполненные подзадачи: выполненные считаются «архивными».
+  const subtasks: SubtaskForPdf[] = (task.subtasks ?? []).filter((s) => s.status !== "DONE");
   const client = task.client;
   const workshop = task.workshop;
 

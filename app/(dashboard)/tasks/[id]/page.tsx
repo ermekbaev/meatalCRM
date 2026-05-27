@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TASK_STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, ROLE_LABELS, TASK_PRODUCTION_FIELDS, CHANGELOG_FIELD_LABELS, formatDate, formatDateTime, hexToBadgeStyle } from "@/lib/utils";
 import {
   ArrowLeft, Send, Loader2, Clock, Paperclip, Trash2,
-  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, File, Printer, Factory, BookOpen
+  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, ArchiveRestore, File, Printer, Factory, BookOpen, ChevronDown
 } from "lucide-react";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import Link from "next/link";
@@ -72,6 +72,8 @@ export default function TaskDetailPage() {
   const [newSubAssignee, setNewSubAssignee] = useState<string>("");
   const [newSubDueDate, setNewSubDueDate] = useState("");
   const [addingSub, setAddingSub] = useState(false);
+  // YouGile-style свёртываемый блок с выполненными подзадачами (по умолчанию скрыт).
+  const [showDoneSubtasks, setShowDoneSubtasks] = useState(false);
 
   // Редактирование заголовка
   const [editingTitle, setEditingTitle] = useState(false);
@@ -298,6 +300,26 @@ export default function TaskDetailPage() {
     setTask((prev: any) => ({ ...prev, subtasks: prev.subtasks.filter((s: any) => s.id !== subId) }));
   };
 
+  const [archiving, setArchiving] = useState(false);
+  const toggleArchive = async () => {
+    if (!task) return;
+    const archived = !task.archivedAt;
+    setArchiving(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...task, archivedAt: archived ? new Date().toISOString() : null }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setTask((prev: any) => ({ ...prev, ...updated }));
+      }
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   const [printing, setPrinting] = useState(false);
   const printProductionTask = async () => {
     setPrinting(true);
@@ -374,6 +396,22 @@ export default function TaskDetailPage() {
               <span className="flex items-center gap-1 text-xs text-gray-400">
                 <Loader2 className="h-3 w-3 animate-spin" /> Сохранение...
               </span>
+            )}
+            {canEditTask && task && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleArchive}
+                disabled={archiving}
+                title={task.archivedAt ? "Вернуть из архива" : "В архив"}
+              >
+                {archiving
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : task.archivedAt
+                    ? <ArchiveRestore className="mr-2 h-4 w-4" />
+                    : <Archive className="mr-2 h-4 w-4" />}
+                {task.archivedAt ? "Из архива" : "В архив"}
+              </Button>
             )}
             <Button
               variant="outline"
@@ -616,95 +654,122 @@ export default function TaskDetailPage() {
                 )}
               </CardHeader>
               <CardContent className="space-y-2">
-                {task.subtasks?.map((item: any) => (
-                  <div
-                    key={item.id}
-                    className={`group rounded-lg border ${
-                      isSubTaskOverdue(item)
-                        ? "border-red-200 bg-red-50"
-                        : "border-gray-100 hover:bg-gray-50"
-                    }`}
-                  >
-                    {/* Верхняя строка: чекбокс + название + удалить */}
-                    <div className="flex items-start gap-2 px-2 pt-2 sm:py-1.5">
-                      <button
-                        onClick={() => toggleSubTaskDone(item.id, item.status)}
-                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                          item.status === "DONE"
-                            ? "border-green-500 bg-green-500 text-white"
-                            : "border-gray-300 hover:border-green-400"
-                        }`}
-                      >
-                        {item.status === "DONE" && <Check className="h-3 w-3" />}
-                      </button>
+                {(() => {
+                  const renderSubTaskRow = (item: any) => (
+                    <div
+                      key={item.id}
+                      className={`group rounded-lg border ${
+                        isSubTaskOverdue(item)
+                          ? "border-red-200 bg-red-50"
+                          : "border-gray-100 hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2 px-2 pt-2 sm:py-1.5">
+                        <button
+                          onClick={() => toggleSubTaskDone(item.id, item.status)}
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                            item.status === "DONE"
+                              ? "border-green-500 bg-green-500 text-white"
+                              : "border-gray-300 hover:border-green-400"
+                          }`}
+                        >
+                          {item.status === "DONE" && <Check className="h-3 w-3" />}
+                        </button>
 
-                      <span className={`flex-1 min-w-0 text-sm break-words ${item.status === "DONE" ? "line-through text-gray-400" : "text-gray-800"}`}>
-                        {item.title}
-                        {item.quantity != null && (
-                          <span className="ml-1 text-gray-500">
-                            {item.quantity} {item.unit || "шт"}
-                          </span>
-                        )}
-                        {isSubTaskOverdue(item) && (
-                          <span className="ml-2 text-[10px] font-medium text-red-600 sm:hidden">просрочено</span>
-                        )}
-                      </span>
+                        <span className={`flex-1 min-w-0 text-sm break-words ${item.status === "DONE" ? "line-through text-gray-400" : "text-gray-800"}`}>
+                          {item.title}
+                          {item.quantity != null && (
+                            <span className="ml-1 text-gray-500">
+                              {item.quantity} {item.unit || "шт"}
+                            </span>
+                          )}
+                          {isSubTaskOverdue(item) && (
+                            <span className="ml-2 text-[10px] font-medium text-red-600 sm:hidden">просрочено</span>
+                          )}
+                        </span>
 
-                      <button
-                        onClick={() => deleteSubTask(item.id)}
-                        className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                        <button
+                          onClick={() => deleteSubTask(item.id)}
+                          className="sm:opacity-0 sm:group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5 px-2 pb-2 pt-1.5 sm:flex sm:flex-wrap sm:items-center sm:pt-0 sm:-mt-1 sm:pl-9">
+                        <Select value={item.status} onValueChange={(v) => updateSubTask(item.id, { status: v })}>
+                          <SelectTrigger className="h-7 text-xs sm:w-[110px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
+                              <SelectItem key={k} value={k}>{v}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select value={item.priority} onValueChange={(v) => updateSubTask(item.id, { priority: v })}>
+                          <SelectTrigger className="h-7 text-xs sm:w-[100px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
+                              <SelectItem key={k} value={k}>{v}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={item.assigneeId ?? "none"}
+                          onValueChange={(v) => updateSubTask(item.id, { assigneeId: v === "none" ? null : v })}
+                        >
+                          <SelectTrigger className="h-7 text-xs sm:w-[140px]"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Не назначен</SelectItem>
+                            {users.map((u: any) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                {u.name}{(u.position || ROLE_LABELS[u.role]) ? ` · ${u.position || ROLE_LABELS[u.role]}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Input
+                          type="date"
+                          value={formatDateInput(item.dueDate)}
+                          onChange={(e) => updateSubTask(item.id, { dueDate: e.target.value || null })}
+                          className={`h-7 text-xs sm:w-[135px] ${
+                            isSubTaskOverdue(item) ? "border-red-300 bg-white text-red-600" : ""
+                          }`}
+                          title={isSubTaskOverdue(item) ? "Просрочено" : "Срок подзадачи"}
+                        />
+                      </div>
                     </div>
-
-                    {/* Контролы: 2 колонки на мобиле, инлайн на десктопе */}
-                    <div className="grid grid-cols-2 gap-1.5 px-2 pb-2 pt-1.5 sm:flex sm:flex-wrap sm:items-center sm:pt-0 sm:-mt-1 sm:pl-9">
-                      <Select value={item.status} onValueChange={(v) => updateSubTask(item.id, { status: v })}>
-                        <SelectTrigger className="h-7 text-xs sm:w-[110px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(TASK_STATUS_LABELS).map(([k, v]) => (
-                            <SelectItem key={k} value={k}>{v}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Select value={item.priority} onValueChange={(v) => updateSubTask(item.id, { priority: v })}>
-                        <SelectTrigger className="h-7 text-xs sm:w-[100px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
-                            <SelectItem key={k} value={k}>{v}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Select
-                        value={item.assigneeId ?? "none"}
-                        onValueChange={(v) => updateSubTask(item.id, { assigneeId: v === "none" ? null : v })}
-                      >
-                        <SelectTrigger className="h-7 text-xs sm:w-[140px]"><SelectValue placeholder="Исполнитель" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Не назначен</SelectItem>
-                          {users.map((u: any) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name}{(u.position || ROLE_LABELS[u.role]) ? ` · ${u.position || ROLE_LABELS[u.role]}` : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Input
-                        type="date"
-                        value={formatDateInput(item.dueDate)}
-                        onChange={(e) => updateSubTask(item.id, { dueDate: e.target.value || null })}
-                        className={`h-7 text-xs sm:w-[135px] ${
-                          isSubTaskOverdue(item) ? "border-red-300 bg-white text-red-600" : ""
-                        }`}
-                        title={isSubTaskOverdue(item) ? "Просрочено" : "Срок подзадачи"}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                  const all = (task.subtasks ?? []) as any[];
+                  const active = all.filter((s) => s.status !== "DONE");
+                  const done = all.filter((s) => s.status === "DONE");
+                  return (
+                    <>
+                      {active.map(renderSubTaskRow)}
+                      {done.length > 0 && (
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowDoneSubtasks((v) => !v)}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-800 transition-colors"
+                          >
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 transition-transform ${showDoneSubtasks ? "" : "-rotate-90"}`}
+                            />
+                            Выполнено ({done.length})
+                          </button>
+                          {showDoneSubtasks && (
+                            <div className="mt-2 space-y-2">
+                              {done.map(renderSubTaskRow)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {!isReadOnly && (
                 <div className="pt-2 border-t border-gray-100">

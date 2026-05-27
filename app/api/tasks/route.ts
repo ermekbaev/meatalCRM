@@ -23,8 +23,27 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   const priority = searchParams.get("priority") ?? "";
   const assigneeId = searchParams.get("assigneeId") ?? "";
   const workshopId = searchParams.get("workshopId") ?? "";
+  // archived: "exclude" (default) | "only" | "any"
+  const archived = searchParams.get("archived") ?? "exclude";
   const role = session.user.role;
   const userId = session.user.id;
+
+  // Ленивая авто-архивация: задачи в статусе DONE, у которых updatedAt
+  // старше порога и которые ещё не в архиве, считаем «уехавшими» автоматически.
+  // Один updateMany — копеечный запрос; делаем при каждом листинге, чтобы не тащить cron.
+  // Порог берётся из CompanySettings.taskAutoArchiveHours (0 — выключить).
+  const cfg = await prisma.companySettings.findUnique({
+    where: { id: "singleton" },
+    select: { taskAutoArchiveHours: true },
+  });
+  const autoArchiveHours = cfg?.taskAutoArchiveHours ?? 24;
+  if (autoArchiveHours > 0) {
+    const cutoff = new Date(Date.now() - autoArchiveHours * 60 * 60 * 1000);
+    await prisma.task.updateMany({
+      where: { status: "DONE", archivedAt: null, updatedAt: { lt: cutoff } },
+      data: { archivedAt: new Date() },
+    });
+  }
   // Конструктор (ENGINEER) видит все задачи (в т.ч. где он отмечен исполнителем).
   const canSeeAll = role === "ADMIN" || role === "MANAGER" || role === "ENGINEER";
 
@@ -51,6 +70,9 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
         priority   ? { priority: priority as RequestPriority }              : {},
         assigneeId ? { assignees: { some: { id: assigneeId } } }            : {},
         workshopId === "none" ? { workshopId: null } : workshopId ? { workshopId } : {},
+        archived === "only" ? { archivedAt: { not: null } }
+          : archived === "any" ? {}
+          : { archivedAt: null },
         canSeeAll ? {} : isAssigneeRole ? { assignees: { some: { id: userId } } } : {
           // EMPLOYEE (оператор) видит задачи, где он отмечен исполнителем,
           // плюс задачи своего цеха (как было раньше).

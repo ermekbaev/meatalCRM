@@ -212,6 +212,7 @@ model Task {
   workshopId         String?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
+  archivedAt         DateTime?
   hasMetal           String?
   metalOwner         String?
   laserStatus        String?
@@ -231,6 +232,8 @@ model Task {
   files              TaskFile[]
   tags               Tag[]           @relation("TagToTask")
   changeLogs         TaskChangeLog[]
+
+  @@index([archivedAt])
 }
 
 model TaskChangeLog {
@@ -427,6 +430,8 @@ model CompanySettings {
   signatureImage String?
   stampImage     String?
   logoImage      String?
+  // Через сколько часов после перевода задачи в DONE она авто-уходит в архив. 0 = не архивировать автоматически.
+  taskAutoArchiveHours Int @default(24)
 }
 
 model Invoice {

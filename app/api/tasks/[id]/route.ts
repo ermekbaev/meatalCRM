@@ -107,6 +107,11 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
     for (const f of TASK_PRODUCTION_FIELDS) {
       if (data[f.key] !== undefined) productionPatch[f.key] = data[f.key] || null;
     }
+    // archivedAt: null — вернуть из архива; ISO/Date — отправить в архив; undefined — не трогать
+    let archivedAtPatch: { archivedAt: Date | null } | undefined;
+    if (data.archivedAt !== undefined) {
+      archivedAtPatch = { archivedAt: data.archivedAt ? new Date(data.archivedAt) : null };
+    }
     updateData = {
       title:       data.title,
       description: data.description ?? null,
@@ -116,6 +121,7 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
       clientId:    data.clientId ?? null,
       workshopId:  data.workshopId === undefined ? undefined : data.workshopId || null,
       ...productionPatch,
+      ...(archivedAtPatch ?? {}),
       ...(nextAssigneeIds !== null && {
         assignees: { set: nextAssigneeIds.map((id) => ({ id })) },
       }),
@@ -134,6 +140,18 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
     updateData = { ...(data.status !== undefined && { status: data.status }), ...productionPatch };
   } else {
     throw forbidden();
+  }
+
+  // Если задача уходит из статуса DONE — вытащим её из архива автоматически.
+  // Иначе перетаскивание архивной задачи обратно в «В работе» оставило бы
+  // её невидимой в обычном листинге (archivedAt всё ещё проставлен).
+  if (
+    updateData.status !== undefined &&
+    updateData.status !== "DONE" &&
+    old.status === "DONE" &&
+    updateData.archivedAt === undefined
+  ) {
+    updateData.archivedAt = null;
   }
 
   const task = await prisma.task.update({

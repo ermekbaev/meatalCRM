@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { StatusMultiSelect } from "@/components/ui/status-multi-select";
 import { PRIORITY_LABELS, PRIORITY_COLORS, TASK_PRODUCTION_FIELDS, formatDate, hexToBadgeStyle } from "@/lib/utils";
-import { Building2, Check, Factory, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X, Columns3, Pencil } from "lucide-react";
+import { Building2, Check, Factory, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X, Columns3, Pencil, Archive, ArchiveRestore, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -26,6 +26,13 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type Workshop = {
   id: string;
@@ -59,6 +66,12 @@ export default function TasksPage() {
   const isAssigneeView = isForeman || isContractor || isEmployee;
   const canManageTasks = role === "ADMIN" || role === "MANAGER";
   const [tasks, setTasks] = useState<any[]>([]);
+  const [archivedTasks, setArchivedTasks] = useState<any[]>([]);
+  // Раскрытые блоки «Архив» в колонках (по колонке-key).
+  const [archiveOpen, setArchiveOpen] = useState<Record<string, boolean>>({});
+  // Авто-архивация: через сколько часов в DONE задача уезжает в архив. 0 — выключено.
+  const [autoArchiveHours, setAutoArchiveHours] = useState<number>(24);
+  const [savingAutoArchive, setSavingAutoArchive] = useState(false);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [columns, setColumns] = useState<TaskColumn[]>([]);
   const [columnsOpen, setColumnsOpen] = useState(false);
@@ -101,9 +114,15 @@ export default function TasksPage() {
     if (priority !== "ALL") params.set("priority", priority);
     // Для FOREMAN/CONTRACTOR фильтр по цеху делаем на клиенте, чтобы счётчики на табах оставались валидными
     if (!isAssigneeView && activeWorkshopId !== "ALL") params.set("workshopId", activeWorkshopId);
-    const res = await fetch(`/api/tasks?${params}`);
-    const data = await res.json();
-    setTasks(data);
+    const archParams = new URLSearchParams(params);
+    archParams.set("archived", "only");
+    const [activeRes, archRes] = await Promise.all([
+      fetch(`/api/tasks?${params}`),
+      fetch(`/api/tasks?${archParams}`),
+    ]);
+    const [activeData, archData] = await Promise.all([activeRes.json(), archRes.json()]);
+    setTasks(Array.isArray(activeData) ? activeData : []);
+    setArchivedTasks(Array.isArray(archData) ? archData : []);
     setLoading(false);
   }, [search, statuses, priority, activeWorkshopId, isAssigneeView]);
 
@@ -122,7 +141,26 @@ export default function TasksPage() {
     fetchWorkshops();
     fetchColumns();
     fetch("/api/users").then((r) => r.json()).then((data) => setUsers(Array.isArray(data) ? data : [])).catch(() => {});
+    fetch("/api/settings/company")
+      .then((r) => r.ok ? r.json() : null)
+      .then((s) => {
+        if (s && typeof s.taskAutoArchiveHours === "number") setAutoArchiveHours(s.taskAutoArchiveHours);
+      })
+      .catch(() => {});
   }, [fetchWorkshops, fetchColumns]);
+
+  const saveAutoArchiveHours = async (hours: number) => {
+    setSavingAutoArchive(true);
+    try {
+      await fetch("/api/settings/company", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskAutoArchiveHours: hours }),
+      });
+    } finally {
+      setSavingAutoArchive(false);
+    }
+  };
 
   // Загрузка «прочитанности» табов из localStorage
   useEffect(() => {
@@ -189,6 +227,18 @@ export default function TasksPage() {
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    fetchTasks();
+  };
+
+  // Архивирует/возвращает задачу. После ответа подтягиваем оба списка.
+  const setTaskArchived = async (taskId: string, archived: boolean) => {
+    const task = [...tasks, ...archivedTasks].find((t) => t.id === taskId);
+    if (!task) return;
+    await fetch(`/api/tasks/${taskId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...task, archivedAt: archived ? new Date().toISOString() : null }),
+    });
     fetchTasks();
   };
 
@@ -330,8 +380,46 @@ export default function TasksPage() {
     }
   };
 
+  const persistWorkshopOrder = async (ordered: Workshop[]) => {
+    const prev = workshops;
+    const next = ordered.map((w, i) => ({ ...w, order: i }));
+    setWorkshops(next);
+    try {
+      await Promise.all(
+        next
+          .filter((w) => prev.find((p) => p.id === w.id)?.order !== w.order)
+          .map((w) =>
+            fetch(`/api/workshops/${w.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ order: w.order }),
+            })
+          )
+      );
+    } catch {
+      setWorkshops(prev);
+    }
+  };
+
+  const handleTabsDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ordered = [...workshops].sort((a, b) => a.order - b.order);
+    const realIds = ordered.filter((w) => !w.isVirtual).map((w) => w.id);
+    const oldIndex = realIds.indexOf(String(active.id));
+    const newIndex = realIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newRealIds = arrayMove(realIds, oldIndex, newIndex);
+    // Восстанавливаем полный массив: виртуальные цеха остаются на своих местах,
+    // реальные — в новом порядке.
+    const realsReordered = newRealIds.map((id) => ordered.find((w) => w.id === id)!);
+    let realIdx = 0;
+    const merged = ordered.map((w) => (w.isVirtual ? w : realsReordered[realIdx++]));
+    persistWorkshopOrder(merged);
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
-    const task = tasks.find((t) => t.id === event.active.id);
+    const task = [...tasks, ...archivedTasks].find((t) => t.id === event.active.id);
     if (task) setActiveDragTask(task);
   };
 
@@ -341,37 +429,71 @@ export default function TasksPage() {
     if (!over) return;
 
     const taskId = String(active.id);
-    const newStatus = String(over.id);
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task || task.status === newStatus) return;
+    const overId = String(over.id);
+    const task = [...tasks, ...archivedTasks].find((t) => t.id === taskId);
+    if (!task) return;
 
-    const prevStatus = task.status;
-    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
+    // Дроп на блок «Архив» — отправляем в архив (если ещё не там).
+    if (overId.startsWith("archive:")) {
+      if (task.archivedAt) return;
+      const archivedAt = new Date().toISOString();
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      setArchivedTasks((prev) => [{ ...task, archivedAt }, ...prev]);
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...task, archivedAt }),
+        });
+        if (!res.ok) throw new Error("archive failed");
+      } catch {
+        fetchTasks();
+      }
+      return;
+    }
+
+    // Дроп на обычную колонку. Если задача из архива — параллельно вытаскиваем.
+    const newStatus = overId;
+    const wasArchived = !!task.archivedAt;
+    if (!wasArchived && task.status === newStatus) return;
+
+    const optimistic = { ...task, status: newStatus, archivedAt: wasArchived ? null : task.archivedAt };
+    if (wasArchived) {
+      setArchivedTasks((prev) => prev.filter((t) => t.id !== taskId));
+      setTasks((prev) => [optimistic, ...prev]);
+    } else {
+      setTasks((prev) => prev.map((t) => t.id === taskId ? optimistic : t));
+    }
 
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...task, status: newStatus }),
+        body: JSON.stringify({ ...task, status: newStatus, archivedAt: wasArchived ? null : task.archivedAt }),
       });
       if (!res.ok) throw new Error("status update failed");
     } catch {
-      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: prevStatus } : t));
+      fetchTasks();
     }
   };
 
-  const displayTasks = !isAssigneeView || activeWorkshopId === "ALL"
-    ? tasks
-    : activeWorkshopId === "none"
-      ? tasks.filter((t) => !t.workshopId)
-      : tasks.filter((t) => t.workshopId === activeWorkshopId);
+  const filterByWs = (arr: any[]) =>
+    !isAssigneeView || activeWorkshopId === "ALL"
+      ? arr
+      : activeWorkshopId === "none"
+        ? arr.filter((t) => !t.workshopId)
+        : arr.filter((t) => t.workshopId === activeWorkshopId);
+
+  const displayTasks = filterByWs(tasks);
+  const displayArchived = filterByWs(archivedTasks);
 
   const visibleColumns = statuses.length
     ? columns.filter((c) => statuses.includes(c.key))
     : columns;
-  const statusGroups: Array<{ column: TaskColumn; items: any[] }> = visibleColumns.map((col) => ({
+  const statusGroups: Array<{ column: TaskColumn; items: any[]; archived: any[] }> = visibleColumns.map((col) => ({
     column: col,
     items: displayTasks.filter((t) => t.status === col.key),
+    archived: displayArchived.filter((t) => t.status === col.key),
   }));
 
   return (
@@ -427,24 +549,41 @@ export default function TasksPage() {
                     <NewBadge count={newByTab.none ?? 0} />
                   </button>
                 )}
-                {visibleWorkshops.map((workshop) => (
-                  <button
-                    key={workshop.id}
-                    type="button"
-                    onClick={() => { markTabSeen(workshop.id); setActiveWorkshopId(workshop.id); }}
-                    className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
-                      activeWorkshopId === workshop.id
-                        ? "border-orange-500 text-orange-600"
-                        : "border-transparent text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    {workshop.name}
-                    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                      {isAssigneeView ? (taskCountByWs.get(workshop.id) ?? 0) : (workshop._count?.tasks ?? 0)}
-                    </span>
-                    <NewBadge count={newByTab[workshop.id] ?? 0} />
-                  </button>
-                ))}
+                {isAdmin ? (
+                  <DndContext sensors={sensors} onDragEnd={handleTabsDragEnd}>
+                    <SortableContext items={visibleWorkshops.map((w) => w.id)} strategy={horizontalListSortingStrategy}>
+                      {visibleWorkshops.map((workshop) => (
+                        <SortableWorkshopTab
+                          key={workshop.id}
+                          workshop={workshop}
+                          active={activeWorkshopId === workshop.id}
+                          count={isAssigneeView ? (taskCountByWs.get(workshop.id) ?? 0) : (workshop._count?.tasks ?? 0)}
+                          newCount={newByTab[workshop.id] ?? 0}
+                          onClick={() => { markTabSeen(workshop.id); setActiveWorkshopId(workshop.id); }}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  visibleWorkshops.map((workshop) => (
+                    <button
+                      key={workshop.id}
+                      type="button"
+                      onClick={() => { markTabSeen(workshop.id); setActiveWorkshopId(workshop.id); }}
+                      className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${
+                        activeWorkshopId === workshop.id
+                          ? "border-orange-500 text-orange-600"
+                          : "border-transparent text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {workshop.name}
+                      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                        {isAssigneeView ? (taskCountByWs.get(workshop.id) ?? 0) : (workshop._count?.tasks ?? 0)}
+                      </span>
+                      <NewBadge count={newByTab[workshop.id] ?? 0} />
+                    </button>
+                  ))
+                )}
               </>
             );
           })()}
@@ -535,7 +674,7 @@ export default function TasksPage() {
 
         {loading ? (
           <div className="flex h-40 items-center justify-center text-slate-400 text-sm">Загрузка...</div>
-        ) : displayTasks.length === 0 ? (
+        ) : displayTasks.length === 0 && displayArchived.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-3 text-slate-400">
             <p className="text-sm">Задач пока нет</p>
             {canManageTasks && (
@@ -548,8 +687,8 @@ export default function TasksPage() {
           <>
             {/* Mobile: grouped list, no DnD */}
             <div className="md:hidden space-y-5">
-              {statusGroups.map(({ column, items }) => (
-                items.length === 0 ? null : (
+              {statusGroups.map(({ column, items, archived }) => (
+                items.length === 0 && archived.length === 0 ? null : (
                   <div key={column.id}>
                     <div className="mb-2 flex items-center justify-between px-1">
                       <span
@@ -570,9 +709,32 @@ export default function TasksPage() {
                           selected={selectedIds.has(task.id)}
                           onToggleSelect={toggleSelect}
                           canDelete={canManageTasks}
+                          canArchive={canManageTasks}
+                          onArchive={setTaskArchived}
                         />
                       ))}
                     </div>
+                    {archived.length > 0 && (
+                      <ArchiveBlock
+                        columnKey={column.key}
+                        count={archived.length}
+                        open={!!archiveOpen[column.key]}
+                        onToggle={() => setArchiveOpen((p) => ({ ...p, [column.key]: !p[column.key] }))}
+                      >
+                        {archived.map((task: any) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            onDelete={handleDelete}
+                            selectMode={false}
+                            canDelete={canManageTasks}
+                            canArchive={canManageTasks}
+                            isArchived
+                            onArchive={setTaskArchived}
+                          />
+                        ))}
+                      </ArchiveBlock>
+                    )}
                   </div>
                 )
               ))}
@@ -585,7 +747,7 @@ export default function TasksPage() {
                   className="grid gap-6"
                   style={{ gridTemplateColumns: `repeat(${Math.max(statusGroups.length, 1)}, minmax(0, 1fr))` }}
                 >
-                  {statusGroups.map(({ column, items }) => (
+                  {statusGroups.map(({ column, items, archived }) => (
                     <KanbanColumn key={column.id} column={column} count={items.length}>
                       {items.map((task) => (
                         <DraggableTaskCard
@@ -597,8 +759,34 @@ export default function TasksPage() {
                           onToggleSelect={toggleSelect}
                           canDelete={canManageTasks}
                           canDrag={canManageTasks || isForeman || isEmployee}
+                          canArchive={canManageTasks}
+                          onArchive={setTaskArchived}
                         />
                       ))}
+                      <ArchiveBlock
+                        columnKey={column.key}
+                        count={archived.length}
+                        open={!!archiveOpen[column.key]}
+                        onToggle={() => setArchiveOpen((p) => ({ ...p, [column.key]: !p[column.key] }))}
+                        droppable={canManageTasks}
+                        hideWhenEmpty={!canManageTasks || column.key !== "DONE"}
+                      >
+                        {archived.map((task: any) => (
+                          <DraggableTaskCard
+                            key={task.id}
+                            task={task}
+                            onDelete={handleDelete}
+                            selectMode={selectMode}
+                            selected={selectedIds.has(task.id)}
+                            onToggleSelect={toggleSelect}
+                            canDelete={canManageTasks}
+                            canDrag={canManageTasks}
+                            canArchive={canManageTasks}
+                            isArchived
+                            onArchive={setTaskArchived}
+                          />
+                        ))}
+                      </ArchiveBlock>
                     </KanbanColumn>
                   ))}
                 </div>
@@ -780,6 +968,28 @@ export default function TasksPage() {
             <DialogTitle>Управление колонками</DialogTitle>
           </DialogHeader>
 
+          <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Archive className="h-4 w-4 text-slate-500" />
+              <span className="text-sm font-medium text-slate-700">Авто-архивация</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 whitespace-nowrap">Через</span>
+              <Input
+                type="number"
+                min={0}
+                max={8760}
+                value={autoArchiveHours}
+                onChange={(e) => setAutoArchiveHours(Math.max(0, Number(e.target.value) || 0))}
+                onBlur={(e) => saveAutoArchiveHours(Math.max(0, Number(e.target.value) || 0))}
+                className="h-8 w-20 text-sm"
+              />
+              <span className="text-xs text-slate-500 whitespace-nowrap">ч после «Выполнено» — в архив</span>
+              {savingAutoArchive && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />}
+            </div>
+            <p className="text-[11px] text-slate-400">0 — выключить авто-архивацию (только вручную)</p>
+          </div>
+
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <Input
@@ -900,6 +1110,50 @@ export default function TasksPage() {
   );
 }
 
+function SortableWorkshopTab({
+  workshop,
+  active,
+  count,
+  newCount,
+  onClick,
+}: {
+  workshop: Workshop;
+  active: boolean;
+  count: number;
+  newCount: number;
+  onClick: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: workshop.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    cursor: isDragging ? "grabbing" : undefined,
+  };
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      type="button"
+      onClick={onClick}
+      {...attributes}
+      {...listeners}
+      className={`inline-flex h-8 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors touch-none ${
+        active
+          ? "border-orange-500 text-orange-600"
+          : "border-transparent text-slate-500 hover:text-slate-700"
+      }`}
+      title="Перетащите, чтобы изменить порядок"
+    >
+      {workshop.name}
+      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+        {count}
+      </span>
+      <NewBadge count={newCount} />
+    </button>
+  );
+}
+
 function NewBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
@@ -940,9 +1194,12 @@ type CardProps = {
   onToggleSelect?: (id: string) => void;
   canDelete?: boolean;
   canDrag?: boolean;
+  canArchive?: boolean;
+  isArchived?: boolean;
+  onArchive?: (id: string, archived: boolean) => void;
 };
 
-function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDelete, canDrag = true }: CardProps) {
+function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDelete, canDrag = true, canArchive, isArchived, onArchive }: CardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     disabled: selectMode || !canDrag,
@@ -972,8 +1229,60 @@ function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelec
           selected={selected}
           onToggleSelect={onToggleSelect}
           canDelete={canDelete}
+          canArchive={canArchive}
+          isArchived={isArchived}
+          onArchive={onArchive}
         />
       </div>
+    </div>
+  );
+}
+
+function ArchiveBlock({
+  columnKey,
+  count,
+  open,
+  onToggle,
+  children,
+  droppable = false,
+  hideWhenEmpty = false,
+}: {
+  columnKey: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  droppable?: boolean;
+  hideWhenEmpty?: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `archive:${columnKey}`, disabled: !droppable });
+  if (count === 0 && hideWhenEmpty) return null;
+  return (
+    <div
+      ref={droppable ? setNodeRef : undefined}
+      className={`pt-1 rounded-md transition-colors ${
+        isOver ? "bg-orange-50/60 ring-2 ring-orange-300" : count === 0 && droppable ? "border border-dashed border-slate-200" : ""
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={count === 0}
+        className={`inline-flex w-full items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
+          count === 0
+            ? "text-slate-400 cursor-default"
+            : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+        }`}
+      >
+        {count > 0 && (
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`} />
+        )}
+        Архив задач ({count})
+        {droppable && count === 0 && (
+          <span className="ml-1 text-[10px] text-slate-400">— перетащите сюда</span>
+        )}
+      </button>
+      {open && count > 0 && <div className="mt-2 space-y-2 opacity-75">{children}</div>}
     </div>
   );
 }
@@ -1027,7 +1336,7 @@ function TaskProductionPill({ task }: { task: any }) {
   );
 }
 
-function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDelete }: CardProps) {
+function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDelete, canArchive, isArchived, onArchive }: CardProps) {
   const subtasksTotal = task.subtasks?.length ?? 0;
   const subtasksDone = task.subtasks?.filter((s: any) => s.status === "DONE").length ?? 0;
 
@@ -1073,6 +1382,17 @@ function TaskCard({ task, onDelete, selectMode, selected, onToggleSelect, canDel
                 <Eye className="h-3.5 w-3.5" />
               </button>
             </Link>
+            {canArchive && onArchive && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onArchive(task.id, !isArchived); }}
+                className="text-slate-300 hover:text-orange-500 transition-colors p-0.5"
+                title={isArchived ? "Вернуть из архива" : "В архив"}
+              >
+                {isArchived
+                  ? <ArchiveRestore className="h-3.5 w-3.5" />
+                  : <Archive className="h-3.5 w-3.5" />}
+              </button>
+            )}
             {canDelete && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
