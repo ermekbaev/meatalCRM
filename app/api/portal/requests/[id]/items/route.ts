@@ -28,6 +28,7 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
       name: data.name,
       quantity: data.quantity,
       unit: data.unit,
+      price: data.price ?? null,
     },
   });
   return NextResponse.json(created, { status: 201 });

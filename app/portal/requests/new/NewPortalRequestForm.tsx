@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Factory, Plus, Trash2 } from "lucide-react";
-import { PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
+import { PORTAL_PRODUCTION_FIELDS, formatCurrency } from "@/lib/utils";
 
 type ProductionState = Partial<Record<
   "laserStatus" | "bendingStatus" | "weldingStatus" | "paintingStatus"
@@ -22,7 +22,8 @@ type ProductionState = Partial<Record<
   string | null
 >>;
 
-type Position = { id: string; name: string; unit: string };
+type Position = { id: string; name: string; unit: string; price: number | null; folderId: string | null };
+type FolderItem = { id: string; name: string };
 
 type Item = {
   // Локальный id для key. Не отправляется на сервер.
@@ -30,13 +31,27 @@ type Item = {
   name: string;
   quantity: string;
   unit: string;
+  price: string;
 };
 
 function makeKey() {
   return Math.random().toString(36).slice(2);
 }
 
-export function NewPortalRequestForm({ positions }: { positions: Position[] }) {
+function parsePrice(raw: string): number | null {
+  const v = raw.trim().replace(",", ".");
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+export function NewPortalRequestForm({
+  positions,
+  folders,
+}: {
+  positions: Position[];
+  folders: FolderItem[];
+}) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -50,19 +65,38 @@ export function NewPortalRequestForm({ positions }: { positions: Position[] }) {
   const addFromCatalog = () => {
     const p = positions.find((x) => x.id === pickPositionId);
     if (!p) return;
-    setItems((cur) => [...cur, { key: makeKey(), name: p.name, quantity: "1", unit: p.unit }]);
+    setItems((cur) => [
+      ...cur,
+      {
+        key: makeKey(),
+        name: p.name,
+        quantity: "1",
+        unit: p.unit,
+        price: p.price == null ? "" : String(p.price),
+      },
+    ]);
     setPickPositionId("");
   };
 
   // Добавление произвольной позиции
   const addCustom = () => {
-    setItems((cur) => [...cur, { key: makeKey(), name: "", quantity: "1", unit: "шт" }]);
+    setItems((cur) => [
+      ...cur,
+      { key: makeKey(), name: "", quantity: "1", unit: "шт", price: "" },
+    ]);
   };
 
   const removeItem = (key: string) => setItems((cur) => cur.filter((i) => i.key !== key));
 
   const updateItem = (key: string, patch: Partial<Item>) =>
     setItems((cur) => cur.map((i) => (i.key === key ? { ...i, ...patch } : i)));
+
+  const total = items.reduce((sum, i) => {
+    const price = parsePrice(i.price);
+    const qty = Number(i.quantity);
+    if (price == null || !Number.isFinite(qty)) return sum;
+    return sum + price * qty;
+  }, 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -79,6 +113,7 @@ export function NewPortalRequestForm({ positions }: { positions: Position[] }) {
           name: i.name.trim(),
           quantity: Number(i.quantity) || 1,
           unit: i.unit.trim() || "шт",
+          price: parsePrice(i.price),
         })),
     };
 
@@ -175,6 +210,11 @@ export function NewPortalRequestForm({ positions }: { positions: Position[] }) {
         <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-800">Позиции</h2>
+            {total > 0 && (
+              <span className="text-sm text-slate-600">
+                Итого: <span className="font-medium text-slate-900">{formatCurrency(total)}</span>
+              </span>
+            )}
           </div>
 
           {/* Из номенклатуры */}
@@ -185,11 +225,27 @@ export function NewPortalRequestForm({ positions }: { positions: Position[] }) {
               className="flex h-10 flex-1 min-w-45 rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">— из моей номенклатуры —</option>
-              {positions.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.unit})
-                </option>
-              ))}
+              {/* Сначала позиции без папки, затем — по папкам через optgroup. */}
+              {positions
+                .filter((p) => p.folderId == null)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.unit}){p.price != null ? ` · ${formatCurrency(p.price)}` : ""}
+                  </option>
+                ))}
+              {folders.map((f) => {
+                const inFolder = positions.filter((p) => p.folderId === f.id);
+                if (inFolder.length === 0) return null;
+                return (
+                  <optgroup key={f.id} label={f.name}>
+                    {inFolder.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.unit}){p.price != null ? ` · ${formatCurrency(p.price)}` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
             <Button type="button" variant="outline" onClick={addFromCatalog} disabled={!pickPositionId}>
               <Plus className="mr-1 h-4 w-4" /> Добавить
@@ -206,14 +262,14 @@ export function NewPortalRequestForm({ positions }: { positions: Position[] }) {
             <ul className="space-y-2 pt-2">
               {items.map((it) => (
                 <li key={it.key} className="grid grid-cols-12 gap-2 items-start">
-                  <div className="col-span-12 sm:col-span-7">
+                  <div className="col-span-12 sm:col-span-5">
                     <Input
                       placeholder="Название"
                       value={it.name}
                       onChange={(e) => updateItem(it.key, { name: e.target.value })}
                     />
                   </div>
-                  <div className="col-span-6 sm:col-span-2">
+                  <div className="col-span-4 sm:col-span-2">
                     <Input
                       type="number"
                       step="any"
@@ -223,11 +279,21 @@ export function NewPortalRequestForm({ positions }: { positions: Position[] }) {
                       onChange={(e) => updateItem(it.key, { quantity: e.target.value })}
                     />
                   </div>
-                  <div className="col-span-5 sm:col-span-2">
+                  <div className="col-span-3 sm:col-span-2">
                     <Input
                       placeholder="Ед."
                       value={it.unit}
                       onChange={(e) => updateItem(it.key, { unit: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-4 sm:col-span-2">
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="Цена, ₽"
+                      value={it.price}
+                      onChange={(e) => updateItem(it.key, { price: e.target.value })}
                     />
                   </div>
                   <div className="col-span-1 flex justify-end">

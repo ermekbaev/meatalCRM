@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
-type Item = { id: string; name: string; quantity: number; unit: string };
-type Position = { id: string; name: string; unit: string };
+type Item = { id: string; name: string; quantity: number; unit: string; price: number | null };
+type Position = { id: string; name: string; unit: string; price: number | null; folderId: string | null };
+type FolderItem = { id: string; name: string };
 
 type Row = {
   // Серверный id, либо null для новой строки, которую ещё не сохранили.
@@ -16,12 +18,20 @@ type Row = {
   name: string;
   quantity: string;
   unit: string;
+  price: string;
   // true пока идёт POST/PUT, чтобы не плодить параллельных запросов.
   saving: boolean;
 };
 
 function makeKey() {
   return Math.random().toString(36).slice(2);
+}
+
+function parsePrice(raw: string): number | null {
+  const v = raw.trim().replace(",", ".");
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 /**
@@ -35,10 +45,12 @@ export function PortalItemsEditor({
   requestId,
   initialItems,
   positions,
+  folders,
 }: {
   requestId: string;
   initialItems: Item[];
   positions: Position[];
+  folders: FolderItem[];
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(
@@ -48,6 +60,7 @@ export function PortalItemsEditor({
       name: i.name,
       quantity: String(i.quantity),
       unit: i.unit,
+      price: i.price == null ? "" : String(i.price),
       saving: false,
     }))
   );
@@ -58,12 +71,20 @@ export function PortalItemsEditor({
     setRows((cur) => cur.map((r) => (r.key === key ? { ...r, ...p } : r)));
   }
 
+  const total = rows.reduce((sum, r) => {
+    const price = parsePrice(r.price);
+    const qty = Number(r.quantity);
+    if (price == null || !Number.isFinite(qty)) return sum;
+    return sum + price * qty;
+  }, 0);
+
   async function persist(row: Row) {
     const name = row.name.trim();
     if (!name) return;
     const quantity = Number(row.quantity);
     if (!Number.isFinite(quantity) || quantity <= 0) return;
     const unit = row.unit.trim() || "шт";
+    const price = parsePrice(row.price);
 
     patch(row.key, { saving: true });
     setError(null);
@@ -72,14 +93,14 @@ export function PortalItemsEditor({
         const res = await fetch(`/api/portal/requests/${requestId}/items/${row.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, quantity, unit }),
+          body: JSON.stringify({ name, quantity, unit, price }),
         });
         if (!res.ok) throw new Error(await readErr(res));
       } else {
         const res = await fetch(`/api/portal/requests/${requestId}/items`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, quantity, unit }),
+          body: JSON.stringify({ name, quantity, unit, price }),
         });
         if (!res.ok) throw new Error(await readErr(res));
         const created = (await res.json()) as Item;
@@ -116,7 +137,7 @@ export function PortalItemsEditor({
   function addCustom() {
     setRows((cur) => [
       ...cur,
-      { id: null, key: makeKey(), name: "", quantity: "1", unit: "шт", saving: false },
+      { id: null, key: makeKey(), name: "", quantity: "1", unit: "шт", price: "", saving: false },
     ]);
   }
 
@@ -131,6 +152,7 @@ export function PortalItemsEditor({
       name: p.name,
       quantity: "1",
       unit: p.unit,
+      price: p.price == null ? "" : String(p.price),
       saving: true,
     };
     setRows((cur) => [...cur, row]);
@@ -149,7 +171,7 @@ export function PortalItemsEditor({
         <ul className="space-y-2">
           {rows.map((r) => (
             <li key={r.key} className="grid grid-cols-12 gap-2 items-start rounded-lg border border-slate-200 bg-white p-2">
-              <div className="col-span-12 sm:col-span-7">
+              <div className="col-span-12 sm:col-span-5">
                 <Input
                   placeholder="Название"
                   value={r.name}
@@ -158,7 +180,7 @@ export function PortalItemsEditor({
                   disabled={r.saving}
                 />
               </div>
-              <div className="col-span-6 sm:col-span-2">
+              <div className="col-span-4 sm:col-span-2">
                 <Input
                   type="number"
                   step="any"
@@ -170,11 +192,23 @@ export function PortalItemsEditor({
                   disabled={r.saving}
                 />
               </div>
-              <div className="col-span-5 sm:col-span-2">
+              <div className="col-span-3 sm:col-span-2">
                 <Input
                   placeholder="Ед."
                   value={r.unit}
                   onChange={(e) => patch(r.key, { unit: e.target.value })}
+                  onBlur={() => persist(r)}
+                  disabled={r.saving}
+                />
+              </div>
+              <div className="col-span-4 sm:col-span-2">
+                <Input
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder="Цена, ₽"
+                  value={r.price}
+                  onChange={(e) => patch(r.key, { price: e.target.value })}
                   onBlur={() => persist(r)}
                   disabled={r.saving}
                 />
@@ -189,6 +223,12 @@ export function PortalItemsEditor({
         </ul>
       )}
 
+      {total > 0 && (
+        <div className="flex justify-end text-sm text-slate-600">
+          Итого: <span className="ml-1 font-medium text-slate-900">{formatCurrency(total)}</span>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <select
           value={pickPositionId}
@@ -196,11 +236,27 @@ export function PortalItemsEditor({
           className="flex h-10 flex-1 min-w-45 rounded-md border border-input bg-background px-3 text-sm"
         >
           <option value="">— из моей номенклатуры —</option>
-          {positions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} ({p.unit})
-            </option>
-          ))}
+          {/* Сначала позиции без папки, затем — по папкам через optgroup. */}
+          {positions
+            .filter((p) => p.folderId == null)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.unit}){p.price != null ? ` · ${formatCurrency(p.price)}` : ""}
+              </option>
+            ))}
+          {folders.map((f) => {
+            const inFolder = positions.filter((p) => p.folderId === f.id);
+            if (inFolder.length === 0) return null;
+            return (
+              <optgroup key={f.id} label={f.name}>
+                {inFolder.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.unit}){p.price != null ? ` · ${formatCurrency(p.price)}` : ""}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
         </select>
         <Button type="button" variant="outline" onClick={addFromCatalog} disabled={!pickPositionId}>
           <Plus className="mr-1 h-4 w-4" /> Добавить

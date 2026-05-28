@@ -13,7 +13,7 @@ export default async function PortalRequestPage({
   if (!session?.user.companyId) redirect("/login");
 
   const { id } = await params;
-  const [request, positions] = await Promise.all([
+  const [request, positions, folders] = await Promise.all([
     prisma.portalRequest.findFirst({
       where: { id, companyId: session.user.companyId },
       include: {
@@ -31,7 +31,12 @@ export default async function PortalRequestPage({
     // Номенклатура компании — для быстрого добавления позиций в существующую заявку.
     prisma.clientPosition.findMany({
       where: { companyId: session.user.companyId },
-      select: { id: true, name: true, unit: true },
+      select: { id: true, name: true, unit: true, price: true, folderId: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.clientPositionFolder.findMany({
+      where: { companyId: session.user.companyId },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -42,6 +47,7 @@ export default async function PortalRequestPage({
       request={request}
       currentUserId={session.user.id}
       positions={positions}
+      folders={folders}
     />
   );
 }

@@ -26,7 +26,7 @@ type ProductionKey =
   | "extraWorkStatus"
   | "deliveryStatus";
 
-type Item = { id: string; name: string; quantity: number; unit: string };
+type Item = { id: string; name: string; quantity: number; unit: string; price: number | null };
 type Comment = {
   id: string;
   text: string;
@@ -75,16 +75,19 @@ const STATUS_COLORS = {
   READY: "bg-emerald-100 text-emerald-700",
 } as const;
 
-type Position = { id: string; name: string; unit: string };
+type Position = { id: string; name: string; unit: string; price: number | null; folderId: string | null };
+type FolderItem = { id: string; name: string };
 
 export function PortalRequestView({
   request,
   currentUserId,
   positions,
+  folders,
 }: {
   request: Request;
   currentUserId: string;
   positions: Position[];
+  folders: FolderItem[];
 }) {
   const router = useRouter();
 
@@ -367,6 +370,7 @@ export function PortalRequestView({
           requestId={request.id}
           initialItems={request.items}
           positions={positions}
+          folders={folders}
         />
       </section>
 

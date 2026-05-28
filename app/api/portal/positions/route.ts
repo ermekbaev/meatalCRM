@@ -20,7 +20,7 @@ export const GET = withErrorHandling(async (_req: NextRequest) => {
 
   const positions = await prisma.clientPosition.findMany({
     where: { companyId },
-    select: { id: true, name: true, unit: true, createdAt: true },
+    select: { id: true, name: true, unit: true, price: true, folderId: true, createdAt: true },
     orderBy: { name: "asc" },
   });
   return NextResponse.json(positions);
@@ -35,9 +35,20 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
 
   const data = await parseBody(req, clientPositionCreateSchema);
 
+  // Защита от чужой папки: folderId должен принадлежать той же компании.
+  // Без этой проверки клиент мог бы привязать свою позицию к папке другой компании.
+  let folderId: string | null = null;
+  if (data.folderId) {
+    const folder = await prisma.clientPositionFolder.findFirst({
+      where: { id: data.folderId, companyId },
+      select: { id: true },
+    });
+    if (folder) folderId = folder.id;
+  }
+
   const position = await prisma.clientPosition.create({
-    data: { companyId, name: data.name, unit: data.unit },
-    select: { id: true, name: true, unit: true, createdAt: true },
+    data: { companyId, name: data.name, unit: data.unit, price: data.price ?? null, folderId },
+    select: { id: true, name: true, unit: true, price: true, folderId: true, createdAt: true },
   });
   return NextResponse.json(position, { status: 201 });
 });

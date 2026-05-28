@@ -8,11 +8,18 @@ export default async function PortalPositionsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user.companyId) redirect("/login");
 
-  const positions = await prisma.clientPosition.findMany({
-    where: { companyId: session.user.companyId },
-    select: { id: true, name: true, unit: true, createdAt: true },
-    orderBy: { name: "asc" },
-  });
+  const [positions, folders] = await Promise.all([
+    prisma.clientPosition.findMany({
+      where: { companyId: session.user.companyId },
+      select: { id: true, name: true, unit: true, price: true, folderId: true, createdAt: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.clientPositionFolder.findMany({
+      where: { companyId: session.user.companyId },
+      select: { id: true, name: true, createdAt: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
-  return <PortalPositionsView initialPositions={positions} />;
+  return <PortalPositionsView initialPositions={positions} initialFolders={folders} />;
 }

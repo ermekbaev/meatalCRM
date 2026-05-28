@@ -36,6 +36,7 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
       ...(data.name !== undefined ? { name: data.name } : {}),
       ...(data.quantity !== undefined ? { quantity: data.quantity } : {}),
       ...(data.unit !== undefined ? { unit: data.unit } : {}),
+      ...(data.price !== undefined ? { price: data.price ?? null } : {}),
     },
   });
   return NextResponse.json(updated);

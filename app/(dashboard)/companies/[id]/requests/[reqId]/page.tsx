@@ -8,7 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Factory, FileText, MessageSquare } from "lucide-react";
-import { formatDate, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
+import { formatDate, formatCurrency, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
 import { PortalStatusPicker } from "./PortalStatusPicker";
 import { PortalPaymentPicker } from "./PortalPaymentPicker";
 import { PortalCommentForm } from "./PortalCommentForm";
@@ -161,18 +161,41 @@ export default async function PortalRequestViewPage({
               Позиции не указаны
             </div>
           ) : (
-            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-              <ul className="divide-y divide-slate-100">
-                {request.items.map((it) => (
-                  <li key={it.id} className="flex items-center justify-between px-4 py-3">
-                    <span className="text-sm text-slate-800">{it.name}</span>
-                    <span className="text-sm text-slate-600 whitespace-nowrap">
-                      {it.quantity} {it.unit}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            (() => {
+              const total = request.items.reduce(
+                (sum, it) => (it.price == null ? sum : sum + it.price * it.quantity),
+                0
+              );
+              return (
+                <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                  <ul className="divide-y divide-slate-100">
+                    {request.items.map((it) => (
+                      <li key={it.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                        <span className="text-sm text-slate-800 min-w-0 truncate">{it.name}</span>
+                        <span className="text-sm text-slate-600 whitespace-nowrap">
+                          {it.quantity} {it.unit}
+                          {it.price != null && (
+                            <>
+                              {" · "}
+                              <span className="text-slate-500">{formatCurrency(it.price)}</span>
+                              {" = "}
+                              <span className="font-medium text-slate-800">
+                                {formatCurrency(it.price * it.quantity)}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {total > 0 && (
+                    <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+                      Итого: <span className="ml-1 font-medium text-slate-900">{formatCurrency(total)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()
           )}
         </section>
 

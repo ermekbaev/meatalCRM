@@ -75,8 +75,9 @@ model Client {
   manager         User?             @relation("ClientManager", fields: [managerId], references: [id], onDelete: SetNull)
   isPortalEnabled Boolean           @default(false)
   portalUsers     User[]            @relation("CompanyUsers")
-  portalRequests  PortalRequest[]
-  clientPositions ClientPosition[]
+  portalRequests        PortalRequest[]
+  clientPositions       ClientPosition[]
+  clientPositionFolders ClientPositionFolder[]
 }
 
 model Request {
@@ -614,6 +615,7 @@ model PortalRequestItem {
   name            String
   quantity        Float         @default(1)
   unit            String        @default("шт")
+  price           Float?
   portalRequest   PortalRequest @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
 }
 
@@ -646,12 +648,27 @@ model PortalFile {
 }
 
 model ClientPosition {
-  id        String   @id @default(cuid())
+  id        String                @id @default(cuid())
+  companyId String
+  folderId  String?
+  name      String
+  unit      String                @default("шт")
+  price     Float?
+  createdAt DateTime              @default(now())
+  company   Client                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  folder    ClientPositionFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([folderId])
+}
+
+model ClientPositionFolder {
+  id        String           @id @default(cuid())
   companyId String
   name      String
-  unit      String   @default("шт")
-  createdAt DateTime @default(now())
-  company   Client   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+  company   Client           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  positions ClientPosition[]
 
   @@index([companyId])
 }

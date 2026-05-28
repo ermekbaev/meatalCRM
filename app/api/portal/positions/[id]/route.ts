@@ -27,10 +27,28 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   });
   if (!existing) throw notFound();
 
+  // folderId: undefined — не трогаем, null — снять, строка — переместить.
+  // Проверяем, что folder принадлежит той же компании.
+  let folderUpdate: { folderId: string | null } | {} = {};
+  if (data.folderId === null) {
+    folderUpdate = { folderId: null };
+  } else if (data.folderId) {
+    const folder = await prisma.clientPositionFolder.findFirst({
+      where: { id: data.folderId, companyId },
+      select: { id: true },
+    });
+    folderUpdate = { folderId: folder ? folder.id : null };
+  }
+
   const updated = await prisma.clientPosition.update({
     where: { id },
-    data: { name: data.name, unit: data.unit },
-    select: { id: true, name: true, unit: true, createdAt: true },
+    data: {
+      name: data.name,
+      unit: data.unit,
+      price: data.price ?? null,
+      ...folderUpdate,
+    },
+    select: { id: true, name: true, unit: true, price: true, folderId: true, createdAt: true },
   });
   return NextResponse.json(updated);
 });

@@ -75,6 +75,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
               name: it.name,
               quantity: it.quantity,
               unit: it.unit,
+              price: it.price ?? null,
             })),
           }
         : undefined,

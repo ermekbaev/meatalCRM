@@ -480,6 +480,7 @@ export const portalRequestItemSchema = z.object({
   name: z.string().trim().min(1, "Укажите название позиции").max(500),
   quantity: qty.default(1),
   unit: z.string().trim().max(50).default("шт"),
+  price: z.number().nonnegative().nullish(),
 });
 
 // Частичное обновление существующей позиции в портальной заявке.
@@ -487,6 +488,7 @@ export const portalRequestItemUpdateSchema = z.object({
   name: z.string().trim().min(1).max(500).optional(),
   quantity: qty.optional(),
   unit: z.string().trim().max(50).optional(),
+  price: z.number().nonnegative().nullish(),
 });
 
 // Производственные подстатусы, доступные клиенту в портале. Подмножество
@@ -532,6 +534,12 @@ export const portalRequestUpdateSchema = z.object({
 export const clientPositionCreateSchema = z.object({
   name: z.string().trim().min(1, "Укажите название").max(500),
   unit: z.string().trim().max(50).default("шт"),
+  price: z.number().nonnegative().nullish(),
+  folderId: cuid.nullish(),
+});
+
+export const clientPositionFolderSchema = z.object({
+  name: z.string().trim().min(1, "Укажите название папки").max(200),
 });
 
 // ─── Push subscription ────────────────────────────────────────────────────────

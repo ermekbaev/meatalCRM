@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Building2, User, Mail, Phone, Hash, Search } from "lucide-react";
-import { formatDate, cn, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
+import { formatDate, formatCurrency, cn, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
 import { PortalUsersCard } from "./PortalUsersCard";
 
 type PortalRequest = {
@@ -36,7 +36,8 @@ type Company = {
   manager: { id: string; name: string; email: string } | null;
   portalUsers: { id: string; name: string; email: string; phone: string | null; isBlocked: boolean; createdAt: Date | string }[];
   portalRequests: PortalRequest[];
-  clientPositions: { id: string; name: string; unit: string; createdAt: Date | string }[];
+  clientPositions: { id: string; name: string; unit: string; price: number | null; folderId: string | null; createdAt: Date | string }[];
+  clientPositionFolders: { id: string; name: string }[];
 };
 
 const STATUS_LABELS: Record<PortalRequest["status"], string> = {
@@ -260,14 +261,47 @@ export function CompanyDetail({ company }: { company: Company }) {
                 Номенклатура ещё не создана
               </div>
             ) : (
-              <ul className="divide-y divide-slate-100">
-                {company.clientPositions.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between px-4 py-3">
-                    <span className="text-sm text-slate-800">{p.name}</span>
-                    <span className="text-xs text-slate-500">{p.unit}</span>
-                  </li>
-                ))}
-              </ul>
+              (() => {
+                // Группируем позиции по папке. Сначала «без папки», затем — по папкам.
+                const byFolder = new Map<string | null, typeof company.clientPositions>();
+                for (const p of company.clientPositions) {
+                  const key = p.folderId ?? null;
+                  const arr = byFolder.get(key) ?? [];
+                  arr.push(p);
+                  byFolder.set(key, arr);
+                }
+                const groups: { key: string | null; label: string | null; items: typeof company.clientPositions }[] = [];
+                const noFolder = byFolder.get(null);
+                if (noFolder && noFolder.length) groups.push({ key: null, label: null, items: noFolder });
+                for (const f of company.clientPositionFolders) {
+                  const items = byFolder.get(f.id);
+                  if (items && items.length) groups.push({ key: f.id, label: f.name, items });
+                }
+                return (
+                  <div className="divide-y divide-slate-100">
+                    {groups.map((g) => (
+                      <div key={g.key ?? "__none__"}>
+                        {g.label && (
+                          <div className="bg-slate-50 px-4 py-1.5 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                            {g.label}
+                          </div>
+                        )}
+                        <ul className="divide-y divide-slate-100">
+                          {g.items.map((p) => (
+                            <li key={p.id} className="flex items-center justify-between px-4 py-3">
+                              <span className="text-sm text-slate-800">{p.name}</span>
+                              <span className="text-xs text-slate-500 whitespace-nowrap">
+                                {p.unit}
+                                {p.price != null && <> · {formatCurrency(p.price)}</>}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
             )}
           </div>
         )}
