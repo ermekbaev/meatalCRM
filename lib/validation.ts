@@ -523,10 +523,13 @@ export const portalRequestStatusSchema = z.object({
  */
 export const portalRequestUpdateSchema = z.object({
   status: z.enum(["NEW", "IN_PROGRESS", "READY"]).optional(),
-  // Платёжный статус — только внутренние (проверяется в API).
   paymentStatus: z.enum(["NONE", "AWAITING", "PAID"]).optional(),
   // Описание заявки — может менять и клиент (её автор), и внутренний (см. API).
   description: z.string().trim().max(5000).nullish(),
+  // Флаги «отгружено» / «принято». true → проставляется now(), false → сбрасывается.
+  // Кто из них может менять что — проверяется в API.
+  shipped: z.boolean().optional(),
+  accepted: z.boolean().optional(),
   ...portalProductionFields,
 });
 

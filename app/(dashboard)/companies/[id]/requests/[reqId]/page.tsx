@@ -7,10 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Factory, FileText, MessageSquare } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Factory, FileText, MessageSquare } from "lucide-react";
 import { formatDate, formatCurrency, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
 import { PortalStatusPicker } from "./PortalStatusPicker";
 import { PortalPaymentPicker } from "./PortalPaymentPicker";
+import { PortalShippedToggle } from "./PortalShippedToggle";
 import { PortalCommentForm } from "./PortalCommentForm";
 import { PortalDescriptionEditor } from "./PortalDescriptionEditor";
 import { PortalFilesTabs } from "./PortalFilesTabs";
@@ -94,6 +95,23 @@ export default async function PortalRequestViewPage({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <PortalPaymentPicker requestId={request.id} initial={request.paymentStatus} />
+              <PortalShippedToggle requestId={request.id} initial={request.shippedAt != null} />
+              {/* «Принято» ставит клиент — менеджер видит как read-only бейдж. */}
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  request.acceptedAt
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-50 text-slate-400 ring-1 ring-slate-200"
+                }`}
+                title={
+                  request.acceptedAt
+                    ? `Клиент принял ${formatDate(request.acceptedAt)}`
+                    : "Клиент пока не отметил приёмку"
+                }
+              >
+                <Check className="h-3 w-3" />
+                {request.acceptedAt ? "Принято" : "Не принято"}
+              </span>
               <PortalStatusPicker requestId={request.id} initial={request.status} />
             </div>
           </div>

@@ -40,9 +40,11 @@ export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
 
 /**
  * Частичное обновление портальной заявки.
- *   - status         — только ADMIN/MANAGER (общий флоу-статус ведёт менеджер).
- *   - production-поля — клиент тоже может (поправить «забыл указать покраску»);
- *     это не меняет ничего «снаружи», просто метаданные для менеджера.
+ *   - status        — только ADMIN/MANAGER.
+ *   - paymentStatus — могут все (клиент тоже): фактическая оплата ведётся на стороне клиента.
+ *   - shipped       — только ADMIN/MANAGER (отгрузку фиксирует менеджер).
+ *   - accepted      — только CLIENT (ответственный в кабинете подтверждает приёмку).
+ *   - production    — клиент и менеджер.
  */
 export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
@@ -58,14 +60,19 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   if (data.status !== undefined && isClient) {
     throw forbidden("Сменить статус может только менеджер");
   }
-  if (data.paymentStatus !== undefined && isClient) {
-    throw forbidden("Платёжный статус ведёт менеджер");
+  if (data.shipped !== undefined && isClient) {
+    throw forbidden("Отметку «отгружено» ставит менеджер");
+  }
+  if (data.accepted !== undefined && !isClient) {
+    throw forbidden("Отметку «принято» ставит ответственный в кабинете клиента");
   }
 
   // Собираем только присланные поля — не затираем то, чего нет в теле.
   const patch: Record<string, unknown> = {};
   if (data.status !== undefined) patch.status = data.status;
   if (data.paymentStatus !== undefined) patch.paymentStatus = data.paymentStatus;
+  if (data.shipped !== undefined) patch.shippedAt = data.shipped ? new Date() : null;
+  if (data.accepted !== undefined) patch.acceptedAt = data.accepted ? new Date() : null;
   if (data.description !== undefined) {
     // Пустая строка → null, чтобы UI единообразно показывал «нет описания».
     const trimmed = typeof data.description === "string" ? data.description.trim() : null;
@@ -90,6 +97,8 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
       id: true,
       status: true,
       paymentStatus: true,
+      shippedAt: true,
+      acceptedAt: true,
       description: true,
       updatedAt: true,
       laserStatus: true,

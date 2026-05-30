@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Factory, FileText, FileSpreadsheet, MessageSquare, Paperclip, Pencil, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Check, Factory, FileText, FileSpreadsheet, MessageSquare, Package, Paperclip, Pencil, Trash2, Upload } from "lucide-react";
 import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
 import { PortalItemsEditor } from "./PortalItemsEditor";
 import { uploadViaPresign } from "@/lib/upload-client";
@@ -50,6 +50,8 @@ type Request = {
   description: string | null;
   status: "NEW" | "IN_PROGRESS" | "READY";
   paymentStatus: PortalPaymentStatus;
+  shippedAt: Date | string | null;
+  acceptedAt: Date | string | null;
   createdByUserId: string;
   createdAt: Date | string;
   laserStatus: string | null;
@@ -218,7 +220,50 @@ export function PortalRequestView({
 
   const drawings = files.filter((f) => f.kind !== "DOCUMENT");
   const documents = files.filter((f) => f.kind === "DOCUMENT");
-  const paymentOpt = PORTAL_PAYMENT_OPTIONS.find((o) => o.value === request.paymentStatus) ?? PORTAL_PAYMENT_OPTIONS[0];
+
+  // ─── Платёжный статус — клиент тоже может выставить ───────────────────────
+  const [paymentStatus, setPaymentStatus] = useState<PortalPaymentStatus>(request.paymentStatus);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const paymentOpt = PORTAL_PAYMENT_OPTIONS.find((o) => o.value === paymentStatus) ?? PORTAL_PAYMENT_OPTIONS[0];
+
+  async function updatePayment(next: PortalPaymentStatus) {
+    const prev = paymentStatus;
+    setPaymentStatus(next);
+    setPaymentSaving(true);
+    const res = await fetch(`/api/portal/requests/${request.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentStatus: next }),
+    });
+    setPaymentSaving(false);
+    if (!res.ok) {
+      setPaymentStatus(prev);
+      return;
+    }
+    router.refresh();
+  }
+
+  // ─── Принято (ставит клиент) ──────────────────────────────────────────────
+  const [accepted, setAccepted] = useState<boolean>(request.acceptedAt != null);
+  const [acceptedSaving, setAcceptedSaving] = useState(false);
+  const shipped = request.shippedAt != null;
+
+  async function toggleAccepted() {
+    const next = !accepted;
+    setAccepted(next);
+    setAcceptedSaving(true);
+    const res = await fetch(`/api/portal/requests/${request.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accepted: next }),
+    });
+    setAcceptedSaving(false);
+    if (!res.ok) {
+      setAccepted(!next);
+      return;
+    }
+    router.refresh();
+  }
 
   async function handleDeleteFile(fileId: string) {
     if (!confirm("Удалить файл?")) return;
@@ -243,9 +288,64 @@ export function PortalRequestView({
             <h1 className="mt-0.5 text-lg font-semibold text-slate-900">{request.title}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${paymentOpt.className}`}>
-              {paymentOpt.label}
+            {/* Платёжный статус — теперь редактируется и клиентом (по просьбе пользователя):
+                «без оплаты» / «ждём оплату» / «оплачено» проставляет ответственный в кабинете. */}
+            <Select
+              value={paymentStatus}
+              onValueChange={(v) => updatePayment(v as PortalPaymentStatus)}
+              disabled={paymentSaving}
+            >
+              <SelectTrigger
+                className={`h-7 w-auto min-w-30 px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${paymentOpt.className}`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PORTAL_PAYMENT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-xs">
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Отгружено — ставит только менеджер (read-only бейдж для клиента). */}
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                shipped
+                  ? "bg-sky-100 text-sky-700"
+                  : "bg-slate-50 text-slate-400 ring-1 ring-slate-200"
+              }`}
+              title={
+                shipped
+                  ? `Отгружено ${formatDate(request.shippedAt!)}`
+                  : "Менеджер ещё не отметил отгрузку"
+              }
+            >
+              <Package className="h-3 w-3" />
+              {shipped ? "Отгружено" : "Не отгружено"}
             </span>
+
+            {/* Принято — ставит ответственный в кабинете клиента (toggle). */}
+            <button
+              type="button"
+              onClick={toggleAccepted}
+              disabled={acceptedSaving}
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                accepted
+                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                  : "bg-slate-50 text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100"
+              } disabled:opacity-60`}
+              title={
+                accepted
+                  ? `Принято ${formatDate(request.acceptedAt!)}. Нажмите, чтобы снять.`
+                  : "Отметить как принято"
+              }
+            >
+              <Check className="h-3 w-3" />
+              {accepted ? "Принято" : "Не принято"}
+            </button>
+
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[request.status]}`}>
               {STATUS_LABELS[request.status]}
             </span>
