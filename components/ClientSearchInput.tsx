@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Search, Building2, X, Loader2, PlusCircle } from "lucide-react";
+import { Search, Building2, User, X, Loader2, PlusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface ExistingClient {
@@ -8,6 +8,8 @@ interface ExistingClient {
   name: string;
   shortName?: string | null;
   inn?: string | null;
+  phone?: string | null;
+  type?: "INDIVIDUAL" | "COMPANY" | null;
 }
 
 interface Props {
@@ -63,7 +65,8 @@ export function ClientSearchInput({ value, onChange, existingClients }: Props) {
         (c) =>
           c.name.toLowerCase().includes(lower) ||
           (c.shortName ?? "").toLowerCase().includes(lower) ||
-          (c.inn ?? "").includes(q)
+          (c.inn ?? "").includes(q) ||
+          (c.phone ?? "").includes(q)
       )
     );
 
@@ -179,7 +182,7 @@ export function ClientSearchInput({ value, onChange, existingClients }: Props) {
                 if (!query.trim()) setLocalResults(existingClients.slice(0, 8));
                 setShowDropdown(true);
               }}
-              placeholder={creating ? "Создание контрагента..." : "Поиск по названию или ИНН..."}
+              placeholder={creating ? "Создание контрагента..." : "Поиск по названию, телефону или ИНН..."}
               className="pl-8 text-sm"
               disabled={creating}
             />
@@ -192,20 +195,36 @@ export function ClientSearchInput({ value, onChange, existingClients }: Props) {
                   <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100">
                     В системе
                   </div>
-                  {localResults.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 text-left"
-                      onMouseDown={() => selectExisting(c)}
-                    >
-                      <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-slate-800">{c.shortName || c.name}</p>
-                        {c.inn && <p className="text-[11px] text-slate-400">ИНН {c.inn}</p>}
-                      </div>
-                    </button>
-                  ))}
+                  {localResults.map((c) => {
+                    const isPerson = c.type === "INDIVIDUAL";
+                    // Для физлиц показываем телефон (имён часто одинаковых много),
+                    // для компаний — ИНН.
+                    const meta = isPerson
+                      ? c.phone
+                        ? c.phone
+                        : null
+                      : c.inn
+                        ? `ИНН ${c.inn}`
+                        : null;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 text-left"
+                        onMouseDown={() => selectExisting(c)}
+                      >
+                        {isPerson ? (
+                          <User className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        ) : (
+                          <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-slate-800">{c.shortName || c.name}</p>
+                          {meta && <p className="text-[11px] text-slate-400">{meta}</p>}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </>
               )}
 
