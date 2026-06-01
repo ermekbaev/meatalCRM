@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Building2, User, Mail, Phone, Hash, Search } from "lucide-react";
+import { ArrowLeft, Building2, User, Mail, Phone, Hash, Search, Package, Check } from "lucide-react";
 import { formatDate, formatCurrency, cn, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
 import { PortalUsersCard } from "./PortalUsersCard";
 
@@ -20,6 +20,8 @@ type PortalRequest = {
   title: string;
   status: "NEW" | "IN_PROGRESS" | "READY";
   paymentStatus: PortalPaymentStatus;
+  shippedAt: Date | string | null;
+  acceptedAt: Date | string | null;
   firstViewedAt: Date | string | null;
   createdAt: Date | string;
   createdByUser: { id: string; name: string };
@@ -233,6 +235,16 @@ export function CompanyDetail({ company }: { company: Company }) {
                             {r.paymentStatus !== "NONE" && (
                               <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", payOpt.className)}>
                                 {payOpt.label}
+                              </span>
+                            )}
+                            {r.shippedAt && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                                <Package className="h-3 w-3" /> Отгружено
+                              </span>
+                            )}
+                            {r.acceptedAt && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                <Check className="h-3 w-3" /> Принято
                               </span>
                             )}
                             {unread && (

@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -17,6 +18,16 @@ export function PortalTopBar({ userName, companyName }: { userName: string; comp
   return (
     <header className="safe-area-inset-top sticky top-0 z-20 bg-white border-b border-slate-200">
       <div className="px-4 py-3 flex items-center gap-3">
+        <Link href="/portal" className="shrink-0">
+          <Image
+            src="/logo.svg"
+            alt="ORIENT-LASER"
+            width={140}
+            height={36}
+            className="h-9 w-auto object-contain"
+            priority
+          />
+        </Link>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-slate-400 truncate">Кабинет «{companyName}»</p>
           <p className="text-sm font-semibold text-slate-900 truncate">{userName}</p>

@@ -17,6 +17,8 @@ export default async function PortalIndexPage() {
       title: true,
       status: true,
       paymentStatus: true,
+      shippedAt: true,
+      acceptedAt: true,
       createdAt: true,
       _count: { select: { items: true, comments: true, files: true } },
     },

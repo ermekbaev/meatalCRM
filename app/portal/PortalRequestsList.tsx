@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Package, Check } from "lucide-react";
 import { formatDate, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
 
 type Status = "NEW" | "IN_PROGRESS" | "READY";
@@ -20,6 +20,8 @@ type Request = {
   title: string;
   status: Status;
   paymentStatus: PortalPaymentStatus;
+  shippedAt: Date | string | null;
+  acceptedAt: Date | string | null;
   createdAt: Date | string;
   _count: { items: number; comments: number; files: number };
 };
@@ -139,6 +141,16 @@ export function PortalRequestsList({ requests }: { requests: Request[] }) {
                         {r.paymentStatus !== "NONE" && (
                           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${payOpt.className}`}>
                             {payOpt.label}
+                          </span>
+                        )}
+                        {r.shippedAt && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                            <Package className="h-3 w-3" /> Отгружено
+                          </span>
+                        )}
+                        {r.acceptedAt && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                            <Check className="h-3 w-3" /> Принято
                           </span>
                         )}
                       </div>
