@@ -49,7 +49,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
         orderBy: { createdAt: "desc" },
       },
       clientPositions: {
-        select: { id: true, name: true, unit: true, price: true, folderId: true, createdAt: true },
+        select: { id: true, name: true, unit: true, price: true, folderId: true, pdfKey: true, pdfName: true, createdAt: true },
         orderBy: { name: "asc" },
       },
       clientPositionFolders: {

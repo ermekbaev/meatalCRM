@@ -539,6 +539,13 @@ export const clientPositionCreateSchema = z.object({
   unit: z.string().trim().max(50).default("шт"),
   price: z.number().nonnegative().nullish(),
   folderId: cuid.nullish(),
+  pdfKey: z.string().max(500).nullish(),
+  pdfName: z.string().max(500).nullish(),
+});
+
+export const positionPdfPresignSchema = z.object({
+  name: z.string().min(1).max(500),
+  size: z.number().int().nonnegative().max(20 * 1024 * 1024, "Файл слишком большой (макс. 20 МБ)"),
 });
 
 export const clientPositionFolderSchema = z.object({

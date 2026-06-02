@@ -1,14 +1,22 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, TrendingUp, ClipboardList, Users, FileText, Award, ArrowRight, DollarSign, Percent } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Loader2, TrendingUp, ClipboardList, Users, FileText, Award,
+  ArrowRight, DollarSign, Percent, ChevronRight, X, Search,
+  CheckCircle2, Clock, AlertCircle, XCircle, RefreshCw,
+} from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, Line, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, PieChart, Pie, Cell,
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { Package } from "lucide-react";
+import Link from "next/link";
+
+// ─── Справочники ───────────────────────────────────────────────────────────────
 
 const MONTH_NAMES: Record<string, string> = {
   "01": "Янв", "02": "Фев", "03": "Мар", "04": "Апр",
@@ -17,18 +25,40 @@ const MONTH_NAMES: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  NEW: "Новые", IN_PROGRESS: "В работе", COMPLETED: "Завершены",
-  CANCELLED: "Отменены", APPROVAL: "На согласовании",
+  NEW: "Новая",
+  PENDING_APPROVAL: "На согласовании",
+  IN_PROGRESS: "В работе",
+  READY: "Готова",
+  COMPLETED: "Завершена",
+  CANCELLED: "Отменена",
 };
 const STATUS_COLORS: Record<string, string> = {
-  NEW: "#6366f1", IN_PROGRESS: "#f59e0b", COMPLETED: "#22c55e",
-  CANCELLED: "#ef4444", APPROVAL: "#8b5cf6",
+  NEW: "#6366f1",
+  PENDING_APPROVAL: "#8b5cf6",
+  IN_PROGRESS: "#f59e0b",
+  READY: "#06b6d4",
+  COMPLETED: "#22c55e",
+  CANCELLED: "#ef4444",
+};
+const STATUS_ICONS: Record<string, React.ElementType> = {
+  NEW: Clock,
+  PENDING_APPROVAL: AlertCircle,
+  IN_PROGRESS: RefreshCw,
+  READY: CheckCircle2,
+  COMPLETED: CheckCircle2,
+  CANCELLED: XCircle,
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
   LOW: "Низкий", MEDIUM: "Средний", HIGH: "Высокий", URGENT: "Срочный",
 };
-const PRIORITY_COLORS = ["#cbd5e1", "#94a3b8", "#f59e0b", "#ef4444"];
+const PRIORITY_COLORS_MAP: Record<string, string> = {
+  LOW: "bg-slate-100 text-slate-500",
+  MEDIUM: "bg-blue-50 text-blue-600",
+  HIGH: "bg-amber-50 text-amber-600",
+  URGENT: "bg-red-50 text-red-600",
+};
+const PRIORITY_CHART_COLORS = ["#cbd5e1", "#94a3b8", "#f59e0b", "#ef4444"];
 
 const PRESETS = [
   { label: "7 дней", days: 7 },
@@ -37,11 +67,16 @@ const PRESETS = [
   { label: "Год", days: 365 },
 ];
 
+const ALL_STATUSES = ["NEW", "IN_PROGRESS", "COMPLETED", "CANCELLED", "APPROVAL"];
+const ALL_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+
 function fmt(v: number) {
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)} млн ₽`;
   if (v >= 1_000) return `${(v / 1_000).toFixed(0)} тыс. ₽`;
   return `${v.toLocaleString("ru")} ₽`;
 }
+
+// ─── StatCard ──────────────────────────────────────────────────────────────────
 
 function StatCard({ icon: Icon, label, value, sub, accent = "orange" }: any) {
   const colors: Record<string, { bg: string; text: string; icon: string }> = {
@@ -55,9 +90,6 @@ function StatCard({ icon: Icon, label, value, sub, accent = "orange" }: any) {
     <Card className="border-slate-200">
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          {/* min-w-0 + flex-1 — иначе длинный sub распирает колонку и обрезается
-              об иконку. break-words чтобы «491 тыс. ₽» не ломалось по словам в
-              три строки на узких мобильных карточках. */}
           <div className="space-y-1 min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{label}</p>
             <p className={`text-xl sm:text-2xl font-bold tracking-tight wrap-break-word ${c.text}`}>{value}</p>
@@ -72,6 +104,8 @@ function StatCard({ icon: Icon, label, value, sub, accent = "orange" }: any) {
   );
 }
 
+// ─── CustomTooltip ─────────────────────────────────────────────────────────────
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
@@ -79,21 +113,306 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <p className="font-medium text-slate-700 mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
         p.value != null && (
-          <p key={i} className="text-slate-500">{p.name}: <span className="font-semibold text-slate-800">{typeof p.value === "number" && (p.name === "Выручка" || p.name === "Прибыль") ? fmt(p.value) : p.value}</span></p>
+          <p key={i} className="text-slate-500">
+            {p.name}: <span className="font-semibold text-slate-800">
+              {typeof p.value === "number" && (p.name === "Выручка" || p.name === "Прибыль") ? fmt(p.value) : p.value}
+            </span>
+          </p>
         )
       ))}
     </div>
   );
 };
 
+// ─── Drawer: детализация по менеджеру ─────────────────────────────────────────
+
+type ManagerRequest = {
+  id: string;
+  number: number;
+  title: string;
+  status: string;
+  priority: string;
+  amount: number | null;
+  paymentStatus: string;
+  createdAt: string;
+  client: { id: string; name: string };
+  items: { name: string; quantity: number; total: number; purchasePrice: number | null }[];
+};
+
+function ManagerDrawer({
+  managerId,
+  managerName,
+  from,
+  to,
+  onClose,
+}: {
+  managerId: string;
+  managerName: string;
+  from: string;
+  to: string;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState<ManagerRequest[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
+
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ assigneeId: managerId, from, to });
+    fetch(`/api/analytics/manager-requests?${params}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setRequests(data.requests ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [managerId, from, to]);
+
+  const filtered = useMemo(() => {
+    return requests.filter((r) => {
+      if (statusFilter.length && !statusFilter.includes(r.status)) return false;
+      if (priorityFilter.length && !priorityFilter.includes(r.priority)) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (!r.title.toLowerCase().includes(q) && !r.client.name.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [requests, statusFilter, priorityFilter, search]);
+
+  // Саммари по отфильтрованным заявкам
+  const summary = useMemo(() => {
+    const total = filtered.length;
+    const completed = filtered.filter((r) => r.status === "COMPLETED").length;
+    const revenue = filtered.filter((r) => r.status === "COMPLETED").reduce((s, r) => s + (r.amount ?? 0), 0);
+    const conversion = total > 0 ? (completed / total) * 100 : 0;
+    return { total, completed, revenue, conversion };
+  }, [filtered]);
+
+  const toggleStatus = (s: string) =>
+    setStatusFilter((cur) => cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]);
+  const togglePriority = (p: string) =>
+    setPriorityFilter((cur) => cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]);
+
+  const statusCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    requests.forEach((r) => { m[r.status] = (m[r.status] ?? 0) + 1; });
+    return m;
+  }, [requests]);
+
+  const priorityCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    requests.forEach((r) => { m[r.priority] = (m[r.priority] ?? 0) + 1; });
+    return m;
+  }, [requests]);
+
+  return (
+    <>
+      {/* Overlay */}
+      <div
+        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Панель */}
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-3xl flex-col bg-white shadow-2xl">
+        {/* Шапка */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Детализация</p>
+            <h2 className="text-base font-semibold text-slate-800 mt-0.5">{managerName}</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Саммари */}
+            <div className="grid grid-cols-4 gap-3 px-5 py-4 border-b border-slate-100 shrink-0">
+              {[
+                { label: "Заявок", value: summary.total, cls: "text-slate-800" },
+                { label: "Завершено", value: summary.completed, cls: "text-emerald-600" },
+                { label: "Конверсия", value: `${summary.conversion.toFixed(0)}%`, cls: summary.conversion > 50 ? "text-emerald-600" : summary.conversion > 20 ? "text-amber-500" : "text-red-400" },
+                { label: "Выручка", value: fmt(summary.revenue), cls: "text-slate-800" },
+              ].map((s) => (
+                <div key={s.label} className="rounded-xl bg-slate-50 px-3 py-2.5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{s.label}</p>
+                  <p className={`text-base font-bold mt-0.5 ${s.cls}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Фильтры */}
+            <div className="space-y-2 px-5 py-3 border-b border-slate-100 shrink-0">
+              {/* Поиск */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Поиск по заявке или контрагенту…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-8 pl-8 text-sm"
+                />
+              </div>
+
+              {/* Статусы */}
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_STATUSES.map((s) => {
+                  const cnt = statusCounts[s] ?? 0;
+                  if (!cnt) return null;
+                  const active = statusFilter.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => toggleStatus(s)}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ring-1",
+                        active
+                          ? "text-white ring-transparent"
+                          : "bg-white ring-slate-200 text-slate-500 hover:ring-slate-300"
+                      )}
+                      style={active ? { backgroundColor: STATUS_COLORS[s], ringColor: "transparent" } : {}}
+                    >
+                      {STATUS_LABELS[s]} <span className={active ? "opacity-70" : "text-slate-400"}>{cnt}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Приоритеты */}
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_PRIORITIES.map((p) => {
+                  const cnt = priorityCounts[p] ?? 0;
+                  if (!cnt) return null;
+                  const active = priorityFilter.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => togglePriority(p)}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ring-1",
+                        active
+                          ? "bg-slate-800 text-white ring-transparent"
+                          : `ring-slate-200 hover:ring-slate-300 ${PRIORITY_COLORS_MAP[p]}`
+                      )}
+                    >
+                      {PRIORITY_LABELS[p]} <span className={active ? "opacity-70" : "opacity-60"}>{cnt}</span>
+                    </button>
+                  );
+                })}
+                {(statusFilter.length > 0 || priorityFilter.length > 0 || search) && (
+                  <button
+                    onClick={() => { setStatusFilter([]); setPriorityFilter([]); setSearch(""); }}
+                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium text-slate-400 ring-1 ring-slate-200 hover:text-red-500 hover:ring-red-200 transition-colors"
+                  >
+                    <X className="h-3 w-3" /> Сбросить
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Список заявок */}
+            <div className="flex-1 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <div className="flex h-40 items-center justify-center text-sm text-slate-300">
+                  Нет заявок по выбранным фильтрам
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-white z-10 border-b border-slate-100">
+                    <tr>
+                      {["№", "Заявка", "Контрагент", "Статус", "Приоритет", "Сумма", "Дата"].map((h) => (
+                        <th
+                          key={h}
+                          className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 whitespace-nowrap first:w-12"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((r) => {
+                      const StatusIcon = STATUS_ICONS[r.status] ?? Clock;
+                      return (
+                        <tr
+                          key={r.id}
+                          className="border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors group"
+                        >
+                          <td className="px-4 py-3 text-[11px] font-semibold text-slate-400 tabular-nums">
+                            #{r.number}
+                          </td>
+                          <td className="px-4 py-3 max-w-[200px]">
+                            <Link
+                              href={`/requests/${r.id}`}
+                              className="font-medium text-slate-700 hover:text-orange-600 line-clamp-2 leading-snug transition-colors"
+                            >
+                              {r.title}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 max-w-[140px]">
+                            <span className="truncate block">{r.client.name}</span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                              style={{ backgroundColor: STATUS_COLORS[r.status] + "18", color: STATUS_COLORS[r.status] }}
+                            >
+                              <StatusIcon className="h-3 w-3" />
+                              {STATUS_LABELS[r.status] ?? r.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", PRIORITY_COLORS_MAP[r.priority])}>
+                              {PRIORITY_LABELS[r.priority] ?? r.priority}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-700 whitespace-nowrap">
+                            {r.amount != null ? fmt(r.amount) : <span className="text-slate-300 font-normal">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 text-[11px] whitespace-nowrap tabular-nums">
+                            {new Date(r.createdAt).toLocaleDateString("ru", { day: "2-digit", month: "short" })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Футер */}
+            <div className="border-t border-slate-100 px-5 py-2.5 shrink-0 text-[11px] text-slate-400">
+              Показано {filtered.length} из {requests.length} заявок
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Главная страница ──────────────────────────────────────────────────────────
+
 const STORAGE_KEY = "analytics_period";
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  // Восстанавливаем состояние из localStorage
   const saved = typeof window !== "undefined"
     ? JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null")
     : null;
@@ -102,6 +421,13 @@ export default function AnalyticsPage() {
   const [customFrom, setCustomFrom] = useState(saved?.from ?? "");
   const [customTo, setCustomTo] = useState(saved?.to ?? todayStr);
   const [customActive, setCustomActive] = useState(saved?.customActive ?? false);
+
+  // Текущий диапазон дат для drawer
+  const [currentFrom, setCurrentFrom] = useState("");
+  const [currentTo, setCurrentTo] = useState("");
+
+  // Drill-down
+  const [drawerManager, setDrawerManager] = useState<{ id: string; name: string } | null>(null);
 
   const savePeriod = (obj: object) =>
     localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
@@ -116,13 +442,23 @@ export default function AnalyticsPage() {
     };
   };
 
+  const applyResult = async (res: Response) => {
+    if (!res.ok) {
+      setFetchError("Не удалось загрузить данные. Проверьте соединение и попробуйте снова.");
+      setData(null);
+    } else {
+      setFetchError(null);
+      setData(await res.json());
+    }
+    setLoading(false);
+  };
+
   const fetchData = async (days: number) => {
     setLoading(true);
     const { from, to } = getDateRange(days);
-    const res = await fetch(`/api/analytics?from=${from}&to=${to}`);
-    const json = await res.json();
-    setData(json);
-    setLoading(false);
+    setCurrentFrom(from);
+    setCurrentTo(to);
+    await applyResult(await fetch(`/api/analytics?from=${from}&to=${to}`));
   };
 
   const fetchCustom = async (from = customFrom, to = customTo) => {
@@ -130,11 +466,10 @@ export default function AnalyticsPage() {
     setLoading(true);
     setCustomActive(true);
     setActivePreset(0);
+    setCurrentFrom(from);
+    setCurrentTo(to);
     savePeriod({ customActive: true, preset: 0, from, to });
-    const res = await fetch(`/api/analytics?from=${from}&to=${to}`);
-    const json = await res.json();
-    setData(json);
-    setLoading(false);
+    await applyResult(await fetch(`/api/analytics?from=${from}&to=${to}`));
   };
 
   useEffect(() => {
@@ -163,6 +498,23 @@ export default function AnalyticsPage() {
     );
   }
 
+  if (fetchError || !data) {
+    return (
+      <div>
+        <Header title="Аналитика" />
+        <div className="flex flex-col h-64 items-center justify-center gap-4">
+          <p className="text-sm text-slate-500">{fetchError ?? "Нет данных"}</p>
+          <button
+            onClick={() => customActive ? fetchCustom() : fetchData(activePreset || 90)}
+            className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 transition-colors"
+          >
+            Повторить
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const { summary, byStatus, byPriority, revenueChart, topClients, managers, topServices, funnel } = data;
 
   const statusData = byStatus.map((s: any) => ({
@@ -174,7 +526,7 @@ export default function AnalyticsPage() {
   const priorityData = byPriority.map((p: any, i: number) => ({
     name: PRIORITY_LABELS[p.priority] ?? p.priority,
     value: p._count.id,
-    color: PRIORITY_COLORS[i] ?? "#94a3b8",
+    color: PRIORITY_CHART_COLORS[i] ?? "#94a3b8",
   }));
 
   const revenueData = revenueChart.map((r: any) => {
@@ -219,9 +571,7 @@ export default function AnalyticsPage() {
               {p.label}
             </button>
           ))}
-
           <div className="h-4 w-px bg-slate-200 mx-1" />
-
           <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 transition-all hover:border-slate-300">
             <input
               type="date"
@@ -240,13 +590,11 @@ export default function AnalyticsPage() {
               className="bg-transparent text-[13px] font-medium text-slate-500 outline-none"
             />
             <button
-              onClick={fetchCustom}
+              onClick={() => fetchCustom()}
               disabled={!customFrom || !customTo}
               className={cn(
                 "ml-1 rounded-md px-2 py-0.5 transition-all disabled:opacity-30",
-                customActive
-                  ? "bg-slate-800 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                customActive ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               )}
             >
               <ArrowRight className="h-3.5 w-3.5" />
@@ -262,7 +610,6 @@ export default function AnalyticsPage() {
           <StatCard icon={FileText} label="КП выставлено" value={summary.totalOffers} accent="violet" />
         </div>
 
-        {/* Прибыль и маржинальность */}
         {summary.totalCost > 0 && (
           <div className="grid grid-cols-2 gap-4">
             <StatCard
@@ -302,7 +649,7 @@ export default function AnalyticsPage() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}к` : v} />
+                    <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}к` : v} />
                     <Tooltip content={<CustomTooltip />} />
                     <Area dataKey="revenue" name="Выручка" stroke="#f97316" strokeWidth={2} fill="url(#revenueGrad)" dot={{ r: 3, fill: "#f97316", strokeWidth: 0 }} activeDot={{ r: 5 }} />
                     <Line dataKey="profit" name="Прибыль" stroke="#22c55e" strokeWidth={2} dot={{ r: 3, fill: "#22c55e", strokeWidth: 0 }} activeDot={{ r: 5 }} connectNulls={false} />
@@ -312,7 +659,6 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          {/* Статусы */}
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">По статусам</CardTitle>
@@ -325,9 +671,7 @@ export default function AnalyticsPage() {
                   <ResponsiveContainer width="100%" height={140}>
                     <PieChart>
                       <Pie data={statusData} dataKey="value" cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2}>
-                        {statusData.map((entry: any, i: number) => (
-                          <Cell key={i} fill={entry.color} />
-                        ))}
+                        {statusData.map((entry: any, i: number) => <Cell key={i} fill={entry.color} />)}
                       </Pie>
                       <Tooltip content={<CustomTooltip />} />
                     </PieChart>
@@ -368,10 +712,7 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                     <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${item.color}`}
-                        style={{ width: `${Math.max(pct, item.value > 0 ? 2 : 0)}%` }}
-                      />
+                      <div className={`h-full rounded-full transition-all ${item.color}`} style={{ width: `${Math.max(pct, item.value > 0 ? 2 : 0)}%` }} />
                     </div>
                   </div>
                 );
@@ -393,7 +734,6 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          {/* Приоритеты */}
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">По приоритетам</CardTitle>
@@ -409,9 +749,7 @@ export default function AnalyticsPage() {
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} width={55} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="value" name="Заявок" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                      {priorityData.map((entry: any, i: number) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
+                      {priorityData.map((entry: any, i: number) => <Cell key={i} fill={entry.color} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -424,21 +762,16 @@ export default function AnalyticsPage() {
         {topServices && topServices.length > 0 && (
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">
-                Выручка по услугам
-              </CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">Выручка по услугам</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      <th className="text-left py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400 w-8">#</th>
-                      <th className="text-left py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Услуга / Позиция</th>
-                      <th className="text-right py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400 whitespace-nowrap">Кол-во в заявках</th>
-                      <th className="text-right py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Выручка</th>
-                      <th className="text-right py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Прибыль</th>
-                      <th className="text-right py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Маржа</th>
+                      {["#", "Услуга / Позиция", "Кол-во в заявках", "Выручка", "Прибыль", "Маржа"].map((h) => (
+                        <th key={h} className="text-left py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400 last:text-right">{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -447,42 +780,26 @@ export default function AnalyticsPage() {
                       const barWidth = maxRevenue > 0 ? (s.revenue / maxRevenue) * 100 : 0;
                       return (
                         <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 transition-colors">
-                          <td className="py-2.5 px-4 text-[11px] font-semibold text-slate-300 text-right">{i + 1}</td>
+                          <td className="py-2.5 px-4 text-[11px] font-semibold text-slate-300 text-right w-8">{i + 1}</td>
                           <td className="py-2.5 px-4">
                             <div className="space-y-1">
                               <p className="font-medium text-slate-700 leading-tight">{s.name}</p>
                               <div className="h-1 rounded-full bg-slate-100 overflow-hidden w-full max-w-50">
-                                <div
-                                  className="h-full rounded-full bg-orange-400 transition-all"
-                                  style={{ width: `${barWidth}%` }}
-                                />
+                                <div className="h-full rounded-full bg-orange-400 transition-all" style={{ width: `${barWidth}%` }} />
                               </div>
                             </div>
                           </td>
-                          <td className="py-2.5 px-4 text-right text-slate-500 tabular-nums whitespace-nowrap">
-                            {s.orders} <span className="text-slate-300">зак.</span>
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums whitespace-nowrap">
-                            {fmt(s.revenue)}
-                          </td>
+                          <td className="py-2.5 px-4 text-right text-slate-500 tabular-nums whitespace-nowrap">{s.orders} <span className="text-slate-300">зак.</span></td>
+                          <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(s.revenue)}</td>
                           <td className="py-2.5 px-4 text-right tabular-nums whitespace-nowrap">
                             {s.profit != null
                               ? <span className={s.profit >= 0 ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold"}>{fmt(s.profit)}</span>
-                              : <span className="text-slate-300">—</span>
-                            }
+                              : <span className="text-slate-300">—</span>}
                           </td>
                           <td className="py-2.5 px-4 text-right tabular-nums whitespace-nowrap">
                             {s.margin != null
-                              ? (
-                                <span className={cn(
-                                  "font-semibold",
-                                  s.margin > 30 ? "text-emerald-600" : s.margin > 10 ? "text-amber-500" : "text-red-500"
-                                )}>
-                                  {s.margin.toFixed(1)}%
-                                </span>
-                              )
-                              : <span className="text-slate-300">—</span>
-                            }
+                              ? <span className={cn("font-semibold", s.margin > 30 ? "text-emerald-600" : s.margin > 10 ? "text-amber-500" : "text-red-500")}>{s.margin.toFixed(1)}%</span>
+                              : <span className="text-slate-300">—</span>}
                           </td>
                         </tr>
                       );
@@ -525,40 +842,69 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
+          {/* ─── Менеджеры с drill-down ─── */}
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">Менеджеры</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">
+                Менеджеры
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {managers.length === 0 ? (
-                <p className="text-sm text-slate-300">Нет данных</p>
+                <p className="px-5 py-4 text-sm text-slate-300">Нет данных</p>
               ) : (
-                <div className="space-y-1">
-                  <div className="grid grid-cols-4 pb-2 border-b border-slate-100">
-                    {["Имя", "Заявок", "Конверсия", "Выручка"].map((h) => (
-                      <span key={h} className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 last:text-right">{h}</span>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      {["Имя", "Заявок", "Конверсия", "Выручка", ""].map((h) => (
+                        <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 last:w-6">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {managers.map((m: any, i: number) => (
+                      <tr
+                        key={i}
+                        onClick={() => setDrawerManager({ id: m.assigneeId, name: m.name })}
+                        className="border-b border-slate-50 last:border-0 hover:bg-orange-50/60 transition-colors cursor-pointer group"
+                      >
+                        <td className="px-4 py-2.5 font-medium text-slate-700 max-w-[120px]">
+                          <span className="truncate block">{m.name}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-center text-slate-500 tabular-nums">{m.total}</td>
+                        <td className={cn(
+                          "px-4 py-2.5 text-center font-semibold tabular-nums",
+                          m.conversionRate > 50 ? "text-emerald-600" : m.conversionRate > 20 ? "text-amber-500" : "text-red-400"
+                        )}>
+                          {m.conversionRate.toFixed(0)}%
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-slate-700 tabular-nums whitespace-nowrap">
+                          {fmt(m.revenue)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-orange-400 transition-colors ml-auto" />
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                  {managers.map((m: any, i: number) => (
-                    <div key={i} className="grid grid-cols-4 items-center py-1.5 text-sm border-b border-slate-50 last:border-0">
-                      <span className="truncate font-medium text-slate-700">{m.name}</span>
-                      <span className="text-center text-slate-500 tabular-nums">{m.total}</span>
-                      <span className={cn(
-                        "text-center font-semibold tabular-nums",
-                        m.conversionRate > 50 ? "text-emerald-600" : m.conversionRate > 20 ? "text-amber-500" : "text-red-400"
-                      )}>
-                        {m.conversionRate.toFixed(0)}%
-                      </span>
-                      <span className="text-right font-semibold text-slate-700 tabular-nums">{fmt(m.revenue)}</span>
-                    </div>
-                  ))}
-                </div>
+                  </tbody>
+                </table>
               )}
             </CardContent>
           </Card>
         </div>
 
       </div>
+
+      {/* Drawer */}
+      {drawerManager && (
+        <ManagerDrawer
+          managerId={drawerManager.id}
+          managerName={drawerManager.name}
+          from={currentFrom}
+          to={currentTo}
+          onClose={() => setDrawerManager(null)}
+        />
+      )}
     </div>
   );
 }

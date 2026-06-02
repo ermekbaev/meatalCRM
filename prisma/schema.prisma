@@ -658,6 +658,8 @@ model ClientPosition {
   name      String
   unit      String                @default("шт")
   price     Float?
+  pdfKey    String?
+  pdfName   String?
   createdAt DateTime              @default(now())
   company   Client                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   folder    ClientPositionFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)

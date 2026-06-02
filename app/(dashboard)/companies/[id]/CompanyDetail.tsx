@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Building2, User, Mail, Phone, Hash, Search, Package, Check } from "lucide-react";
+import { ArrowLeft, Building2, User, Mail, Phone, Hash, Search, Package, Check, FileText } from "lucide-react";
 import { formatDate, formatCurrency, cn, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
 import { PortalUsersCard } from "./PortalUsersCard";
 
@@ -38,7 +38,7 @@ type Company = {
   manager: { id: string; name: string; email: string } | null;
   portalUsers: { id: string; name: string; email: string; phone: string | null; isBlocked: boolean; createdAt: Date | string }[];
   portalRequests: PortalRequest[];
-  clientPositions: { id: string; name: string; unit: string; price: number | null; folderId: string | null; createdAt: Date | string }[];
+  clientPositions: { id: string; name: string; unit: string; price: number | null; folderId: string | null; pdfKey: string | null; pdfName: string | null; createdAt: Date | string }[];
   clientPositionFolders: { id: string; name: string }[];
 };
 
@@ -300,11 +300,26 @@ export function CompanyDetail({ company }: { company: Company }) {
                         )}
                         <ul className="divide-y divide-slate-100">
                           {g.items.map((p) => (
-                            <li key={p.id} className="flex items-center justify-between px-4 py-3">
-                              <span className="text-sm text-slate-800">{p.name}</span>
-                              <span className="text-xs text-slate-500 whitespace-nowrap">
+                            <li key={p.id} className="flex items-center justify-between px-4 py-3 gap-2">
+                              <span className="text-sm text-slate-800 min-w-0 truncate">{p.name}</span>
+                              <span className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap shrink-0">
                                 {p.unit}
                                 {p.price != null && <> · {formatCurrency(p.price)}</>}
+                                {p.pdfKey && (
+                                  <button
+                                    type="button"
+                                    title={p.pdfName ?? "Открыть PDF"}
+                                    onClick={async () => {
+                                      const res = await fetch(`/api/portal/positions/${p.id}/pdf`);
+                                      if (!res.ok) return;
+                                      const { url } = await res.json();
+                                      window.open(url, "_blank", "noopener,noreferrer");
+                                    }}
+                                    className="text-orange-500 hover:text-orange-700"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </button>
+                                )}
                               </span>
                             </li>
                           ))}

@@ -1,8 +1,8 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Check, X, Pencil, Folder, FolderPlus } from "lucide-react";
+import { Plus, Trash2, Check, X, Pencil, Folder, FolderPlus, FileText, Paperclip, Loader2 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 
 type Position = {
@@ -11,6 +11,8 @@ type Position = {
   unit: string;
   price: number | null;
   folderId: string | null;
+  pdfKey: string | null;
+  pdfName: string | null;
   createdAt: Date | string;
 };
 
@@ -20,7 +22,6 @@ type FolderItem = {
   createdAt: Date | string;
 };
 
-// Виртуальные «папки» для фильтра: ALL — показать всё, NONE — только без папки.
 const ALL = "__all__";
 const NONE = "__none__";
 
@@ -29,6 +30,22 @@ function parsePrice(raw: string): number | null {
   if (!v) return null;
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+// ─── Загрузка PDF через сервер ────────────────────────────────────────────────
+async function uploadPdf(file: File): Promise<{ key: string; name: string }> {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch("/api/portal/positions/pdf-upload", {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error ?? "Не удалось загрузить PDF");
+  }
+  return res.json();
 }
 
 export function PortalPositionsView({
@@ -48,10 +65,30 @@ export function PortalPositionsView({
   const [newUnit, setNewUnit] = useState("шт");
   const [newPrice, setNewPrice] = useState("");
   const [creating, setCreating] = useState(false);
+  const [newPdfKey, setNewPdfKey] = useState<string | null>(null);
+  const [newPdfName, setNewPdfName] = useState<string | null>(null);
+  const [newPdfUploading, setNewPdfUploading] = useState(false);
+  const newFileRef = useRef<HTMLInputElement>(null);
 
-  // Если выбрана конкретная папка — новые позиции попадут в неё.
   const targetFolderId =
     activeFolder === ALL || activeFolder === NONE ? null : activeFolder;
+
+  async function handleNewPdfSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setNewPdfUploading(true);
+    setError(null);
+    try {
+      const { key, name } = await uploadPdf(file);
+      setNewPdfKey(key);
+      setNewPdfName(name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка загрузки PDF");
+    } finally {
+      setNewPdfUploading(false);
+      if (newFileRef.current) newFileRef.current.value = "";
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +103,8 @@ export function PortalPositionsView({
         unit: newUnit.trim() || "шт",
         price: parsePrice(newPrice),
         folderId: targetFolderId,
+        pdfKey: newPdfKey,
+        pdfName: newPdfName,
       }),
     });
     const data = await res.json();
@@ -78,6 +117,8 @@ export function PortalPositionsView({
     setNewName("");
     setNewUnit("шт");
     setNewPrice("");
+    setNewPdfKey(null);
+    setNewPdfName(null);
   }
 
   // ─── Редактирование позиции ────────────────────────────────────────────────
@@ -86,6 +127,10 @@ export function PortalPositionsView({
   const [editUnit, setEditUnit] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [editFolderId, setEditFolderId] = useState<string>(NONE);
+  const [editPdfKey, setEditPdfKey] = useState<string | null>(null);
+  const [editPdfName, setEditPdfName] = useState<string | null>(null);
+  const [editPdfUploading, setEditPdfUploading] = useState(false);
+  const editFileRef = useRef<HTMLInputElement>(null);
 
   const startEdit = (p: Position) => {
     setEditId(p.id);
@@ -93,8 +138,27 @@ export function PortalPositionsView({
     setEditUnit(p.unit);
     setEditPrice(p.price == null ? "" : String(p.price));
     setEditFolderId(p.folderId ?? NONE);
+    setEditPdfKey(p.pdfKey);
+    setEditPdfName(p.pdfName);
   };
   const cancelEdit = () => setEditId(null);
+
+  async function handleEditPdfSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditPdfUploading(true);
+    setError(null);
+    try {
+      const { key, name } = await uploadPdf(file);
+      setEditPdfKey(key);
+      setEditPdfName(name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка загрузки PDF");
+    } finally {
+      setEditPdfUploading(false);
+      if (editFileRef.current) editFileRef.current.value = "";
+    }
+  }
 
   async function saveEdit() {
     if (!editId) return;
@@ -106,6 +170,8 @@ export function PortalPositionsView({
         unit: editUnit.trim() || "шт",
         price: parsePrice(editPrice),
         folderId: editFolderId === NONE ? null : editFolderId,
+        pdfKey: editPdfKey,
+        pdfName: editPdfName,
       }),
     });
     const data = await res.json();
@@ -125,6 +191,14 @@ export function PortalPositionsView({
     if (res.ok) {
       setPositions((cur) => cur.filter((p) => p.id !== id));
     }
+  }
+
+  // ─── Просмотр PDF ──────────────────────────────────────────────────────────
+  async function openPdf(id: string) {
+    const res = await fetch(`/api/portal/positions/${id}/pdf`);
+    if (!res.ok) return;
+    const { url } = await res.json();
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   // ─── Папки ─────────────────────────────────────────────────────────────────
@@ -196,7 +270,7 @@ export function PortalPositionsView({
     if (activeFolder === id) setActiveFolder(ALL);
   }
 
-  // ─── Фильтрация списка по выбранной папке ──────────────────────────────────
+  // ─── Фильтрация ────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (activeFolder === ALL) return positions;
     if (activeFolder === NONE) return positions.filter((p) => p.folderId == null);
@@ -264,21 +338,14 @@ export function PortalPositionsView({
                 maxLength={200}
                 className="h-8 w-44 text-sm"
               />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={!newFolderName.trim() || creatingFolder}
-              >
+              <Button type="submit" size="sm" disabled={!newFolderName.trim() || creatingFolder}>
                 <Check className="h-4 w-4" />
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  setFolderFormOpen(false);
-                  setNewFolderName("");
-                }}
+                onClick={() => { setFolderFormOpen(false); setNewFolderName(""); }}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -298,37 +365,76 @@ export function PortalPositionsView({
       {/* ─── Форма создания позиции ────────────────────────────────────────── */}
       <form
         onSubmit={handleCreate}
-        className="rounded-xl border border-slate-200 bg-white p-4 grid grid-cols-12 gap-2"
+        className="rounded-xl border border-slate-200 bg-white p-4 space-y-2"
       >
-        <div className="col-span-12 sm:col-span-6">
-          <Input
-            placeholder={
-              targetFolderId
-                ? `Название позиции (в «${folders.find((f) => f.id === targetFolderId)?.name ?? ""}»)`
-                : "Название позиции"
-            }
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            maxLength={500}
+        <div className="grid grid-cols-12 gap-2">
+          <div className="col-span-12 sm:col-span-6">
+            <Input
+              placeholder={
+                targetFolderId
+                  ? `Название позиции (в «${folders.find((f) => f.id === targetFolderId)?.name ?? ""}»)`
+                  : "Название позиции"
+              }
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              maxLength={500}
+            />
+          </div>
+          <div className="col-span-4 sm:col-span-2">
+            <Input placeholder="Ед." value={newUnit} onChange={(e) => setNewUnit(e.target.value)} maxLength={50} />
+          </div>
+          <div className="col-span-4 sm:col-span-2">
+            <Input
+              type="number"
+              step="any"
+              min="0"
+              placeholder="Цена, ₽"
+              value={newPrice}
+              onChange={(e) => setNewPrice(e.target.value)}
+            />
+          </div>
+          <div className="col-span-4 sm:col-span-2">
+            <Button type="submit" className="w-full" disabled={!newName.trim() || creating}>
+              <Plus className="mr-1 h-4 w-4" /> {creating ? "…" : "Добавить"}
+            </Button>
+          </div>
+        </div>
+
+        {/* PDF-вложение для новой позиции */}
+        <div className="flex items-center gap-2">
+          <input
+            ref={newFileRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            className="hidden"
+            onChange={handleNewPdfSelect}
           />
-        </div>
-        <div className="col-span-4 sm:col-span-2">
-          <Input placeholder="Ед." value={newUnit} onChange={(e) => setNewUnit(e.target.value)} maxLength={50} />
-        </div>
-        <div className="col-span-4 sm:col-span-2">
-          <Input
-            type="number"
-            step="any"
-            min="0"
-            placeholder="Цена, ₽"
-            value={newPrice}
-            onChange={(e) => setNewPrice(e.target.value)}
-          />
-        </div>
-        <div className="col-span-4 sm:col-span-2">
-          <Button type="submit" className="w-full" disabled={!newName.trim() || creating}>
-            <Plus className="mr-1 h-4 w-4" /> {creating ? "…" : "Добавить"}
-          </Button>
+          {newPdfKey ? (
+            <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-xs text-orange-700 ring-1 ring-orange-200">
+              <FileText className="h-3.5 w-3.5 shrink-0" />
+              <span className="max-w-50 truncate">{newPdfName}</span>
+              <button
+                type="button"
+                onClick={() => { setNewPdfKey(null); setNewPdfName(null); }}
+                className="ml-0.5 hover:text-red-600"
+                title="Убрать PDF"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={newPdfUploading}
+              onClick={() => newFileRef.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-3 py-1 text-xs text-slate-500 hover:border-orange-300 hover:text-orange-600 disabled:opacity-50"
+            >
+              {newPdfUploading
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Загрузка…</>
+                : <><Paperclip className="h-3.5 w-3.5" /> Прикрепить PDF</>
+              }
+            </button>
+          )}
         </div>
       </form>
 
@@ -341,44 +447,81 @@ export function PortalPositionsView({
             {filtered.map((p) => (
               <li key={p.id} className="px-4 py-3">
                 {editId === p.id ? (
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <div className="col-span-12 sm:col-span-5">
-                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={500} />
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-12 sm:col-span-5">
+                        <Input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={500} />
+                      </div>
+                      <div className="col-span-4 sm:col-span-2">
+                        <Input value={editUnit} onChange={(e) => setEditUnit(e.target.value)} maxLength={50} />
+                      </div>
+                      <div className="col-span-4 sm:col-span-2">
+                        <Input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="Цена, ₽"
+                          value={editPrice}
+                          onChange={(e) => setEditPrice(e.target.value)}
+                        />
+                      </div>
+                      <div className="col-span-4 sm:col-span-2">
+                        <select
+                          value={editFolderId}
+                          onChange={(e) => setEditFolderId(e.target.value)}
+                          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          <option value={NONE}>— без папки —</option>
+                          {folders.map((f) => (
+                            <option key={f.id} value={f.id}>{f.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-12 sm:col-span-1 flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={saveEdit} title="Сохранить">
+                          <Check className="h-4 w-4 text-emerald-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={cancelEdit} title="Отмена">
+                          <X className="h-4 w-4 text-slate-500" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="col-span-4 sm:col-span-2">
-                      <Input value={editUnit} onChange={(e) => setEditUnit(e.target.value)} maxLength={50} />
-                    </div>
-                    <div className="col-span-4 sm:col-span-2">
-                      <Input
-                        type="number"
-                        step="any"
-                        min="0"
-                        placeholder="Цена, ₽"
-                        value={editPrice}
-                        onChange={(e) => setEditPrice(e.target.value)}
+
+                    {/* PDF в режиме редактирования */}
+                    <div className="flex items-center gap-2 pl-0.5">
+                      <input
+                        ref={editFileRef}
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        className="hidden"
+                        onChange={handleEditPdfSelect}
                       />
-                    </div>
-                    <div className="col-span-4 sm:col-span-2">
-                      <select
-                        value={editFolderId}
-                        onChange={(e) => setEditFolderId(e.target.value)}
-                        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                      >
-                        <option value={NONE}>— без папки —</option>
-                        {folders.map((f) => (
-                          <option key={f.id} value={f.id}>
-                            {f.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-span-12 sm:col-span-1 flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" onClick={saveEdit} title="Сохранить">
-                        <Check className="h-4 w-4 text-emerald-600" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={cancelEdit} title="Отмена">
-                        <X className="h-4 w-4 text-slate-500" />
-                      </Button>
+                      {editPdfKey ? (
+                        <div className="flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-xs text-orange-700 ring-1 ring-orange-200">
+                          <FileText className="h-3.5 w-3.5 shrink-0" />
+                          <span className="max-w-50 truncate">{editPdfName}</span>
+                          <button
+                            type="button"
+                            onClick={() => { setEditPdfKey(null); setEditPdfName(null); }}
+                            className="ml-0.5 hover:text-red-600"
+                            title="Удалить PDF"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={editPdfUploading}
+                          onClick={() => editFileRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-slate-300 px-3 py-1 text-xs text-slate-500 hover:border-orange-300 hover:text-orange-600 disabled:opacity-50"
+                        >
+                          {editPdfUploading
+                            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Загрузка…</>
+                            : <><Paperclip className="h-3.5 w-3.5" /> Прикрепить PDF</>
+                          }
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -400,6 +543,17 @@ export function PortalPositionsView({
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
+                      {p.pdfKey && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => openPdf(p.id)}
+                          title={p.pdfName ?? "Открыть PDF"}
+                          className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button size="icon" variant="ghost" onClick={() => startEdit(p)} title="Изменить">
                         <Pencil className="h-4 w-4 text-slate-500" />
                       </Button>

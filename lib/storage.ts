@@ -8,7 +8,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3, S3_BUCKET } from "./s3";
 import { randomUUID } from "crypto";
 
-export type Folder = "requests" | "tasks" | "company" | "avatars" | "portal";
+export type Folder = "requests" | "tasks" | "company" | "avatars" | "portal" | "positions";
 
 // ─── Загрузка файла буфером (для мелких файлов: аватары, логотипы) ────────────
 
@@ -105,8 +105,12 @@ export async function getDownloadUrl(
 
 // ─── Presigned URL для просмотра (inline, для изображений) ───────────────────
 
-export async function getViewUrl(key: string, expiresInSeconds = 3600): Promise<string> {
-  const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: key });
+export async function getViewUrl(key: string, expiresInSeconds = 3600, inline = false): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: key,
+    ...(inline ? { ResponseContentDisposition: "inline" } : {}),
+  });
   return getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
 }
 
