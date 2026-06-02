@@ -282,7 +282,7 @@ function ManagerDrawer({
                           ? "text-white ring-transparent"
                           : "bg-white ring-slate-200 text-slate-500 hover:ring-slate-300"
                       )}
-                      style={active ? { backgroundColor: STATUS_COLORS[s], ringColor: "transparent" } : {}}
+                      style={active ? { backgroundColor: STATUS_COLORS[s] } : {}}
                     >
                       {STATUS_LABELS[s]} <span className={active ? "opacity-70" : "text-slate-400"}>{cnt}</span>
                     </button>
