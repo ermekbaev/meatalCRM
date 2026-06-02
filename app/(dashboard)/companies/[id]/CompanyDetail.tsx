@@ -10,7 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Building2, User, Mail, Phone, Hash, Search, Package, Check, FileText } from "lucide-react";
+import {
+  ArrowLeft, Building2, User, Mail, Phone, Hash, Search,
+  Package, Check, FileText, Pencil, Trash2, X, Save,
+} from "lucide-react";
 import { formatDate, formatCurrency, cn, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
 import { PortalUsersCard } from "./PortalUsersCard";
 
@@ -28,6 +31,17 @@ type PortalRequest = {
   _count: { items: number; comments: number; files: number };
 };
 
+type Position = {
+  id: string;
+  name: string;
+  unit: string;
+  price: number | null;
+  folderId: string | null;
+  pdfKey: string | null;
+  pdfName: string | null;
+  createdAt: Date | string;
+};
+
 type Company = {
   id: string;
   name: string;
@@ -38,7 +52,7 @@ type Company = {
   manager: { id: string; name: string; email: string } | null;
   portalUsers: { id: string; name: string; email: string; phone: string | null; isBlocked: boolean; createdAt: Date | string }[];
   portalRequests: PortalRequest[];
-  clientPositions: { id: string; name: string; unit: string; price: number | null; folderId: string | null; pdfKey: string | null; pdfName: string | null; createdAt: Date | string }[];
+  clientPositions: Position[];
   clientPositionFolders: { id: string; name: string }[];
 };
 
@@ -53,11 +67,10 @@ const STATUS_COLORS: Record<PortalRequest["status"], string> = {
   READY: "bg-emerald-100 text-emerald-700",
 };
 
-export function CompanyDetail({ company }: { company: Company }) {
+export function CompanyDetail({ company, role }: { company: Company; role: "ADMIN" | "MANAGER" }) {
   const [tab, setTab] = useState<"requests" | "positions">("requests");
 
-  // Фильтры по списку заявок компании — клиентские, заявок у одной компании
-  // не миллион. Аналогично главной портала.
+  // ── Заявки ──────────────────────────────────────────────────────────────────
   const [reqSearch, setReqSearch] = useState("");
   const [reqStatus, setReqStatus] = useState<"ALL" | PortalRequest["status"]>("ALL");
   const [reqPayment, setReqPayment] = useState<"ALL" | PortalPaymentStatus | "UNREAD">("ALL");
@@ -80,6 +93,84 @@ export function CompanyDetail({ company }: { company: Company }) {
 
   const hasFilters = reqSearch.trim() !== "" || reqStatus !== "ALL" || reqPayment !== "ALL";
 
+  // ── Номенклатура ─────────────────────────────────────────────────────────────
+  const [positions, setPositions] = useState<Position[]>(company.clientPositions);
+  const [posSearch, setPosSearch] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", unit: "шт", price: "", folderId: "" });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const filteredPositions = useMemo(() => {
+    const q = posSearch.trim().toLowerCase();
+    if (!q) return positions;
+    return positions.filter((p) => p.name.toLowerCase().includes(q));
+  }, [positions, posSearch]);
+
+  function startEdit(p: Position) {
+    setEditId(p.id);
+    setEditForm({
+      name: p.name,
+      unit: p.unit,
+      price: p.price != null ? String(p.price) : "",
+      folderId: p.folderId ?? "",
+    });
+  }
+
+  async function saveEdit() {
+    if (!editId) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/companies/${company.id}/positions/${editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name.trim() || " ",
+          unit: editForm.unit.trim() || "шт",
+          price: editForm.price !== "" ? Number(editForm.price) : null,
+          folderId: editForm.folderId || null,
+        }),
+      });
+      if (!res.ok) return;
+      const updated: Position = await res.json();
+      setPositions((prev) => prev.map((p) => (p.id === editId ? updated : p)));
+      setEditId(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deletePosition(id: string) {
+    if (!confirm("Удалить позицию?")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/companies/${company.id}/positions/${id}`, { method: "DELETE" });
+      if (!res.ok) return;
+      setPositions((prev) => prev.filter((p) => p.id !== id));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  // Группировка по папкам (используем filteredPositions для поиска)
+  function buildGroups(items: Position[]) {
+    const byFolder = new Map<string | null, Position[]>();
+    for (const p of items) {
+      const key = p.folderId ?? null;
+      const arr = byFolder.get(key) ?? [];
+      arr.push(p);
+      byFolder.set(key, arr);
+    }
+    const groups: { key: string | null; label: string | null; items: Position[] }[] = [];
+    const noFolder = byFolder.get(null);
+    if (noFolder?.length) groups.push({ key: null, label: null, items: noFolder });
+    for (const f of company.clientPositionFolders) {
+      const its = byFolder.get(f.id);
+      if (its?.length) groups.push({ key: f.id, label: f.name, items: its });
+    }
+    return groups;
+  }
+
   return (
     <div>
       <Header title={company.name} subtitle="Кабинет клиента" />
@@ -88,7 +179,7 @@ export function CompanyDetail({ company }: { company: Company }) {
           <ArrowLeft className="h-4 w-4" /> К списку
         </Link>
 
-        {/* Карточки: компания / пользователь / менеджер */}
+        {/* Карточки: компания / пользователи / менеджер */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <div className="flex items-center gap-2 mb-3">
@@ -160,11 +251,12 @@ export function CompanyDetail({ company }: { company: Company }) {
                   : "border-transparent text-slate-500 hover:text-slate-800"
               )}
             >
-              Номенклатура ({company.clientPositions.length})
+              Номенклатура ({positions.length})
             </button>
           </nav>
         </div>
 
+        {/* ── Вкладка Заявки ───────────────────────────────────────────────────── */}
         {tab === "requests" ? (
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:gap-3">
@@ -227,9 +319,7 @@ export function CompanyDetail({ company }: { company: Company }) {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs text-slate-400">#{r.number}</span>
-                            <span
-                              className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", STATUS_COLORS[r.status])}
-                            >
+                            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", STATUS_COLORS[r.status])}>
                               {STATUS_LABELS[r.status]}
                             </span>
                             {r.paymentStatus !== "NONE" && (
@@ -267,40 +357,98 @@ export function CompanyDetail({ company }: { company: Company }) {
             )}
           </div>
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-            {company.clientPositions.length === 0 ? (
-              <div className="p-6 text-center text-sm text-gray-400">
-                Номенклатура ещё не создана
-              </div>
-            ) : (
-              (() => {
-                // Группируем позиции по папке. Сначала «без папки», затем — по папкам.
-                const byFolder = new Map<string | null, typeof company.clientPositions>();
-                for (const p of company.clientPositions) {
-                  const key = p.folderId ?? null;
-                  const arr = byFolder.get(key) ?? [];
-                  arr.push(p);
-                  byFolder.set(key, arr);
-                }
-                const groups: { key: string | null; label: string | null; items: typeof company.clientPositions }[] = [];
-                const noFolder = byFolder.get(null);
-                if (noFolder && noFolder.length) groups.push({ key: null, label: null, items: noFolder });
-                for (const f of company.clientPositionFolders) {
-                  const items = byFolder.get(f.id);
-                  if (items && items.length) groups.push({ key: f.id, label: f.name, items });
-                }
-                return (
-                  <div className="divide-y divide-slate-100">
-                    {groups.map((g) => (
-                      <div key={g.key ?? "__none__"}>
-                        {g.label && (
-                          <div className="bg-slate-50 px-4 py-1.5 text-xs font-medium text-slate-500 uppercase tracking-wide">
-                            {g.label}
-                          </div>
-                        )}
-                        <ul className="divide-y divide-slate-100">
-                          {g.items.map((p) => (
-                            <li key={p.id} className="flex items-center justify-between px-4 py-3 gap-2">
+          /* ── Вкладка Номенклатура ──────────────────────────────────────────── */
+          <div className="space-y-3">
+            {/* Поиск */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                value={posSearch}
+                onChange={(e) => setPosSearch(e.target.value)}
+                placeholder="Поиск по названию позиции..."
+                className="pl-9"
+              />
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+              {positions.length === 0 ? (
+                <div className="p-6 text-center text-sm text-gray-400">Номенклатура ещё не создана</div>
+              ) : filteredPositions.length === 0 ? (
+                <div className="p-6 text-center text-sm text-gray-400">Ничего не найдено</div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {buildGroups(filteredPositions).map((g) => (
+                    <div key={g.key ?? "__none__"}>
+                      {g.label && (
+                        <div className="bg-slate-50 px-4 py-1.5 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                          {g.label}
+                        </div>
+                      )}
+                      <ul className="divide-y divide-slate-100">
+                        {g.items.map((p) =>
+                          editId === p.id ? (
+                            /* ── Строка редактирования ── */
+                            <li key={p.id} className="px-4 py-3 bg-orange-50/50">
+                              <div className="flex flex-wrap gap-2 items-center">
+                                <Input
+                                  value={editForm.name}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                                  placeholder="Название"
+                                  className="flex-1 min-w-[180px] h-8 text-sm"
+                                  autoFocus
+                                />
+                                <Input
+                                  value={editForm.unit}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, unit: e.target.value }))}
+                                  placeholder="ед."
+                                  className="w-20 h-8 text-sm"
+                                />
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={editForm.price}
+                                  onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))}
+                                  placeholder="Цена"
+                                  className="w-28 h-8 text-sm"
+                                />
+                                {company.clientPositionFolders.length > 0 && (
+                                  <Select
+                                    value={editForm.folderId}
+                                    onValueChange={(v) => setEditForm((f) => ({ ...f, folderId: v === "__none__" ? "" : v }))}
+                                  >
+                                    <SelectTrigger className="w-40 h-8 text-sm">
+                                      <SelectValue placeholder="Без папки" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="__none__">Без папки</SelectItem>
+                                      {company.clientPositionFolders.map((f) => (
+                                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={saveEdit}
+                                    disabled={saving || !editForm.name.trim()}
+                                    className="inline-flex items-center gap-1 rounded-md bg-orange-500 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                                  >
+                                    <Save className="h-3.5 w-3.5" />
+                                    {saving ? "Сохранение…" : "Сохранить"}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditId(null)}
+                                    disabled={saving}
+                                    className="inline-flex items-center rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-50 transition-colors"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </li>
+                          ) : (
+                            /* ── Строка просмотра ── */
+                            <li key={p.id} className="flex items-center justify-between px-4 py-3 gap-2 group">
                               <span className="text-sm text-slate-800 min-w-0 truncate">{p.name}</span>
                               <span className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap shrink-0">
                                 {p.unit}
@@ -320,16 +468,34 @@ export function CompanyDetail({ company }: { company: Company }) {
                                     <FileText className="h-4 w-4" />
                                   </button>
                                 )}
+                                {/* Кнопки редактирования для ADMIN/MANAGER */}
+                                <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => startEdit(p)}
+                                    title="Редактировать"
+                                    className="rounded p-1 text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => deletePosition(p.id)}
+                                    disabled={deletingId === p.id}
+                                    title="Удалить"
+                                    className="rounded p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </span>
                               </span>
                             </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()
-            )}
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

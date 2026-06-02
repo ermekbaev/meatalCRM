@@ -61,5 +61,5 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
 
   if (!company) notFound();
 
-  return <CompanyDetail company={company} />;
+  return <CompanyDetail company={company} role={role as "ADMIN" | "MANAGER"} />;
 }
