@@ -7,7 +7,7 @@ import { withErrorHandling, unauthorized, forbidden, notFound } from "@/lib/api-
 import { getPortalScope } from "@/lib/acl";
 
 /** Находит позицию с учётом роли: CLIENT — только своей компании, ADMIN — любую, MANAGER — своих компаний. */
-async function findPosition(id: string, session: NonNullable<Awaited<ReturnType<typeof getServerSession>>>) {
+async function findPosition(id: string, session: NonNullable<Awaited<ReturnType<typeof getServerSession<typeof authOptions>>>>) {
   const role = session.user.role;
 
   if (role === "CLIENT") {
