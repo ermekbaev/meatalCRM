@@ -212,12 +212,12 @@ function ManagerDrawer({
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+        className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Панель */}
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-3xl flex-col bg-white shadow-2xl">
+      <div className="fixed inset-y-0 right-0 z-[70] flex w-full max-w-3xl flex-col bg-white shadow-2xl">
         {/* Шапка */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
           <div>
