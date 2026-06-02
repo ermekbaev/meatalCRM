@@ -46,12 +46,12 @@ export default function NewTaskPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/users?role=FOREMAN&role=ENGINEER&role=CONTRACTOR").then((r) => r.json()).catch(() => []),
-      fetch("/api/clients").then((r) => r.json()),
+      fetch("/api/clients?pageSize=200").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/workshops").then((r) => r.json()).catch(() => []),
       fetch("/api/task-columns").then((r) => r.json()).catch(() => []),
     ]).then(([u, c, w, cols]) => {
       setUsers(u);
-      setClients(c);
+      setClients(Array.isArray(c?.items) ? c.items : Array.isArray(c) ? c : []);
       setWorkshops(Array.isArray(w) ? w.filter((x: any) => !x.isVirtual) : []);
       setTaskColumns(Array.isArray(cols) ? cols : []);
     });
