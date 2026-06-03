@@ -97,7 +97,7 @@ export default function CompanySettingsPage() {
   return (
     <div>
       <Header title="Реквизиты компании" />
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl space-y-6">
 
           <Card>

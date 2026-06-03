@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
 import { createNotification } from "@/lib/notify";
 import { REQUEST_STATUS_LABELS } from "@/lib/utils";
+import { deleteFile } from "@/lib/storage";
 import { withErrorHandling, parseBody, unauthorized, forbidden, notFound } from "@/lib/api-handler";
 import { requestUpdateSchema } from "@/lib/validation";
 
@@ -59,14 +60,24 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const old = await prisma.request.findUnique({ where: { id } });
   if (!old) throw notFound();
 
-  // FOREMAN/ENGINEER могут править только свои заявки (где они в assignee)
-  if ((role === "FOREMAN" || role === "ENGINEER") && old.assigneeId !== userId) {
-    throw forbidden();
-  }
+  const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+
+  // FOREMAN/ENGINEER могут править только свои заявки
+  if (isAssigneeRole && old.assigneeId !== userId) throw forbidden();
+
+  // FOREMAN/ENGINEER могут менять только производственные статусы,
+  // но не финансовые поля, контрагента или ответственного
+  const PRODUCTION_FIELDS = new Set([
+    "hasMetal", "metalOwner", "laserStatus", "bendingStatus", "weldingStatus",
+    "paintingStatus", "sandblastingStatus", "extraWorkStatus", "deliveryStatus",
+  ]);
+  const allowedData = isAssigneeRole
+    ? Object.fromEntries(Object.entries(data).filter(([k]) => PRODUCTION_FIELDS.has(k)))
+    : data;
 
   const updated = await prisma.request.update({
     where: { id },
-    data,
+    data: allowedData,
     include: { client: true, assignee: true },
   });
 
@@ -121,6 +132,11 @@ export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) =>
   if (role !== "ADMIN" && role !== "MANAGER") throw forbidden();
 
   const { id } = await params;
+
+  // Удаляем файлы из S3 до удаления записи (CASCADE чистит только БД, не S3)
+  const files = await prisma.requestFile.findMany({ where: { requestId: id }, select: { filename: true } });
+  await Promise.allSettled(files.map((f) => deleteFile(f.filename)));
+
   await prisma.request.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 });

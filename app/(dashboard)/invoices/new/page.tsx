@@ -165,7 +165,7 @@ function NewInvoiceForm() {
   return (
     <div>
       <Header title="Новый счёт" />
-      <div className="p-6 space-y-5 max-w-4xl">
+      <div className="p-4 lg:p-6 space-y-5 max-w-4xl">
         <div className="flex items-center gap-3">
           <Link href="/invoices">
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>

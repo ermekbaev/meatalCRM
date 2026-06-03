@@ -28,10 +28,10 @@ export default function CalculatorPage() {
   return (
     <div>
       <Header title="Калькулятор" />
-      <div className="p-6 space-y-6">
+      <div className="p-4 lg:p-6 space-y-6">
         {/* Tabs + режим */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex gap-1 rounded-xl bg-slate-100 p-1 w-fit">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex gap-0.5 rounded-xl bg-slate-100 p-1 overflow-x-auto scrollbar-none">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -39,7 +39,7 @@ export default function CalculatorPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all",
                     activeTab === tab.id
                       ? "bg-white text-slate-800 shadow-sm"
                       : "text-slate-500 hover:text-slate-700",

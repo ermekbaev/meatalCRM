@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import type { ClientType } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { withErrorHandling, parseBody, unauthorized } from "@/lib/api-handler";
+import { withErrorHandling, parseBody, unauthorized, forbidden } from "@/lib/api-handler";
 import { getPageParams, paginated } from "@/lib/pagination";
 import { clientCreateSchema } from "@/lib/validation";
 
@@ -47,6 +47,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
 export const POST = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) throw unauthorized();
+  if (session.user.role !== "ADMIN" && session.user.role !== "MANAGER") throw forbidden();
 
   const data = await parseBody(req, clientCreateSchema);
   const client = await prisma.client.create({ data });

@@ -257,7 +257,7 @@ export default function RequestDetailPage() {
         onSelect={addFromCatalog}
       />
       <Header title={`Заявка #${request.number}`} />
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <div className="mb-4 flex items-center justify-between">
           <Link href="/requests">
             <Button variant="ghost" size="sm">
@@ -277,8 +277,8 @@ export default function RequestDetailPage() {
             {/* Заголовок */}
             <Card>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-xs font-mono text-gray-400 mb-1">
                       #{request.number}
                     </p>
@@ -316,7 +316,7 @@ export default function RequestDetailPage() {
                       </Link>
                     </p>
                   </div>
-                  <div className="flex gap-2 flex-wrap justify-end">
+                  <div className="flex gap-2 flex-wrap sm:justify-end">
                     <span
                       className={`rounded-full px-3 py-1 text-sm font-medium ${REQUEST_STATUS_COLORS[request.status]}`}
                     >
@@ -447,7 +447,7 @@ export default function RequestDetailPage() {
               </CardHeader>
               <CardContent className="p-0">
                 {items.length === 0 ? (
-                  <div className="px-6 pb-6 text-center">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 text-center">
                     <p className="text-sm text-slate-400 mb-3">Нет позиций</p>
                     {!isEmployee && (
                       <div className="flex gap-2 justify-center">
@@ -472,8 +472,8 @@ export default function RequestDetailPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="overflow-x-auto -mx-px">
-                      <table className="min-w-245 text-sm table-fixed">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-max text-sm table-fixed">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50">
                             <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 w-60">
@@ -494,7 +494,7 @@ export default function RequestDetailPage() {
                             <th className="px-2 py-2 text-center text-xs font-medium text-slate-500 w-24">
                               Скидка %
                             </th>
-                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-35">
+                            <th className="px-2 py-2 text-right text-xs font-medium text-slate-500 w-36">
                               Сумма, ₽
                             </th>
                             {!isEmployee && <th className="px-2 py-2 w-10"></th>}
@@ -707,7 +707,7 @@ export default function RequestDetailPage() {
                     </div>
 
                     {/* Итог */}
-                    <div className="border-t border-slate-100 px-6 py-3 space-y-1.5">
+                    <div className="border-t border-slate-100 px-3 sm:px-6 py-3 space-y-1.5">
                       <div className="flex justify-end gap-8 text-sm text-slate-500">
                         <span>Позиций: {items.length}</span>
                         <span>

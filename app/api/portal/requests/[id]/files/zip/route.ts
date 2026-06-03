@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Readable } from "stream";
-import { createRequire } from "module";
-import type ArchiverNS from "archiver";
 import { z } from "zod";
-
-// archiver — CJS-пакет, Turbopack не разрешает default-импорт. Подгружаем
-// через createRequire, типы берём из @types/archiver.
-const archiver = createRequire(import.meta.url)("archiver") as typeof ArchiverNS;
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -42,12 +36,19 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
 
   if (files.length === 0) throw badRequest("Файлы не найдены");
 
-  // Готовим archiver и оборачиваем его Node-стрим в web-стрим для NextResponse.
-  const archive = archiver("zip", { zlib: { level: 0 } }); // 0 = store, без сжатия (большинство dxf/rar уже сжаты)
-  archive.on("warning", (err) => console.warn("[zip warning]", err));
-  archive.on("error", (err) => console.error("[zip error]", err));
+  // archiver v8 — чистый ESM с ZipArchive. @types/archiver устарел (ещё v5 API),
+  // используем any-cast чтобы не тянуть кастомные d.ts.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { ZipArchive } = (await import("archiver")) as any;
+  const archive: Readable & {
+    append(src: NodeJS.ReadableStream, opts: { name: string }): void;
+    finalize(): Promise<void>;
+    destroy(err?: Error): void;
+  } = new ZipArchive({ zlib: { level: 0 } }); // level: 0 = store, .rar/.dxf уже сжаты
 
-  // Имена в архиве не должны дублироваться — допишем (1), (2) при коллизии.
+  archive.on("warning", (err: Error) => console.warn("[zip warning]", err));
+  archive.on("error", (err: Error) => console.error("[zip error]", err));
+
   const usedNames = new Map<string, number>();
   const uniqueName = (name: string) => {
     const seen = usedNames.get(name) ?? 0;
@@ -59,7 +60,6 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
       : `${name} (${seen})`;
   };
 
-  // Подкачиваем файлы из S3 параллельно с архивированием (не ждём весь набор).
   (async () => {
     try {
       for (const f of files) {
@@ -69,7 +69,7 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
       await archive.finalize();
     } catch (err) {
       console.error("[zip pipeline]", err);
-      archive.destroy(err as Error);
+      archive.destroy(err instanceof Error ? err : new Error(String(err)));
     }
   })();
 

@@ -544,7 +544,7 @@ export default function AnalyticsPage() {
   return (
     <div>
       <Header title="Аналитика" />
-      <div className="p-6 space-y-5">
+      <div className="p-4 lg:p-6 space-y-5">
 
         <div className="flex flex-wrap items-center gap-2">
           <a

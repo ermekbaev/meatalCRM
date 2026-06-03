@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteFile, headObject } from "@/lib/storage";
-import { withErrorHandling, unauthorized, badRequest, parseBody } from "@/lib/api-handler";
+import { withErrorHandling, unauthorized, forbidden, badRequest, parseBody } from "@/lib/api-handler";
 
 const MAX_SIZE = 1024 * 1024 * 1024; // 1 ГБ
 
@@ -17,6 +17,10 @@ const schema = z.object({
 export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
   if (!session) throw unauthorized();
+
+  // Зеркало ограничений presign: CONTRACTOR и EMPLOYEE не могут загружать файлы
+  const role = session.user.role;
+  if (role === "CONTRACTOR" || role === "EMPLOYEE") throw forbidden();
 
   const { id } = await params;
   const { key, name, type } = await parseBody(req, schema);

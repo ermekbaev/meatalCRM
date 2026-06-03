@@ -218,6 +218,7 @@ export const taskCreateSchema = z.object({
   assigneeIds: z.array(cuid).optional(),
   assigneeId: cuid.nullish(), // legacy single-assignee fallback
   tagIds: z.array(cuid).optional(),
+  sourceRequestId: cuid.nullish(),
   ...taskProductionFields,
 });
 export const taskUpdateSchema = taskCreateSchema.partial();

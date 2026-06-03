@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { buildObjectKey, getUploadUrl } from "@/lib/storage";
-import { withErrorHandling, unauthorized, forbidden, parseBody } from "@/lib/api-handler";
+import { withErrorHandling, unauthorized, forbidden, notFound, parseBody } from "@/lib/api-handler";
 
 const MAX_SIZE = 1024 * 1024 * 1024; // 1 ГБ
 
@@ -13,10 +14,24 @@ const schema = z.object({
   size: z.number().int().nonnegative().max(MAX_SIZE, "Файл слишком большой (макс. 1 ГБ)"),
 });
 
-export const POST = withErrorHandling(async (req: NextRequest) => {
+export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
   if (!session) throw unauthorized();
   if (session.user.role === "CONTRACTOR") throw forbidden();
+
+  const { id } = await params;
+  const role = session.user.role;
+  const userId = session.user.id;
+
+  // Проверяем что задача существует и пользователь имеет к ней доступ
+  const canSeeAll = role === "ADMIN" || role === "MANAGER" || role === "ENGINEER";
+  const task = await prisma.task.findFirst({
+    where: canSeeAll
+      ? { id }
+      : { id, OR: [{ assignees: { some: { id: userId } } }, { workshop: { members: { some: { id: userId } } } }] },
+    select: { id: true },
+  });
+  if (!task) throw notFound();
 
   const { name, type } = await parseBody(req, schema);
 

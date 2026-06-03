@@ -10,9 +10,10 @@ export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) =>
   if (!session) throw unauthorized();
   if (session.user.role === "CONTRACTOR") throw forbidden();
 
-  const { fileId } = await params;
+  const { id, fileId } = await params;
 
-  const file = await prisma.taskFile.findUnique({ where: { id: fileId } });
+  // Проверяем что fileId принадлежит именно этой задаче (защита от IDOR)
+  const file = await prisma.taskFile.findFirst({ where: { id: fileId, taskId: id } });
   if (!file) throw notFound();
 
   await deleteFile(file.filename);

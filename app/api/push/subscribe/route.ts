@@ -13,7 +13,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const userId = session.user.id;
   const { endpoint, keys } = await parseBody(req, pushSubscribeSchema);
 
-  // upsert по endpoint
+  // Если endpoint уже занят другим пользователем — перезаписываем на текущего
+  // (смена устройства/браузера). Если тот же user — просто обновляем ключи.
   await prisma.pushSubscription.upsert({
     where: { endpoint },
     update: { userId, p256dh: keys.p256dh, auth: keys.auth },
@@ -27,9 +28,11 @@ export const DELETE = withErrorHandling(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) throw unauthorized();
 
+  const userId = session.user.id;
   const { endpoint } = await parseBody(req, z.object({ endpoint: z.string().url() }));
   if (!endpoint) throw badRequest();
 
-  await prisma.pushSubscription.deleteMany({ where: { endpoint } });
+  // Удаляем только подписки текущего пользователя (защита от отписки чужих устройств)
+  await prisma.pushSubscription.deleteMany({ where: { endpoint, userId } });
   return NextResponse.json({ ok: true });
 });

@@ -97,7 +97,7 @@ export function PushSubscribeButton({ compact = false }: { compact?: boolean }) 
   if (state === "loading" || state === "unsupported") return null;
 
   const cls = compact
-    ? "inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs"
+    ? "inline-flex items-center gap-1 rounded-lg p-1.5 text-xs"
     : "inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50";
 
   if (state === "ios-needs-install") {
@@ -106,7 +106,8 @@ export function PushSubscribeButton({ compact = false }: { compact?: boolean }) 
         className={`${cls} text-slate-500`}
         title="На iPhone сначала добавьте сайт на главный экран через [Поделиться] → На экран «Домой»"
       >
-        <Share className="h-3.5 w-3.5" /> Установите для push
+        <Share className="h-3.5 w-3.5" />
+        {!compact && " Установите для push"}
       </span>
     );
   }
@@ -114,24 +115,25 @@ export function PushSubscribeButton({ compact = false }: { compact?: boolean }) 
   if (state === "denied") {
     return (
       <span className={`${cls} text-slate-400`} title="Уведомления заблокированы в браузере">
-        <BellOff className="h-3.5 w-3.5" /> Push выкл
+        <BellOff className="h-3.5 w-3.5" />
+        {!compact && " Push выкл"}
       </span>
     );
   }
 
   if (state === "subscribed") {
     return (
-      <button onClick={unsubscribe} disabled={busy} className={`${cls} text-emerald-600`}>
+      <button onClick={unsubscribe} disabled={busy} className={`${cls} text-emerald-600`} title="Push включён — нажмите чтобы отключить">
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
-        Push вкл
+        {!compact && " Push вкл"}
       </button>
     );
   }
 
   return (
-    <button onClick={subscribe} disabled={busy} className={`${cls} text-orange-600`}>
+    <button onClick={subscribe} disabled={busy} className={`${cls} text-orange-600`} title="Включить push-уведомления">
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
-      Включить push
+      {!compact && " Включить push"}
     </button>
   );
 }

@@ -114,14 +114,22 @@ export async function canAccessFileKey(
 
   if (folder === "requests") {
     const isAssigneeOnly = role === "FOREMAN" || role === "ENGINEER";
-    const file = await prisma.requestFile.findFirst({
+    // Проверяем сначала в requestFile (исходная заявка).
+    const inRequest = await prisma.requestFile.findFirst({
       where: {
         filename: key,
         ...(isAssigneeOnly ? { request: { assigneeId: userId } } : {}),
       },
       select: { id: true },
     });
-    return file !== null;
+    if (inRequest) return true;
+    // Файлы задач, созданных из заявки, хранятся с ключом requests/xxx —
+    // проверяем taskFile, чтобы не блокировать доступ к скопированным файлам.
+    const inTask = await prisma.taskFile.findFirst({
+      where: { filename: key },
+      select: { id: true },
+    });
+    return inTask !== null;
   }
 
   if (folder === "portal") {

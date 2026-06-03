@@ -386,7 +386,7 @@ export default function TaskDetailPage() {
   return (
     <div>
       <Header title={task.title} />
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
           <Link href="/tasks">
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
@@ -433,7 +433,7 @@ export default function TaskDetailPage() {
             {/* Заголовок + теги */}
             <Card>
               <CardHeader>
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1">
                     {editingTitle && canEditTask ? (
                       <input
@@ -476,7 +476,7 @@ export default function TaskDetailPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2 flex-wrap justify-end shrink-0">
+                  <div className="flex gap-2 flex-wrap sm:justify-end sm:shrink-0">
                     {(() => {
                       const col = taskColumns.find((c) => c.key === task.status);
                       return (

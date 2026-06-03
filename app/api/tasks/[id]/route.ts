@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendTelegram } from "@/lib/telegram";
 import { createNotification } from "@/lib/notify";
 import { PRIORITY_LABELS, TASK_PRODUCTION_FIELDS, formatDate } from "@/lib/utils";
+import { deleteFile } from "@/lib/storage";
 import { withErrorHandling, unauthorized, forbidden, notFound } from "@/lib/api-handler";
 
 export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
@@ -281,6 +282,11 @@ export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) =>
   if (role !== "ADMIN" && role !== "MANAGER") throw forbidden();
 
   const { id } = await params;
+
+  // Удаляем файлы из S3 до удаления записи (CASCADE чистит только БД, не S3)
+  const files = await prisma.taskFile.findMany({ where: { taskId: id }, select: { filename: true } });
+  await Promise.allSettled(files.map((f) => deleteFile(f.filename)));
+
   await prisma.task.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 });

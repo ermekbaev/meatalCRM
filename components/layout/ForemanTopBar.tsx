@@ -38,32 +38,33 @@ export function ForemanTopBar({
   const nav = NAV_BY_VARIANT[variant];
   return (
     <header className="safe-area-inset-top sticky top-0 z-50 bg-white border-b border-slate-200">
-      <div className="px-4 py-3 flex items-center gap-2">
+      <div className="px-3 py-2 flex items-center gap-2">
         <Link href={nav[0].href} className="shrink-0">
           <Image
             src="/logo.svg"
             alt="ORIENT-LASER"
             width={140}
             height={36}
-            className="h-9 w-auto object-contain"
+            className="h-7 w-auto object-contain sm:h-9"
             priority
           />
         </Link>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-slate-400">{roleLabel}</p>
-          <p className="text-sm font-semibold text-slate-900 truncate">{userName}</p>
+          <p className="text-[10px] text-slate-400 leading-none truncate">{roleLabel}</p>
+          <p className="text-xs font-semibold text-slate-900 truncate sm:text-sm">{userName}</p>
         </div>
         <PushSubscribeButton compact />
         <NotificationsBell />
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+          title="Выйти"
+          className="shrink-0 rounded-lg p-1.5 text-red-500 hover:bg-red-50"
         >
-          <LogOut className="h-3.5 w-3.5" /> Выйти
+          <LogOut className="h-4 w-4" />
         </button>
       </div>
-      <nav className="flex items-center gap-1 px-2">
+      <nav className="flex items-center gap-1 px-2 overflow-x-auto scrollbar-none">
         {nav.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(item.href + "/");

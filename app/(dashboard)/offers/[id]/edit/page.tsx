@@ -240,7 +240,7 @@ export default function EditOfferPage() {
   return (
     <div>
       <Header title="Редактирование КП" />
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <div className="mb-4 flex items-center justify-between">
           <Link href={`/offers/${id}`}>
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>

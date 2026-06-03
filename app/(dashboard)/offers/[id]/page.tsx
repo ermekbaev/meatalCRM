@@ -100,7 +100,7 @@ export default function OfferDetailPage() {
   return (
     <div>
       <Header title={`КП ${offer.numberOverride ?? `#${offer.number}`}`} />
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <div className="mb-4 flex items-center justify-between">
           <Link href="/offers">
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>

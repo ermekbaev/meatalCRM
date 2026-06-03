@@ -39,7 +39,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   return (
     <div>
       <Header title={client.shortName || client.name} />
-      <div className="p-6 space-y-5">
+      <div className="p-4 lg:p-6 space-y-5">
         <div>
           <Link href="/clients">
             <Button variant="ghost" size="sm">

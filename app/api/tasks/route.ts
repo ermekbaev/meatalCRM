@@ -136,6 +136,25 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     },
   });
 
+  // Копируем файлы из заявки (те же S3-ключи, новые записи TaskFile)
+  if (data.sourceRequestId) {
+    const requestFiles = await prisma.requestFile.findMany({
+      where: { requestId: data.sourceRequestId },
+    });
+    if (requestFiles.length > 0) {
+      await prisma.taskFile.createMany({
+        data: requestFiles.map((f) => ({
+          filename:     f.filename,
+          originalName: f.originalName,
+          size:         f.size,
+          mimeType:     f.mimeType,
+          taskId:       task.id,
+          uploadedById: userId,
+        })),
+      });
+    }
+  }
+
   const assigneeNames = task.assignees.map((a) => a.name).join(", ");
   await sendTelegram(
     `📝 <b>Новая задача</b>\n` +

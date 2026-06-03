@@ -242,7 +242,7 @@ export default function NewRequestPage() {
   return (
     <div>
       <Header title="Новая заявка" />
-      <div className="p-6">
+      <div className="p-4 lg:p-6">
         <div className="mb-4">
           <Link href="/requests">
             <Button variant="ghost" size="sm">
