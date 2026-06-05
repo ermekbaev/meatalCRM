@@ -52,6 +52,8 @@ export function PortalFilesTabs({
           files={drawingsState}
           onChange={setDrawings}
           emptyText="Чертежей нет"
+          allowUpload
+          uploadLabel="Загрузить чертёж"
         />
       ) : (
         <FileList
@@ -98,6 +100,7 @@ function FileList({
   onChange,
   emptyText,
   allowUpload = false,
+  uploadLabel = "Загрузить документ",
 }: {
   requestId: string;
   kind: Kind;
@@ -105,6 +108,7 @@ function FileList({
   onChange: (next: FileRec[]) => void;
   emptyText: string;
   allowUpload?: boolean;
+  uploadLabel?: string;
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -312,7 +316,7 @@ function FileList({
             disabled={uploading}
           >
             <Upload className="mr-1 h-4 w-4" />
-            {uploading ? "Загрузка..." : "Загрузить документ"}
+            {uploading ? "Загрузка..." : uploadLabel}
           </Button>
         </>
       )}
