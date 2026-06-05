@@ -4,7 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { buildObjectKey, getUploadUrl } from "@/lib/storage";
 import { getPortalRequestAccess } from "@/lib/acl";
-import { withErrorHandling, unauthorized, badRequest, notFound, parseBody } from "@/lib/api-handler";
+import { withErrorHandling, unauthorized, forbidden, badRequest, notFound, parseBody } from "@/lib/api-handler";
+import { prisma } from "@/lib/prisma";
 
 const MAX_SIZE = 1024 * 1024 * 1024; // 1 ГБ
 
@@ -24,6 +25,14 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   if (!access) throw notFound();
 
   const { name, type, kind } = await parseBody(req, schema);
+
+  // Блокировка клиента при статусе В работе / Готова.
+  if (session.user.role === "CLIENT") {
+    const portalReq = await prisma.portalRequest.findUnique({ where: { id }, select: { status: true } });
+    if (portalReq?.status === "IN_PROGRESS" || portalReq?.status === "READY") {
+      throw forbidden("Заявка в работе — загрузка файлов недоступна");
+    }
+  }
 
   // Документы (счета/договоры) грузит только менеджер, не клиент.
   if (kind === "DOCUMENT" && session.user.role === "CLIENT") {

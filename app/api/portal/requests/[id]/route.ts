@@ -58,6 +58,20 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const data = await parseBody(req, portalRequestUpdateSchema);
   const isClient = session.user.role === "CLIENT";
 
+  // Блокировка клиента: при статусе IN_PROGRESS или READY клиент не может
+  // ничего редактировать, кроме отметки «Принято» (acceptedAt).
+  if (isClient) {
+    const current = await prisma.portalRequest.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    const locked = current?.status === "IN_PROGRESS" || current?.status === "READY";
+    const onlyAccepted = Object.keys(data).every((k) => k === "accepted");
+    if (locked && !onlyAccepted) {
+      throw forbidden("Заявка в работе — редактирование недоступно");
+    }
+  }
+
   if (data.status !== undefined && isClient) {
     throw forbidden("Сменить статус может только менеджер");
   }

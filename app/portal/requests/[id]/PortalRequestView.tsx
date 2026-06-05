@@ -99,6 +99,9 @@ export function PortalRequestView({
 }) {
   const router = useRouter();
 
+  // Блокировка: заявка «В работе» или «Готова» — клиент ничего не редактирует.
+  const isLocked = request.status === "IN_PROGRESS" || request.status === "READY";
+
   // ─── Производственные подстатусы ───────────────────────────────────────────
   // Клиент может корректировать их в любой момент: «забыли отметить покраску».
   // Сервер пишет только присланные ключи (см. PUT /api/portal/requests/[id]),
@@ -195,7 +198,7 @@ export function PortalRequestView({
   // ─── Описание ──────────────────────────────────────────────────────────────
   // Менять может только автор заявки. Остальные пользователи компании видят
   // как read-only (на случай нескольких CLIENT-юзеров в одном кабинете).
-  const canEditDescription = request.createdByUserId === currentUserId;
+  const canEditDescription = request.createdByUserId === currentUserId && !isLocked;
   const [description, setDescription] = useState(request.description ?? "");
   const [descEditing, setDescEditing] = useState(false);
   const [descSaving, setDescSaving] = useState(false);
@@ -303,6 +306,16 @@ export function PortalRequestView({
         <ArrowLeft className="h-4 w-4" /> К списку
       </Link>
 
+      {isLocked && (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="text-base">🔒</span>
+          <span>
+            Заявка <strong>{STATUS_LABELS[request.status]}</strong> — редактирование заблокировано.
+            Обратитесь к менеджеру, если нужно внести изменения.
+          </span>
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
           <div>
@@ -358,17 +371,23 @@ export function PortalRequestView({
               {STATUS_LABELS[request.status]}
             </span>
 
-            {/* Приоритет — клиент может менять */}
-            <Select value={priority} onValueChange={(v) => updatePriority(v as PortalPriority)}>
-              <SelectTrigger className={`h-7 w-auto min-w-28 px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${priorityOpt.className}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PORTAL_PRIORITY_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Приоритет — read-only когда заблокировано */}
+            {isLocked ? (
+              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${priorityOpt.className}`}>
+                {priorityOpt.label}
+              </span>
+            ) : (
+              <Select value={priority} onValueChange={(v) => updatePriority(v as PortalPriority)}>
+                <SelectTrigger className={`h-7 w-auto min-w-28 px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${priorityOpt.className}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PORTAL_PRIORITY_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
@@ -459,6 +478,7 @@ export function PortalRequestView({
                 <Select
                   value={current ?? "__none__"}
                   onValueChange={(v) => updateProduction(key, v === "__none__" ? null : v)}
+                  disabled={isLocked}
                 >
                   <SelectTrigger
                     className={`h-8 w-full px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${
@@ -532,6 +552,7 @@ export function PortalRequestView({
           initialItems={request.items}
           positions={positions}
           folders={folders}
+          readOnly={isLocked}
         />
       </section>
 
@@ -599,7 +620,7 @@ export function PortalRequestView({
                     </a>
                     <div className="flex items-center gap-2 whitespace-nowrap">
                       <span className="text-xs text-slate-400">{(f.size / 1024).toFixed(0)} КБ</span>
-                      {f.uploadedById === currentUserId && (
+                      {f.uploadedById === currentUserId && !isLocked && (
                         <button
                           type="button"
                           onClick={() => handleDeleteFile(f.id)}
@@ -615,21 +636,25 @@ export function PortalRequestView({
               </ul>
             )}
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              onChange={handleUpload}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-            >
-              <Upload className="mr-1 h-4 w-4" /> {uploading ? "Загрузка..." : "Прикрепить чертёж"}
-            </Button>
+            {!isLocked && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleUpload}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  <Upload className="mr-1 h-4 w-4" /> {uploading ? "Загрузка..." : "Прикрепить чертёж"}
+                </Button>
+              </>
+            )}
           </div>
         ) : documents.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">

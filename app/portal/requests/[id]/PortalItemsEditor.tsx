@@ -45,11 +45,13 @@ export function PortalItemsEditor({
   initialItems,
   positions,
   folders,
+  readOnly = false,
 }: {
   requestId: string;
   initialItems: Item[];
   positions: Position[];
   folders: FolderItem[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(
@@ -157,6 +159,50 @@ export function PortalItemsEditor({
     };
     setRows((cur) => [...cur, row]);
     await persist(row);
+  }
+
+  // Read-only режим: заявка заблокирована (В работе / Готова).
+  if (readOnly) {
+    return (
+      <div className="space-y-2">
+        {rows.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
+            Позиции не указаны
+          </div>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <ul className="divide-y divide-slate-100">
+              {rows.map((r) => {
+                const price = parsePrice(r.price);
+                const qty = Number(r.quantity);
+                return (
+                  <li key={r.key} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                    <span className="text-sm text-slate-800 min-w-0 truncate">{r.name}</span>
+                    <span className="text-sm text-slate-600 whitespace-nowrap">
+                      {r.quantity} {r.unit}
+                      {price != null && (
+                        <>
+                          {" · "}
+                          <span className="text-slate-500">{formatCurrency(price)}</span>
+                          {Number.isFinite(qty) && (
+                            <> {" = "}<span className="font-medium text-slate-800">{formatCurrency(price * qty)}</span></>
+                          )}
+                        </>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            {total > 0 && (
+              <div className="flex justify-end border-t border-slate-100 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+                Итого: <span className="ml-1 font-medium text-slate-900">{formatCurrency(total)}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
