@@ -27,6 +27,16 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
 
   const data = await parseBody(req, portalRequestItemSchema);
 
+  // Привязываем позицию заявки к номенклатуре только если она принадлежит компании.
+  let linkedPositionId: string | null = null;
+  if (data.positionId) {
+    const pos = await prisma.clientPosition.findFirst({
+      where: { id: data.positionId, companyId: access.companyId },
+      select: { id: true },
+    });
+    linkedPositionId = pos?.id ?? null;
+  }
+
   const created = await prisma.portalRequestItem.create({
     data: {
       portalRequestId: id,
@@ -34,6 +44,7 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
       quantity: data.quantity,
       unit: data.unit,
       price: data.price ?? null,
+      positionId: linkedPositionId,
     },
   });
 

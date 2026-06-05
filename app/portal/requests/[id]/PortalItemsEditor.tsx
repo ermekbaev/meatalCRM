@@ -3,10 +3,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
-type Item = { id: string; name: string; quantity: number; unit: string; price: number | null };
+type Item = { id: string; name: string; quantity: number; unit: string; price: number | null; positionId?: string | null };
 type PositionFile = { id: string; filename: string; originalName: string; size: number; kind: string };
 type Position = { id: string; name: string; unit: string; price: number | null; folderId: string | null; files?: PositionFile[] };
 type FolderItem = { id: string; name: string };
@@ -62,6 +62,7 @@ export function PortalItemsEditor({
       quantity: String(i.quantity),
       unit: i.unit,
       price: i.price == null ? "" : String(i.price),
+      positionId: i.positionId ?? undefined,
       saving: false,
     }))
   );
@@ -70,6 +71,12 @@ export function PortalItemsEditor({
 
   function patch(key: string, p: Partial<Row>) {
     setRows((cur) => cur.map((r) => (r.key === key ? { ...r, ...p } : r)));
+  }
+
+  // Файлы, прикреплённые к позиции номенклатуры (показываем под строкой состава).
+  function filesForRow(row: Row): PositionFile[] {
+    if (!row.positionId) return [];
+    return positions.find((p) => p.id === row.positionId)?.files ?? [];
   }
 
   const total = rows.reduce((sum, r) => {
@@ -176,20 +183,23 @@ export function PortalItemsEditor({
                 const price = parsePrice(r.price);
                 const qty = Number(r.quantity);
                 return (
-                  <li key={r.key} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                    <span className="text-sm text-slate-800 min-w-0 truncate">{r.name}</span>
-                    <span className="text-sm text-slate-600 whitespace-nowrap">
-                      {r.quantity} {r.unit}
-                      {price != null && (
-                        <>
-                          {" · "}
-                          <span className="text-slate-500">{formatCurrency(price)}</span>
-                          {Number.isFinite(qty) && (
-                            <> {" = "}<span className="font-medium text-slate-800">{formatCurrency(price * qty)}</span></>
-                          )}
-                        </>
-                      )}
-                    </span>
+                  <li key={r.key} className="px-4 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm text-slate-800 min-w-0 truncate">{r.name}</span>
+                      <span className="text-sm text-slate-600 whitespace-nowrap">
+                        {r.quantity} {r.unit}
+                        {price != null && (
+                          <>
+                            {" · "}
+                            <span className="text-slate-500">{formatCurrency(price)}</span>
+                            {Number.isFinite(qty) && (
+                              <> {" = "}<span className="font-medium text-slate-800">{formatCurrency(price * qty)}</span></>
+                            )}
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <PositionFilesRow files={filesForRow(r)} />
                   </li>
                 );
               })}
@@ -264,6 +274,11 @@ export function PortalItemsEditor({
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
               </div>
+              {filesForRow(r).length > 0 && (
+                <div className="col-span-12">
+                  <PositionFilesRow files={filesForRow(r)} />
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -324,4 +339,30 @@ async function readErr(res: Response): Promise<string> {
   } catch {
     return `HTTP ${res.status}`;
   }
+}
+
+// Прикреплённые к позиции файлы — чипы со ссылкой на скачивание через /api/files.
+function PositionFilesRow({ files }: { files: PositionFile[] }) {
+  if (files.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 pt-1">
+      {files.map((f) => (
+        <a
+          key={f.id}
+          href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Скачать ${f.originalName}`}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 transition-colors ${
+            f.kind === "DXF"
+              ? "bg-violet-50 text-violet-700 ring-violet-200 hover:bg-violet-100"
+              : "bg-orange-50 text-orange-700 ring-orange-200 hover:bg-orange-100"
+          }`}
+        >
+          <FileText className="h-3 w-3 shrink-0" />
+          <span className="max-w-40 truncate">{f.originalName}</span>
+        </a>
+      ))}
+    </div>
+  );
 }

@@ -680,13 +680,16 @@ model PortalRequestSubtask {
 }
 
 model PortalRequestItem {
-  id              String        @id @default(cuid())
+  id              String          @id @default(cuid())
   portalRequestId String
   name            String
-  quantity        Float         @default(1)
-  unit            String        @default("шт")
+  quantity        Float           @default(1)
+  unit            String          @default("шт")
   price           Float?
-  portalRequest   PortalRequest @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
+  // Источник из номенклатуры — чтобы показать прикреплённые к позиции файлы.
+  positionId      String?
+  portalRequest   PortalRequest   @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
+  position        ClientPosition? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 }
 
 model PortalComment {
@@ -728,6 +731,7 @@ model ClientPosition {
   company   Client                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   folder    ClientPositionFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   files     ClientPositionFile[]
+  requestItems PortalRequestItem[]
 
   @@index([companyId])
   @@index([folderId])
