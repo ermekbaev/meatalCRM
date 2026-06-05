@@ -3,10 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CLIENT_TYPE_LABELS, REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
+import { CLIENT_TYPE_LABELS, formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { ArrowLeft, Building2, User, Phone, Mail, MapPin, Hash, MessageSquare, Globe, Landmark, CreditCard, UserCheck } from "lucide-react";
+import { ArrowLeft, Building2, User, Phone, Mail, MapPin, Hash, MessageSquare, Globe, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ClientRequestsList } from "./ClientRequestsList";
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
@@ -25,7 +26,18 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     include: {
       requests: {
         orderBy: { createdAt: "desc" },
-        include: { assignee: true },
+        select: {
+          id: true,
+          number: true,
+          title: true,
+          status: true,
+          priority: true,
+          paymentStatus: true,
+          amount: true,
+          lockedAt: true,
+          createdAt: true,
+          assignee: { select: { id: true, name: true } },
+        },
       },
     },
   });
@@ -51,7 +63,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           {/* Левая колонка */}
           <div className="space-y-4">
-            {/* Шапка */}
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-4">
@@ -97,7 +108,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               </CardContent>
             </Card>
 
-            {/* Реквизиты */}
             {hasRequisites && (
               <Card>
                 <CardHeader className="pb-2">
@@ -114,7 +124,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               </Card>
             )}
 
-            {/* Адреса */}
             {hasAddress && (
               <Card>
                 <CardHeader className="pb-2">
@@ -129,7 +138,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               </Card>
             )}
 
-            {/* Банк */}
             {hasBank && (
               <Card>
                 <CardHeader className="pb-2">
@@ -159,39 +167,14 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                 </Link>
               </CardHeader>
               <CardContent className="p-0">
-                {client.requests.length === 0 ? (
-                  <p className="px-6 py-10 text-center text-sm text-slate-300">Заявок нет</p>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {client.requests.map((req) => (
-                      <Link
-                        key={req.id}
-                        href={`/requests/${req.id}`}
-                        className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-slate-800">
-                            <span className="text-slate-400 font-mono text-xs mr-1">#{req.number}</span>
-                            {req.title}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {req.assignee?.name ?? "Не назначен"} · {formatDate(req.createdAt)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {req.amount && (
-                            <span className="text-sm font-medium text-slate-600 tabular-nums">
-                              {formatCurrency(req.amount)}
-                            </span>
-                          )}
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${REQUEST_STATUS_COLORS[req.status]}`}>
-                            {REQUEST_STATUS_LABELS[req.status]}
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
+                <ClientRequestsList
+                  clientId={client.id}
+                  initialRequests={client.requests.map((r) => ({
+                    ...r,
+                    lockedAt: r.lockedAt ? r.lockedAt.toISOString() : null,
+                    createdAt: r.createdAt.toISOString(),
+                  }))}
+                />
               </CardContent>
             </Card>
           </div>
