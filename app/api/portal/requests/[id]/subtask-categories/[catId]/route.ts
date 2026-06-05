@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { withErrorHandling, parseBody, unauthorized, notFound } from "@/lib/api-handler";
-import { getPortalRequestAccess } from "@/lib/acl";
+import { withErrorHandling, parseBody, unauthorized, forbidden, notFound } from "@/lib/api-handler";
+import { getPortalRequestAccess, isPortalRequestLockedForClient } from "@/lib/acl";
 import { z } from "zod";
 
 const schema = z.object({
@@ -18,6 +18,9 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const { id, catId } = await params;
   const access = await getPortalRequestAccess(session, id);
   if (!access) throw notFound();
+  if (await isPortalRequestLockedForClient(id, session.user.role)) {
+    throw forbidden("Заявка в работе — редактирование недоступно");
+  }
 
   const cat = await prisma.portalRequestSubtaskCategory.findFirst({
     where: { id: catId, portalRequestId: id },
@@ -45,6 +48,9 @@ export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) =>
   const { id, catId } = await params;
   const access = await getPortalRequestAccess(session, id);
   if (!access) throw notFound();
+  if (await isPortalRequestLockedForClient(id, session.user.role)) {
+    throw forbidden("Заявка в работе — редактирование недоступно");
+  }
 
   const cat = await prisma.portalRequestSubtaskCategory.findFirst({
     where: { id: catId, portalRequestId: id },

@@ -512,6 +512,7 @@ export function PortalRequestView({
         <RequestSubtasksPanel
           requestId={request.id}
           apiBase={`/api/portal/requests/${request.id}`}
+          readOnly={isLocked}
           initialCategories={(request.subtaskCategories ?? []).map((cat) => ({
             id: cat.id,
             name: cat.name,
