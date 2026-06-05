@@ -7,7 +7,7 @@ import { z } from "zod";
 
 const schema = z.object({ name: z.string().trim().min(1).max(200) });
 
-async function checkAccess(requestId: string, session: NonNullable<Awaited<ReturnType<typeof getServerSession>>>) {
+async function checkAccess(requestId: string, session: NonNullable<Awaited<ReturnType<typeof getServerSession<typeof authOptions>>>>) {
   const role = session.user.role;
   if (role !== "ADMIN" && role !== "MANAGER") return null;
   const req = await prisma.request.findFirst({
