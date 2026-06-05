@@ -137,7 +137,7 @@ export function ClientRequestsList({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-slate-400 font-mono text-xs">#{req.number}</span>
-                    {isLocked && <Lock className="h-3 w-3 text-amber-500" title="Заблокировано (В работе)" />}
+                    {isLocked && <span title="Заблокировано (В работе)"><Lock className="h-3 w-3 text-amber-500" /></span>}
                     <span className="text-sm font-medium text-slate-800 truncate">{req.title}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
