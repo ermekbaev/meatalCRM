@@ -68,6 +68,80 @@ export async function createNotifications(items: Payload[]) {
  * push через `createNotifications`) и шлёт Telegram адресно — без широкой
  * рассылки `sendTelegram()`, чтобы не задеть мастеров/операторов.
  */
+/**
+ * Клиент из ЛК запросил изменения в заблокированной заявке.
+ * Уведомляем админов + ответственного менеджера (БД + Telegram).
+ */
+export async function notifyPortalChangeRequest(args: {
+  requestId: string;
+  requestNumber: number;
+  requestTitle: string;
+  companyId: string;
+  companyName: string;
+  fromUserId: string;
+  fromUserName: string;
+  message: string;
+}) {
+  try {
+    const [admins, company] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: "ADMIN", isBlocked: false },
+        select: { id: true, telegramChatId: true },
+      }),
+      prisma.client.findUnique({
+        where: { id: args.companyId },
+        select: { manager: { select: { id: true, isBlocked: true, telegramChatId: true } } },
+      }),
+    ]);
+
+    const recipientIds = new Set<string>();
+    for (const a of admins) recipientIds.add(a.id);
+    if (company?.manager && !company.manager.isBlocked) recipientIds.add(company.manager.id);
+    recipientIds.delete(args.fromUserId);
+
+    const link = `/companies/${args.companyId}/requests/${args.requestId}`;
+    const title = `Запрос изменений по заявке #${args.requestNumber}`;
+    const body = `${args.fromUserName} (${args.companyName}): ${args.message}`;
+
+    if (recipientIds.size > 0) {
+      await createNotifications(
+        Array.from(recipientIds).map((userId) => ({
+          userId,
+          type: "PORTAL_CHANGE_REQUEST",
+          title,
+          body,
+          link,
+        }))
+      );
+    }
+
+    const chatIds: string[] = [];
+    for (const a of admins) {
+      if (a.telegramChatId && recipientIds.has(a.id)) chatIds.push(a.telegramChatId);
+    }
+    if (
+      company?.manager &&
+      company.manager.telegramChatId &&
+      recipientIds.has(company.manager.id) &&
+      !admins.some((a) => a.id === company.manager!.id)
+    ) {
+      chatIds.push(company.manager.telegramChatId);
+    }
+
+    if (chatIds.length > 0) {
+      await sendTelegramTo(
+        chatIds,
+        `🔧 <b>Запрос изменений по заявке #${args.requestNumber}</b>\n` +
+          `${args.requestTitle}\n` +
+          `👤 ${args.fromUserName} (${args.companyName})\n\n` +
+          `${args.message}`
+      );
+    }
+  } catch {
+    // Уведомления не должны ронять основной сценарий.
+  }
+}
+
 export async function notifyPortalRequestCreated(args: {
   requestId: string;
   requestNumber: number;

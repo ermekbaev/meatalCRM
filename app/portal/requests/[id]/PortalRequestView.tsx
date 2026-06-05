@@ -153,6 +153,33 @@ export function PortalRequestView({
   const [commentText, setCommentText] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
 
+  // ─── Запрос изменений (для заблокированной заявки) ──────────────────────────
+  const [changeReqOpen, setChangeReqOpen] = useState(false);
+  const [changeReqText, setChangeReqText] = useState("");
+  const [changeReqSending, setChangeReqSending] = useState(false);
+  const [changeReqSent, setChangeReqSent] = useState(false);
+
+  async function submitChangeRequest() {
+    if (!changeReqText.trim() || changeReqSending) return;
+    setChangeReqSending(true);
+    try {
+      const res = await fetch(`/api/portal/requests/${request.id}/change-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: changeReqText.trim() }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setComments((cur) => [...cur, created]);
+        setChangeReqText("");
+        setChangeReqOpen(false);
+        setChangeReqSent(true);
+      }
+    } finally {
+      setChangeReqSending(false);
+    }
+  }
+
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
     if (!commentText.trim() || sendingComment) return;
@@ -309,12 +336,60 @@ export function PortalRequestView({
       </Link>
 
       {isLocked && (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span className="text-base">🔒</span>
-          <span>
-            Заявка <strong>{STATUS_LABELS[request.status]}</strong> — редактирование заблокировано.
-            Обратитесь к менеджеру, если нужно внести изменения.
-          </span>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-base">🔒</span>
+            <span className="flex-1 min-w-0">
+              Заявка <strong>{STATUS_LABELS[request.status]}</strong> — редактирование заблокировано.
+              Обратитесь к менеджеру, если нужно внести изменения.
+            </span>
+            {changeReqSent ? (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-medium text-emerald-700">
+                <Check className="h-3.5 w-3.5" /> Запрос отправлен
+              </span>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100 shrink-0"
+                onClick={() => setChangeReqOpen((v) => !v)}
+              >
+                Запросить изменения
+              </Button>
+            )}
+          </div>
+          {changeReqOpen && !changeReqSent && (
+            <div className="mt-3 space-y-2">
+              <Textarea
+                value={changeReqText}
+                onChange={(e) => setChangeReqText(e.target.value)}
+                rows={3}
+                maxLength={2000}
+                placeholder="Опишите, что нужно изменить в заявке — менеджер получит уведомление."
+                className="bg-white"
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => { setChangeReqOpen(false); setChangeReqText(""); }}
+                  disabled={changeReqSending}
+                >
+                  Отмена
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={submitChangeRequest}
+                  disabled={changeReqSending || !changeReqText.trim()}
+                >
+                  {changeReqSending ? "Отправка..." : "Отправить менеджеру"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

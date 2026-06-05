@@ -557,6 +557,7 @@ enum NotificationType {
   STATUS_CHANGED
   REQUEST_ASSIGNED
   PORTAL_REQUEST_CREATED
+  PORTAL_CHANGE_REQUEST
 }
 
 enum PortalRequestStatus {
