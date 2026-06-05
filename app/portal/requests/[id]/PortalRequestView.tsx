@@ -244,11 +244,8 @@ export function PortalRequestView({
     }
   }
 
-  // ─── Платёжный статус — клиент тоже может выставить ───────────────────────
   const [priority, setPriorityState] = useState<PortalPriority>(request.priority);
-  const [paymentStatus, setPaymentStatus] = useState<PortalPaymentStatus>(request.paymentStatus);
-  const [paymentSaving, setPaymentSaving] = useState(false);
-  const paymentOpt = PORTAL_PAYMENT_OPTIONS.find((o) => o.value === paymentStatus) ?? PORTAL_PAYMENT_OPTIONS[0];
+  const paymentOpt = PORTAL_PAYMENT_OPTIONS.find((o) => o.value === request.paymentStatus) ?? PORTAL_PAYMENT_OPTIONS[0];
   const priorityOpt = PORTAL_PRIORITY_OPTIONS.find((o) => o.value === priority) ?? PORTAL_PRIORITY_OPTIONS[1];
 
   async function updatePriority(next: PortalPriority) {
@@ -261,23 +258,6 @@ export function PortalRequestView({
     });
     if (!res.ok) setPriorityState(prev);
     else router.refresh();
-  }
-
-  async function updatePayment(next: PortalPaymentStatus) {
-    const prev = paymentStatus;
-    setPaymentStatus(next);
-    setPaymentSaving(true);
-    const res = await fetch(`/api/portal/requests/${request.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentStatus: next }),
-    });
-    setPaymentSaving(false);
-    if (!res.ok) {
-      setPaymentStatus(prev);
-      return;
-    }
-    router.refresh();
   }
 
   // ─── Принято (ставит клиент) ──────────────────────────────────────────────
@@ -325,26 +305,12 @@ export function PortalRequestView({
             <h1 className="mt-0.5 text-lg font-semibold text-slate-900">{request.title}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {/* Платёжный статус — теперь редактируется и клиентом (по просьбе пользователя):
-                «без оплаты» / «ждём оплату» / «оплачено» проставляет ответственный в кабинете. */}
-            <Select
-              value={paymentStatus}
-              onValueChange={(v) => updatePayment(v as PortalPaymentStatus)}
-              disabled={paymentSaving}
-            >
-              <SelectTrigger
-                className={`h-7 w-auto min-w-30 px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${paymentOpt.className}`}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PORTAL_PAYMENT_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value} className="text-xs">
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Оплата — только менеджер выставляет, клиент видит как read-only бейдж */}
+            {request.paymentStatus !== "NONE" && (
+              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${paymentOpt.className}`}>
+                {paymentOpt.label}
+              </span>
+            )}
 
             {/* Отгружено — ставит только менеджер (read-only бейдж для клиента). */}
             <span
