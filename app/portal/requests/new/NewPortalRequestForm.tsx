@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Factory, Plus, Trash2 } from "lucide-react";
-import { PORTAL_PRODUCTION_FIELDS, formatCurrency } from "@/lib/utils";
+import { PORTAL_PRODUCTION_FIELDS, PORTAL_PRIORITY_OPTIONS, type PortalPriority, formatCurrency } from "@/lib/utils";
 
 type ProductionState = Partial<Record<
   "laserStatus" | "bendingStatus" | "weldingStatus" | "paintingStatus"
@@ -55,6 +55,7 @@ export function NewPortalRequestForm({
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<PortalPriority>("NORMAL");
   const [items, setItems] = useState<Item[]>([]);
   const [production, setProduction] = useState<ProductionState>({});
   const [submitting, setSubmitting] = useState(false);
@@ -106,6 +107,7 @@ export function NewPortalRequestForm({
     const body = {
       title: title.trim(),
       description: description.trim() || null,
+      priority,
       ...production,
       items: items
         .filter((i) => i.name.trim().length > 0)
@@ -156,6 +158,25 @@ export function NewPortalRequestForm({
           <div className="space-y-1.5">
             <Label htmlFor="desc">Описание</Label>
             <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={2000} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Приоритет</Label>
+            <div className="flex flex-wrap gap-2">
+              {PORTAL_PRIORITY_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setPriority(o.value)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                    priority === o.value
+                      ? `${o.className} ring-2 ring-offset-1 ring-current`
+                      : "bg-slate-50 text-slate-500 ring-1 ring-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

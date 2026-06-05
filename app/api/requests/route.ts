@@ -23,6 +23,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
   const priority = searchParams.get("priority") ?? "";
   const paymentStatus = searchParams.get("paymentStatus") ?? "";
   const clientId = searchParams.get("clientId") ?? "";
+  const assigneeId = searchParams.get("assigneeId") ?? "";
   const minimal = searchParams.get("minimal") === "true";
   const role = session.user.role;
   const userId = session.user.id;
@@ -54,12 +55,14 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
         priority ? { priority: priority as RequestPriority } : {},
         paymentStatus ? { paymentStatus: paymentStatus as PaymentStatus } : {},
         clientId ? { clientId } : {},
+        assigneeId ? { assigneeId } : {},
         assigneeScope,
       ],
     },
     include: {
       client: { select: { id: true, name: true, shortName: true, type: true } },
       assignee: { select: { id: true, name: true } },
+      createdBy: { select: { id: true, name: true } },
       _count: { select: { comments: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -81,6 +84,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   const request = await prisma.request.create({
     data: {
       ...data,
+      createdById: session.user.id,
       items: items?.length
         ? { create: items.map((item) => ({
             name: item.name,

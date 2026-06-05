@@ -12,8 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Check, Factory, FileText, FileSpreadsheet, MessageSquare, Package, Paperclip, Pencil, Trash2, Upload } from "lucide-react";
-import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
+import { ArrowLeft, Check, Factory, FileText, FileSpreadsheet, MessageSquare, Package, Paperclip, Pencil, Trash2, Upload, Download } from "lucide-react";
+import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, PORTAL_PRIORITY_OPTIONS, type PortalPaymentStatus, type PortalPriority } from "@/lib/utils";
 import { PortalItemsEditor } from "./PortalItemsEditor";
 import { uploadViaPresign } from "@/lib/upload-client";
 
@@ -49,6 +49,7 @@ type Request = {
   title: string;
   description: string | null;
   status: "NEW" | "IN_PROGRESS" | "READY";
+  priority: PortalPriority;
   paymentStatus: PortalPaymentStatus;
   shippedAt: Date | string | null;
   acceptedAt: Date | string | null;
@@ -221,10 +222,46 @@ export function PortalRequestView({
   const drawings = files.filter((f) => f.kind !== "DOCUMENT");
   const documents = files.filter((f) => f.kind === "DOCUMENT");
 
+  const [downloading, setDownloading] = useState(false);
+
+  async function downloadAllFiles() {
+    if (files.length === 0) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/portal/requests/${request.id}/files/zip`, { method: "POST" });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `zaявка-${request.number}-файлы.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   // ─── Платёжный статус — клиент тоже может выставить ───────────────────────
+  const [priority, setPriorityState] = useState<PortalPriority>(request.priority);
   const [paymentStatus, setPaymentStatus] = useState<PortalPaymentStatus>(request.paymentStatus);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const paymentOpt = PORTAL_PAYMENT_OPTIONS.find((o) => o.value === paymentStatus) ?? PORTAL_PAYMENT_OPTIONS[0];
+  const priorityOpt = PORTAL_PRIORITY_OPTIONS.find((o) => o.value === priority) ?? PORTAL_PRIORITY_OPTIONS[1];
+
+  async function updatePriority(next: PortalPriority) {
+    const prev = priority;
+    setPriorityState(next);
+    const res = await fetch(`/api/portal/requests/${request.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority: next }),
+    });
+    if (!res.ok) setPriorityState(prev);
+    else router.refresh();
+  }
 
   async function updatePayment(next: PortalPaymentStatus) {
     const prev = paymentStatus;
@@ -349,6 +386,18 @@ export function PortalRequestView({
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[request.status]}`}>
               {STATUS_LABELS[request.status]}
             </span>
+
+            {/* Приоритет — клиент может менять */}
+            <Select value={priority} onValueChange={(v) => updatePriority(v as PortalPriority)}>
+              <SelectTrigger className={`h-7 w-auto min-w-28 px-2.5 text-xs rounded-full font-medium border-0 shadow-none ${priorityOpt.className}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PORTAL_PRIORITY_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -478,29 +527,43 @@ export function PortalRequestView({
           документы (счета/договоры) только скачивает: менеджер загружает их
           на админской стороне. */}
       <section>
-        <div className="mb-2 flex items-center gap-1 border-b border-slate-200">
-          <button
-            type="button"
-            onClick={() => setFileTab("drawings")}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
-              fileTab === "drawings"
-                ? "border-orange-500 text-orange-600 font-medium"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <Paperclip className="h-4 w-4" /> Чертежи ({drawings.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFileTab("documents")}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
-              fileTab === "documents"
-                ? "border-orange-500 text-orange-600 font-medium"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <FileSpreadsheet className="h-4 w-4" /> Документы ({documents.length})
-          </button>
+        <div className="mb-2 flex items-center justify-between border-b border-slate-200">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setFileTab("drawings")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                fileTab === "drawings"
+                  ? "border-orange-500 text-orange-600 font-medium"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Paperclip className="h-4 w-4" /> Чертежи ({drawings.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFileTab("documents")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
+                fileTab === "documents"
+                  ? "border-orange-500 text-orange-600 font-medium"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <FileSpreadsheet className="h-4 w-4" /> Документы ({documents.length})
+            </button>
+          </div>
+          {files.length > 0 && (
+            <button
+              type="button"
+              onClick={downloadAllFiles}
+              disabled={downloading}
+              className="mb-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+              title="Скачать все файлы архивом"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {downloading ? "Загрузка…" : "Скачать всё"}
+            </button>
+          )}
         </div>
 
         {fileTab === "drawings" ? (

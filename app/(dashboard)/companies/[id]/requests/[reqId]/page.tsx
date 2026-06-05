@@ -15,6 +15,8 @@ import { PortalShippedToggle } from "./PortalShippedToggle";
 import { PortalCommentForm } from "./PortalCommentForm";
 import { PortalDescriptionEditor } from "./PortalDescriptionEditor";
 import { PortalFilesTabs } from "./PortalFilesTabs";
+import { PortalTitleEditor } from "./PortalTitleEditor";
+import { PortalDeleteButton } from "./PortalDeleteButton";
 
 export default async function PortalRequestViewPage({
   params,
@@ -87,8 +89,8 @@ export default async function PortalRequestViewPage({
 
         <div className="rounded-xl border border-gray-200 bg-white p-5">
           <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">{request.title}</h2>
+            <div className="min-w-0 flex-1">
+              <PortalTitleEditor requestId={request.id} initial={request.title} />
               <p className="text-xs text-slate-500 mt-0.5">
                 от {request.createdByUser.name} · {formatDate(request.createdAt)}
               </p>
@@ -96,7 +98,6 @@ export default async function PortalRequestViewPage({
             <div className="flex flex-wrap items-center gap-2">
               <PortalPaymentPicker requestId={request.id} initial={request.paymentStatus} />
               <PortalShippedToggle requestId={request.id} initial={request.shippedAt != null} />
-              {/* «Принято» ставит клиент — менеджер видит как read-only бейдж. */}
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
                   request.acceptedAt
@@ -113,6 +114,7 @@ export default async function PortalRequestViewPage({
                 {request.acceptedAt ? "Принято" : "Не принято"}
               </span>
               <PortalStatusPicker requestId={request.id} initial={request.status} />
+              <PortalDeleteButton requestId={request.id} companyId={company.id} />
             </div>
           </div>
           <PortalDescriptionEditor requestId={request.id} initial={request.description} />

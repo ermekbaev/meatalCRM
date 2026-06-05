@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { withErrorHandling, parseBody, unauthorized, notFound, forbidden } from "@/lib/api-handler";
 import { getPortalRequestAccess } from "@/lib/acl";
 import { portalRequestUpdateSchema } from "@/lib/validation";
+import { deleteFile } from "@/lib/storage";
 
 /**
  * Детали портальной заявки (позиции, файлы, общий тред комментариев).
@@ -66,15 +67,19 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   if (data.accepted !== undefined && !isClient) {
     throw forbidden("Отметку «принято» ставит ответственный в кабинете клиента");
   }
+  if (data.title !== undefined && isClient) {
+    throw forbidden("Изменить название может только менеджер");
+  }
 
   // Собираем только присланные поля — не затираем то, чего нет в теле.
   const patch: Record<string, unknown> = {};
+  if (data.title !== undefined) patch.title = data.title;
   if (data.status !== undefined) patch.status = data.status;
+  if (data.priority !== undefined) patch.priority = data.priority;
   if (data.paymentStatus !== undefined) patch.paymentStatus = data.paymentStatus;
   if (data.shipped !== undefined) patch.shippedAt = data.shipped ? new Date() : null;
   if (data.accepted !== undefined) patch.acceptedAt = data.accepted ? new Date() : null;
   if (data.description !== undefined) {
-    // Пустая строка → null, чтобы UI единообразно показывал «нет описания».
     const trimmed = typeof data.description === "string" ? data.description.trim() : null;
     patch.description = trimmed ? trimmed : null;
   }
@@ -95,7 +100,9 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
     data: patch,
     select: {
       id: true,
+      title: true,
       status: true,
+      priority: true,
       paymentStatus: true,
       shippedAt: true,
       acceptedAt: true,
@@ -111,4 +118,33 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
     },
   });
   return NextResponse.json(updated);
+});
+
+/**
+ * Удаление портальной заявки — только ADMIN/MANAGER.
+ * Перед удалением чистим S3-файлы, чтобы не оставлять orphaned objects.
+ */
+export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) => {
+  const session = await getServerSession(authOptions);
+  if (!session) throw unauthorized();
+
+  const role = session.user.role;
+  if (role !== "ADMIN" && role !== "MANAGER") throw forbidden("Удалить заявку может только менеджер или администратор");
+
+  const { id } = await params;
+  const access = await getPortalRequestAccess(session, id);
+  if (!access) throw notFound();
+
+  const files = await prisma.portalFile.findMany({
+    where: { portalRequestId: id },
+    select: { filename: true },
+  });
+
+  await prisma.portalRequest.delete({ where: { id } });
+
+  for (const f of files) {
+    await deleteFile(f.filename).catch(() => {});
+  }
+
+  return NextResponse.json({ ok: true });
 });

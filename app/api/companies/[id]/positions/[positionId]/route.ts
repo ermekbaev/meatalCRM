@@ -12,9 +12,8 @@ const POSITION_SELECT = {
   unit: true,
   price: true,
   folderId: true,
-  pdfKey: true,
-  pdfName: true,
   createdAt: true,
+  files: { select: { id: true, filename: true, originalName: true, size: true, kind: true }, orderBy: { createdAt: "asc" as const } },
 } as const;
 
 async function checkAccess(companyId: string, session: Awaited<ReturnType<typeof getServerSession<typeof authOptions>>>) {
@@ -36,20 +35,14 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
 
   const data = await parseBody(req, clientPositionCreateSchema);
 
-  const existing = await prisma.clientPosition.findFirst({
-    where: { id: positionId, companyId },
-    select: { id: true },
-  });
+  const existing = await prisma.clientPosition.findFirst({ where: { id: positionId, companyId }, select: { id: true } });
   if (!existing) throw notFound();
 
   let folderUpdate: { folderId: string | null } | Record<string, never> = {};
   if (data.folderId === null) {
     folderUpdate = { folderId: null };
   } else if (data.folderId) {
-    const folder = await prisma.clientPositionFolder.findFirst({
-      where: { id: data.folderId, companyId },
-      select: { id: true },
-    });
+    const folder = await prisma.clientPositionFolder.findFirst({ where: { id: data.folderId, companyId }, select: { id: true } });
     folderUpdate = { folderId: folder ? folder.id : null };
   }
 
@@ -69,11 +62,14 @@ export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) =>
 
   const existing = await prisma.clientPosition.findFirst({
     where: { id: positionId, companyId },
-    select: { id: true, pdfKey: true },
+    select: { id: true, files: { select: { filename: true } } },
   });
   if (!existing) throw notFound();
 
-  if (existing.pdfKey) await deleteFile(existing.pdfKey);
+  for (const f of existing.files) {
+    await deleteFile(f.filename).catch(() => {});
+  }
+
   await prisma.clientPosition.delete({ where: { id: positionId } });
   return NextResponse.json({ ok: true });
 });

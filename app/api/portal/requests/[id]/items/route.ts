@@ -8,9 +8,7 @@ import { portalRequestItemSchema } from "@/lib/validation";
 
 /**
  * Добавление новой позиции в портальную заявку.
- * Доступ — через getPortalRequestAccess (CLIENT — своя; ADMIN — любая;
- * MANAGER — своих компаний). Клиент может править состав уже созданной заявки:
- * «забыл деталь, дозаказываю» — менеджер увидит изменение.
+ * Если передан `positionId`, файлы из номенклатуры копируются в заявку.
  */
 export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
@@ -31,5 +29,30 @@ export const POST = withErrorHandling(async (req: NextRequest, { params }) => {
       price: data.price ?? null,
     },
   });
+
+  // Копируем файлы из позиции номенклатуры в заявку.
+  if (data.positionId) {
+    const positionFiles = await prisma.clientPositionFile.findMany({
+      where: {
+        positionId: data.positionId,
+        position: { companyId: access.companyId },
+      },
+      select: { filename: true, originalName: true, size: true, kind: true },
+    });
+
+    for (const f of positionFiles) {
+      await prisma.portalFile.create({
+        data: {
+          portalRequestId: id,
+          filename: f.filename,
+          originalName: f.originalName,
+          size: f.size,
+          kind: f.kind === "DXF" ? "DRAWING" : "DOCUMENT",
+          uploadedById: session.user.id,
+        },
+      });
+    }
+  }
+
   return NextResponse.json(created, { status: 201 });
 });

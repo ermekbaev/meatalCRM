@@ -16,6 +16,7 @@ export default async function PortalIndexPage() {
       number: true,
       title: true,
       status: true,
+      priority: true,
       paymentStatus: true,
       shippedAt: true,
       acceptedAt: true,

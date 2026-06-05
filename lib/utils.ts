@@ -252,6 +252,17 @@ export const PORTAL_PAYMENT_LABELS: Record<PortalPaymentStatus, string> = Object
   PORTAL_PAYMENT_OPTIONS.map((o) => [o.value, o.label])
 ) as Record<PortalPaymentStatus, string>;
 
+export type PortalPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
+export const PORTAL_PRIORITY_OPTIONS: { value: PortalPriority; label: string; className: string }[] = [
+  { value: "LOW",    label: "Низкий",   className: "bg-slate-100 text-slate-600 ring-1 ring-slate-200" },
+  { value: "NORMAL", label: "Обычный",  className: "bg-blue-100 text-blue-700" },
+  { value: "HIGH",   label: "Высокий",  className: "bg-amber-100 text-amber-700" },
+  { value: "URGENT", label: "Срочный",  className: "bg-red-100 text-red-700" },
+];
+export const PORTAL_PRIORITY_LABELS: Record<PortalPriority, string> = Object.fromEntries(
+  PORTAL_PRIORITY_OPTIONS.map((o) => [o.value, o.label])
+) as Record<PortalPriority, string>;
+
 export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
   status:     "Статус",
   priority:   "Приоритет",

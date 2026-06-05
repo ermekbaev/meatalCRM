@@ -40,6 +40,15 @@ export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
         orderBy: { createdAt: "desc" },
         include: { items: true },
       },
+      subtaskCategories: {
+        where: { archivedAt: null },
+        orderBy: { order: "asc" },
+        include: {
+          subtasks: {
+            orderBy: { order: "asc" },
+          },
+        },
+      },
     },
   });
 
@@ -61,19 +70,36 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   if (!old) throw notFound();
 
   const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
+  const isManager = role === "MANAGER";
+  const isAdmin = role === "ADMIN";
 
   // FOREMAN/ENGINEER могут править только свои заявки
   if (isAssigneeRole && old.assigneeId !== userId) throw forbidden();
 
-  // FOREMAN/ENGINEER могут менять только производственные статусы,
-  // но не финансовые поля, контрагента или ответственного
+  // Блокировка: заявка «В работе» — MANAGER не может ничего менять.
+  // ADMIN всегда может редактировать.
+  if (!isAdmin && isManager && (old as any).lockedAt) {
+    throw forbidden("Заявка заблокирована — статус «В работе». Изменения запрещены.");
+  }
+
+  // FOREMAN/ENGINEER могут менять только производственные статусы.
   const PRODUCTION_FIELDS = new Set([
     "hasMetal", "metalOwner", "laserStatus", "bendingStatus", "weldingStatus",
     "paintingStatus", "sandblastingStatus", "extraWorkStatus", "deliveryStatus",
   ]);
-  const allowedData = isAssigneeRole
+  const allowedData: Record<string, unknown> = isAssigneeRole
     ? Object.fromEntries(Object.entries(data).filter(([k]) => PRODUCTION_FIELDS.has(k)))
-    : data;
+    : { ...data };
+
+  // Авто-блокировка: переход в IN_PROGRESS → lockedAt = now().
+  // Снятие блокировки: ADMIN меняет статус обратно → lockedAt = null.
+  if ("status" in allowedData) {
+    if (allowedData.status === "IN_PROGRESS" && !(old as any).lockedAt) {
+      allowedData.lockedAt = new Date();
+    } else if (allowedData.status !== "IN_PROGRESS" && (old as any).lockedAt) {
+      allowedData.lockedAt = null;
+    }
+  }
 
   const updated = await prisma.request.update({
     where: { id },

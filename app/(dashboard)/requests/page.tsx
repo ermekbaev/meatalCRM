@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
@@ -76,9 +76,29 @@ export default function RequestsPage() {
   const [statuses, setStatuses] = useState<string[]>([]);
   const [priority, setPriority] = useState("ALL");
   const [paymentStatus, setPaymentStatus] = useState("ALL");
+  const [assigneeId, setAssigneeId] = useState("ALL");
+  const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+  // Загрузить список менеджеров/сотрудников для фильтра один раз при монтировании.
+  const managersLoaded = useRef(false);
+  useEffect(() => {
+    if (managersLoaded.current) return;
+    managersLoaded.current = true;
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((data: any[]) => {
+        if (!Array.isArray(data)) return;
+        const relevant = data
+          .filter((u) => u.role === "ADMIN" || u.role === "MANAGER")
+          .map((u) => ({ id: u.id, name: u.name }))
+          .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+        setManagers(relevant);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -87,11 +107,12 @@ export default function RequestsPage() {
     if (statuses.length) params.set("status", statuses.join(","));
     if (priority && priority !== "ALL") params.set("priority", priority);
     if (paymentStatus && paymentStatus !== "ALL") params.set("paymentStatus", paymentStatus);
+    if (assigneeId && assigneeId !== "ALL") params.set("assigneeId", assigneeId);
     const res = await fetch(`/api/requests?${params}`);
     const data = await res.json();
     setRequests(data);
     setLoading(false);
-  }, [search, statuses, priority, paymentStatus]);
+  }, [search, statuses, priority, paymentStatus, assigneeId]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
@@ -132,6 +153,7 @@ export default function RequestsPage() {
       "Приоритет": PRIORITY_LABELS[r.priority],
       "Сумма": r.amount ?? "",
       "Ответственный": r.assignee?.name ?? "",
+      "Автор": r.createdBy?.name ?? "",
       "Дата": new Date(r.createdAt).toLocaleDateString("ru"),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -146,7 +168,7 @@ export default function RequestsPage() {
       <div className="p-4 lg:p-6 space-y-4">
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
+          <div className="relative w-full sm:flex-1 sm:min-w-50 sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Поиск..."
@@ -182,6 +204,19 @@ export default function RequestsPage() {
               ))}
             </SelectContent>
           </Select>
+          {!isAssigneeRole && managers.length > 0 && (
+            <Select value={assigneeId} onValueChange={setAssigneeId}>
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-44 min-w-0">
+                <SelectValue placeholder="Менеджер" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Все менеджеры</SelectItem>
+                {managers.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="flex w-full sm:w-auto sm:ml-auto gap-2">
             {!isAssigneeRole && (
               <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleExport}>
@@ -231,7 +266,10 @@ export default function RequestsPage() {
                   <span className="font-medium text-gray-800">{r.amount ? formatCurrency(r.amount) : "—"}</span>
                   <span className="mx-1.5">·</span>
                   <span>{formatDate(r.createdAt)}</span>
-                  {r.assignee?.name && <><span className="mx-1.5">·</span><span>{r.assignee.name}</span></>}
+                  {r.assignee?.name && <><span className="mx-1.5">·</span><span title="Ответственный">{r.assignee.name}</span></>}
+                  {r.createdBy?.name && r.createdBy.id !== r.assignee?.id && (
+                    <><span className="mx-1.5">·</span><span className="text-gray-400" title="Автор">авт. {r.createdBy.name}</span></>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => router.push(`/requests/${r.id}`)}>
@@ -276,15 +314,16 @@ export default function RequestsPage() {
                 <TableHead>Сумма</TableHead>
                 <TableHead className="whitespace-nowrap">Производство</TableHead>
                 <TableHead>Ответственный</TableHead>
+                <TableHead>Автор</TableHead>
                 <TableHead>Дата</TableHead>
                 <TableHead className="w-24">Действия</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={11} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
               ) : requests.length === 0 ? (
-                <TableRow><TableCell colSpan={11} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
               ) : (
                 requests.map((r) => (
                   <TableRow key={r.id}>
@@ -342,6 +381,7 @@ export default function RequestsPage() {
                       <ProductionSummaryCell request={r} />
                     </TableCell>
                     <TableCell className="text-gray-600">{r.assignee?.name ?? "—"}</TableCell>
+                    <TableCell className="text-gray-500 text-xs">{r.createdBy?.name ?? "—"}</TableCell>
                     <TableCell className="text-gray-500">{formatDate(r.createdAt)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

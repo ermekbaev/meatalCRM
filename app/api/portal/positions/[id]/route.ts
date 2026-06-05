@@ -13,16 +13,10 @@ const POSITION_SELECT = {
   unit: true,
   price: true,
   folderId: true,
-  pdfKey: true,
-  pdfName: true,
   createdAt: true,
+  files: { select: { id: true, filename: true, originalName: true, size: true, kind: true }, orderBy: { createdAt: "asc" as const } },
 } as const;
 
-/**
- * Редактирование/удаление позиции номенклатуры — только владелец кабинета.
- * companyId проверяется через `getPortalScope` + `where.companyId`, поэтому
- * клиент не может удалить чужую запись даже подставив id.
- */
 export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
   if (!session) throw unauthorized();
@@ -33,13 +27,9 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const { id } = await params;
   const data = await parseBody(req, clientPositionCreateSchema);
 
-  const existing = await prisma.clientPosition.findFirst({
-    where: { id, companyId },
-    select: { id: true, pdfKey: true },
-  });
+  const existing = await prisma.clientPosition.findFirst({ where: { id, companyId }, select: { id: true } });
   if (!existing) throw notFound();
 
-  // folderId: undefined — не трогаем, null — снять, строка — переместить.
   let folderUpdate: { folderId: string | null } | {} = {};
   if (data.folderId === null) {
     folderUpdate = { folderId: null };
@@ -51,30 +41,9 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
     folderUpdate = { folderId: folder ? folder.id : null };
   }
 
-  // Если прислали pdfKey: null — удалить старый файл из S3.
-  if (data.pdfKey === null && existing.pdfKey) {
-    await deleteFile(existing.pdfKey);
-  }
-
-  // Если прислали новый pdfKey и он отличается от старого — старый файл можно удалить.
-  if (data.pdfKey && data.pdfKey !== existing.pdfKey && existing.pdfKey) {
-    await deleteFile(existing.pdfKey);
-  }
-
-  const pdfUpdate =
-    data.pdfKey !== undefined
-      ? { pdfKey: data.pdfKey ?? null, pdfName: data.pdfName ?? null }
-      : {};
-
   const updated = await prisma.clientPosition.update({
     where: { id },
-    data: {
-      name: data.name,
-      unit: data.unit,
-      price: data.price ?? null,
-      ...folderUpdate,
-      ...pdfUpdate,
-    },
+    data: { name: data.name, unit: data.unit, price: data.price ?? null, ...folderUpdate },
     select: POSITION_SELECT,
   });
   return NextResponse.json(updated);
@@ -90,12 +59,12 @@ export const DELETE = withErrorHandling(async (_req: NextRequest, { params }) =>
   const { id } = await params;
   const existing = await prisma.clientPosition.findFirst({
     where: { id, companyId },
-    select: { id: true, pdfKey: true },
+    select: { id: true, files: { select: { filename: true } } },
   });
   if (!existing) throw notFound();
 
-  if (existing.pdfKey) {
-    await deleteFile(existing.pdfKey);
+  for (const f of existing.files) {
+    await deleteFile(f.filename).catch(() => {});
   }
 
   await prisma.clientPosition.delete({ where: { id } });

@@ -78,7 +78,7 @@ export async function canForemanAccessTask(taskId: string, userId: string) {
 // Ключи в S3 имеют вид `<folder>/<uuid>.<ext>` (см. lib/storage.ts → uploadFile).
 // Разрешённые папки и допустимые символы строго ограничены, чтобы исключить
 // path traversal (`..`, вложенные слеши, абсолютные пути).
-const FILE_KEY_RE = /^(requests|tasks|company|avatars|portal)\/[A-Za-z0-9._-]+$/;
+const FILE_KEY_RE = /^(requests|tasks|company|avatars|portal|positions)\/[A-Za-z0-9._-]+$/;
 
 /**
  * Проверяет, имеет ли пользователь право получить файл по S3-ключу.
@@ -158,6 +158,28 @@ export async function canAccessFileKey(
         select: { id: true },
       });
       return file !== null;
+    }
+    return false;
+  }
+
+  if (folder === "positions") {
+    if (role === "CLIENT") {
+      const f = await prisma.clientPositionFile.findFirst({
+        where: { filename: key, position: { company: { portalUsers: { some: { id: userId } } } } },
+        select: { id: true },
+      });
+      return f !== null;
+    }
+    if (role === "ADMIN") {
+      const f = await prisma.clientPositionFile.findFirst({ where: { filename: key }, select: { id: true } });
+      return f !== null;
+    }
+    if (role === "MANAGER") {
+      const f = await prisma.clientPositionFile.findFirst({
+        where: { filename: key, position: { company: { managerId: userId } } },
+        select: { id: true },
+      });
+      return f !== null;
     }
     return false;
   }

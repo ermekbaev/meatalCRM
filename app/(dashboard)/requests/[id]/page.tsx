@@ -53,6 +53,7 @@ import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import { AssigneeSearchPicker } from "@/components/AssigneeSearchPicker";
 import { getFileIcon } from "./_utils";
 import { uploadViaPresign } from "@/lib/upload-client";
+import { RequestSubtasksPanel } from "./RequestSubtasksPanel";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -247,7 +248,12 @@ export default function RequestDetailPage() {
 
   if (!request) return null;
 
-  const isEmployee = session?.user?.role === "EMPLOYEE";
+  const role = session?.user?.role;
+  const isEmployee = role === "EMPLOYEE";
+  const isManager = role === "MANAGER";
+  const isAdmin = role === "ADMIN";
+  const isLocked = Boolean(request.lockedAt);
+  const isReadOnly = isLocked && isManager;
 
   return (
     <div>
@@ -346,6 +352,14 @@ export default function RequestDetailPage() {
               )}
             </Card>
 
+            {/* Баннер блокировки */}
+            {isReadOnly && (
+              <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <span className="text-base">🔒</span>
+                <span>Заявка заблокирована — статус <strong>«В работе»</strong>. Изменения доступны только администраторам.</span>
+              </div>
+            )}
+
             {/* Производственные статусы (на уровне заявки) */}
             <Card>
               <CardHeader className="pb-3">
@@ -404,6 +418,25 @@ export default function RequestDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Подзадачи по категориям */}
+            {(isAdmin || isManager) && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Archive className="h-4 w-4 text-slate-400" />
+                    Подзадачи
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RequestSubtasksPanel
+                    requestId={request.id}
+                    initialCategories={request.subtaskCategories ?? []}
+                    readOnly={isReadOnly}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {/* Позиции */}
             <Card>

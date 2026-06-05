@@ -27,6 +27,7 @@ model User {
   managedOffers         CommercialOffer[]  @relation("OfferManager")
   invoices              Invoice[]
   requests              Request[]          @relation("AssignedRequests")
+  createdRequests       Request[]          @relation("CreatedRequests")
   uploadedFiles         RequestFile[]
   assignedTasks         Task[]             @relation("AssignedTasks")
   createdTasks          Task[]             @relation("CreatedTasks")
@@ -91,6 +92,7 @@ model Request {
   services           String[]          @default([])
   clientId           String
   assigneeId         String?
+  createdById        String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   vatIncluded        Boolean           @default(false)
@@ -105,14 +107,43 @@ model Request {
   sandblastingStatus String?
   extraWorkStatus    String?
   deliveryStatus     String?
+  lockedAt           DateTime?
   changeLogs         ChangeLog[]
   comments           Comment[]
   offers             CommercialOffer[]
   invoices           Invoice[]
-  assignee           User?             @relation("AssignedRequests", fields: [assigneeId], references: [id])
-  client             Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assignee           User?                    @relation("AssignedRequests", fields: [assigneeId], references: [id])
+  createdBy          User?                    @relation("CreatedRequests", fields: [createdById], references: [id], onDelete: SetNull)
+  client             Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   files              RequestFile[]
   items              RequestItem[]
+  subtaskCategories  RequestSubtaskCategory[]
+}
+
+model RequestSubtaskCategory {
+  id         String           @id @default(cuid())
+  requestId  String
+  name       String
+  order      Int              @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime         @default(now())
+  request    Request          @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  subtasks   RequestSubtask[]
+
+  @@index([requestId])
+}
+
+model RequestSubtask {
+  id         String                 @id @default(cuid())
+  categoryId String
+  name       String
+  done       Boolean                @default(false)
+  order      Int                    @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime               @default(now())
+  category   RequestSubtaskCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
 }
 
 model RequestFile {
@@ -534,6 +565,13 @@ enum PortalRequestStatus {
   READY
 }
 
+enum PortalRequestPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 // Платёжный подстатус — управляется только внутренней ролью (ADMIN/MANAGER),
 // клиент видит как read-only бейдж.
 enum PortalPaymentStatus {
@@ -582,8 +620,9 @@ model PortalRequest {
   createdByUserId String
   title           String
   description     String?
-  status          PortalRequestStatus @default(NEW)
-  paymentStatus   PortalPaymentStatus @default(NONE)
+  status          PortalRequestStatus    @default(NEW)
+  priority        PortalRequestPriority  @default(NORMAL)
+  paymentStatus   PortalPaymentStatus    @default(NONE)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   // Когда заявку впервые открыл внутренний пользователь (ADMIN/MANAGER).
@@ -658,14 +697,26 @@ model ClientPosition {
   name      String
   unit      String                @default("шт")
   price     Float?
-  pdfKey    String?
-  pdfName   String?
   createdAt DateTime              @default(now())
   company   Client                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   folder    ClientPositionFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  files     ClientPositionFile[]
 
   @@index([companyId])
   @@index([folderId])
+}
+
+model ClientPositionFile {
+  id           String         @id @default(cuid())
+  positionId   String
+  filename     String
+  originalName String
+  size         Int            @default(0)
+  kind         String         @default("PDF")
+  createdAt    DateTime       @default(now())
+  position     ClientPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@index([positionId])
 }
 
 model ClientPositionFolder {

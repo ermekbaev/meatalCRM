@@ -11,7 +11,7 @@ export default async function PortalPositionsPage() {
   const [positions, folders] = await Promise.all([
     prisma.clientPosition.findMany({
       where: { companyId: session.user.companyId },
-      select: { id: true, name: true, unit: true, price: true, folderId: true, pdfKey: true, pdfName: true, createdAt: true },
+      select: { id: true, name: true, unit: true, price: true, folderId: true, createdAt: true, files: { select: { id: true, filename: true, originalName: true, size: true, kind: true }, orderBy: { createdAt: "asc" } } },
       orderBy: { name: "asc" },
     }),
     prisma.clientPositionFolder.findMany({

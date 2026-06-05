@@ -60,6 +60,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     data: {
       title: data.title,
       description: data.description ?? null,
+      priority: data.priority ?? "NORMAL",
       companyId,
       createdByUserId: session.user.id,
       laserStatus: data.laserStatus ?? null,

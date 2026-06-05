@@ -38,6 +38,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           number: true,
           title: true,
           status: true,
+          priority: true,
           paymentStatus: true,
           shippedAt: true,
           acceptedAt: true,
@@ -49,7 +50,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
         orderBy: { createdAt: "desc" },
       },
       clientPositions: {
-        select: { id: true, name: true, unit: true, price: true, folderId: true, pdfKey: true, pdfName: true, createdAt: true },
+        select: { id: true, name: true, unit: true, price: true, folderId: true, createdAt: true, files: { select: { id: true, filename: true, originalName: true, size: true, kind: true }, orderBy: { createdAt: "asc" } } },
         orderBy: { name: "asc" },
       },
       clientPositionFolders: {

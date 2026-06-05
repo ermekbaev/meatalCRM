@@ -69,11 +69,11 @@ export function Sidebar() {
   }, [fetchNewCount, pathname]);
 
   return (
-    <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-slate-50 border-r border-slate-200">
+    <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-[#212121] border-r border-white/10">
       {/* Logo */}
-      <div className="flex h-18 items-center px-4 border-b border-slate-200">
+      <div className="flex h-18 items-center px-4 border-b border-white/10">
         <Image
-          src="/logo.svg"
+          src="/logo_white.svg"
           alt="ORIENT-LASER"
           width={200}
           height={52}
@@ -95,12 +95,12 @@ export function Sidebar() {
                 "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                 active
                   ? "bg-orange-600 text-white"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  : "text-white/60 hover:bg-white/10 hover:text-white"
               )}
             >
               <Icon className={cn(
                 "h-4 w-4 shrink-0 transition-colors",
-                active ? "text-orange-100" : "text-slate-400 group-hover:text-slate-600"
+                active ? "text-orange-100" : "text-white/40 group-hover:text-white/80"
               )} />
               <span className="flex-1 truncate">{item.label}</span>
               {item.href === "/companies" && newPortalCount > 0 && (
@@ -115,7 +115,7 @@ export function Sidebar() {
                 </span>
               )}
               {active && item.href !== "/companies" && (
-                <ChevronRight className="ml-auto h-3 w-3 text-slate-400" />
+                <ChevronRight className="ml-auto h-3 w-3 text-white/40" />
               )}
             </Link>
           );
@@ -123,7 +123,7 @@ export function Sidebar() {
 
         {isAdmin && (
           <div className="pt-4">
-            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">
               Настройки
             </p>
             <div className="space-y-0.5">
@@ -138,12 +138,12 @@ export function Sidebar() {
                       "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                       active
                         ? "bg-orange-600 text-white"
-                        : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                        : "text-white/60 hover:bg-white/10 hover:text-white"
                     )}
                   >
                     <Icon className={cn(
                       "h-4 w-4 shrink-0",
-                      active ? "text-orange-100" : "text-slate-400 group-hover:text-slate-600"
+                      active ? "text-orange-100" : "text-white/40 group-hover:text-white/80"
                     )} />
                     {item.label}
                   </Link>
@@ -155,8 +155,8 @@ export function Sidebar() {
       </nav>
 
       {/* User */}
-      <div className="border-t border-slate-200 p-3">
-        <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-100 transition-colors">
+      <div className="border-t border-white/10 p-3">
+        <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/10 transition-colors">
           <button
             onClick={() => setAvatarOpen(true)}
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
@@ -164,8 +164,8 @@ export function Sidebar() {
           >
             <Avatar name={session?.user?.name} src={session?.user?.avatarUrl} size={28} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-slate-700">{session?.user?.name}</p>
-              <p className="truncate text-[11px] text-slate-400">
+              <p className="truncate text-xs font-medium text-white/90">{session?.user?.name}</p>
+              <p className="truncate text-[11px] text-white/40">
                 {session?.user?.position
                   || (session?.user?.role && ROLE_LABELS[session.user.role])
                   || ""}
@@ -174,7 +174,7 @@ export function Sidebar() {
           </button>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="text-slate-300 hover:text-slate-500 transition-colors"
+            className="text-white/30 hover:text-white/70 transition-colors"
             title="Выйти"
           >
             <LogOut className="h-3.5 w-3.5" />

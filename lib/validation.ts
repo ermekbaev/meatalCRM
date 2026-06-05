@@ -482,6 +482,7 @@ export const portalRequestItemSchema = z.object({
   quantity: qty.default(1),
   unit: z.string().trim().max(50).default("шт"),
   price: z.number().nonnegative().nullish(),
+  positionId: z.string().optional(),
 });
 
 // Частичное обновление существующей позиции в портальной заявке.
@@ -508,6 +509,7 @@ const portalProductionFields = {
 export const portalRequestCreateSchema = z.object({
   title: z.string().trim().min(1, "Укажите название заявки").max(500),
   description: optStr,
+  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
   ...portalProductionFields,
   items: z.array(portalRequestItemSchema).optional(),
 });
@@ -523,12 +525,12 @@ export const portalRequestStatusSchema = z.object({
  *    уже после создания: «забыл отметить покраску».
  */
 export const portalRequestUpdateSchema = z.object({
+  // title — менять может только менеджер/админ (проверка роли в API)
+  title: z.string().trim().min(1).max(500).optional(),
   status: z.enum(["NEW", "IN_PROGRESS", "READY"]).optional(),
+  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
   paymentStatus: z.enum(["NONE", "AWAITING", "PAID"]).optional(),
-  // Описание заявки — может менять и клиент (её автор), и внутренний (см. API).
   description: z.string().trim().max(5000).nullish(),
-  // Флаги «отгружено» / «принято». true → проставляется now(), false → сбрасывается.
-  // Кто из них может менять что — проверяется в API.
   shipped: z.boolean().optional(),
   accepted: z.boolean().optional(),
   ...portalProductionFields,
@@ -540,8 +542,6 @@ export const clientPositionCreateSchema = z.object({
   unit: z.string().trim().max(50).default("шт"),
   price: z.number().nonnegative().nullish(),
   folderId: cuid.nullish(),
-  pdfKey: z.string().max(500).nullish(),
-  pdfName: z.string().max(500).nullish(),
 });
 
 export const positionPdfPresignSchema = z.object({

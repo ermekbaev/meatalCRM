@@ -7,19 +7,18 @@ import { Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 type Item = { id: string; name: string; quantity: number; unit: string; price: number | null };
-type Position = { id: string; name: string; unit: string; price: number | null; folderId: string | null };
+type PositionFile = { id: string; filename: string; originalName: string; size: number; kind: string };
+type Position = { id: string; name: string; unit: string; price: number | null; folderId: string | null; files?: PositionFile[] };
 type FolderItem = { id: string; name: string };
 
 type Row = {
-  // Серверный id, либо null для новой строки, которую ещё не сохранили.
   id: string | null;
-  // Локальный ключ для React (стабилен между ре-рендерами).
   key: string;
   name: string;
   quantity: string;
   unit: string;
   price: string;
-  // true пока идёт POST/PUT, чтобы не плодить параллельных запросов.
+  positionId?: string;
   saving: boolean;
 };
 
@@ -100,7 +99,7 @@ export function PortalItemsEditor({
         const res = await fetch(`/api/portal/requests/${requestId}/items`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, quantity, unit, price }),
+          body: JSON.stringify({ name, quantity, unit, price, positionId: row.positionId ?? undefined }),
         });
         if (!res.ok) throw new Error(await readErr(res));
         const created = (await res.json()) as Item;
@@ -153,6 +152,7 @@ export function PortalItemsEditor({
       quantity: "1",
       unit: p.unit,
       price: p.price == null ? "" : String(p.price),
+      positionId: p.id,
       saving: true,
     };
     setRows((cur) => [...cur, row]);

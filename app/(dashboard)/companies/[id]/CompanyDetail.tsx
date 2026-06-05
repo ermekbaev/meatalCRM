@@ -14,7 +14,7 @@ import {
   ArrowLeft, Building2, User, Mail, Phone, Hash, Search,
   Package, Check, FileText, Pencil, Trash2, X, Save,
 } from "lucide-react";
-import { formatDate, formatCurrency, cn, PORTAL_PAYMENT_OPTIONS, type PortalPaymentStatus } from "@/lib/utils";
+import { formatDate, formatCurrency, cn, PORTAL_PAYMENT_OPTIONS, PORTAL_PRIORITY_OPTIONS, type PortalPaymentStatus, type PortalPriority } from "@/lib/utils";
 import { PortalUsersCard } from "./PortalUsersCard";
 
 type PortalRequest = {
@@ -22,6 +22,7 @@ type PortalRequest = {
   number: number;
   title: string;
   status: "NEW" | "IN_PROGRESS" | "READY";
+  priority: PortalPriority;
   paymentStatus: PortalPaymentStatus;
   shippedAt: Date | string | null;
   acceptedAt: Date | string | null;
@@ -31,15 +32,15 @@ type PortalRequest = {
   _count: { items: number; comments: number; files: number };
 };
 
+type PositionFile = { id: string; filename: string; originalName: string; size: number; kind: string };
 type Position = {
   id: string;
   name: string;
   unit: string;
   price: number | null;
   folderId: string | null;
-  pdfKey: string | null;
-  pdfName: string | null;
   createdAt: Date | string;
+  files: PositionFile[];
 };
 
 type Company = {
@@ -74,10 +75,12 @@ export function CompanyDetail({ company, role }: { company: Company; role: "ADMI
   const [reqSearch, setReqSearch] = useState("");
   const [reqStatus, setReqStatus] = useState<"ALL" | PortalRequest["status"]>("ALL");
   const [reqPayment, setReqPayment] = useState<"ALL" | PortalPaymentStatus | "UNREAD">("ALL");
+  const [portalRequests, setPortalRequests] = useState<PortalRequest[]>(company.portalRequests);
+  const [deletingReqId, setDeletingReqId] = useState<string | null>(null);
 
   const filteredRequests = useMemo(() => {
     const q = reqSearch.trim().toLowerCase();
-    return company.portalRequests.filter((r) => {
+    return portalRequests.filter((r) => {
       if (reqStatus !== "ALL" && r.status !== reqStatus) return false;
       if (reqPayment === "UNREAD") {
         if (r.firstViewedAt !== null) return false;
@@ -89,7 +92,18 @@ export function CompanyDetail({ company, role }: { company: Company; role: "ADMI
         r.createdByUser.name.toLowerCase().includes(q)
       );
     });
-  }, [company.portalRequests, reqSearch, reqStatus, reqPayment]);
+  }, [portalRequests, reqSearch, reqStatus, reqPayment]);
+
+  async function deletePortalRequest(id: string) {
+    if (!confirm("Удалить портальную заявку? Это действие необратимо.")) return;
+    setDeletingReqId(id);
+    try {
+      const res = await fetch(`/api/portal/requests/${id}`, { method: "DELETE" });
+      if (res.ok) setPortalRequests((prev) => prev.filter((r) => r.id !== id));
+    } finally {
+      setDeletingReqId(null);
+    }
+  }
 
   const hasFilters = reqSearch.trim() !== "" || reqStatus !== "ALL" || reqPayment !== "ALL";
 
@@ -308,49 +322,62 @@ export function CompanyDetail({ company, role }: { company: Company; role: "ADMI
               <div className="space-y-2">
                 {filteredRequests.map((r) => {
                   const payOpt = PORTAL_PAYMENT_OPTIONS.find((o) => o.value === r.paymentStatus) ?? PORTAL_PAYMENT_OPTIONS[0];
+                  const prioOpt = PORTAL_PRIORITY_OPTIONS.find((o) => o.value === r.priority) ?? PORTAL_PRIORITY_OPTIONS[1];
                   const unread = r.firstViewedAt === null;
                   return (
-                    <Link
-                      key={r.id}
-                      href={`/companies/${company.id}/requests/${r.id}`}
-                      className="block rounded-xl border border-gray-200 bg-white p-4 hover:border-orange-300 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs text-slate-400">#{r.number}</span>
-                            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", STATUS_COLORS[r.status])}>
-                              {STATUS_LABELS[r.status]}
-                            </span>
-                            {r.paymentStatus !== "NONE" && (
-                              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", payOpt.className)}>
-                                {payOpt.label}
+                    <div key={r.id} className="relative rounded-xl border border-gray-200 bg-white p-4 hover:border-orange-300 transition-colors">
+                      <Link href={`/companies/${company.id}/requests/${r.id}`} className="block">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-slate-400">#{r.number}</span>
+                              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", STATUS_COLORS[r.status])}>
+                                {STATUS_LABELS[r.status]}
                               </span>
-                            )}
-                            {r.shippedAt && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
-                                <Package className="h-3 w-3" /> Отгружено
-                              </span>
-                            )}
-                            {r.acceptedAt && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                                <Check className="h-3 w-3" /> Принято
-                              </span>
-                            )}
-                            {unread && (
-                              <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                                новая
-                              </span>
-                            )}
+                              {r.priority !== "NORMAL" && (
+                                <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", prioOpt.className)}>
+                                  {prioOpt.label}
+                                </span>
+                              )}
+                              {r.paymentStatus !== "NONE" && (
+                                <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", payOpt.className)}>
+                                  {payOpt.label}
+                                </span>
+                              )}
+                              {r.shippedAt && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                                  <Package className="h-3 w-3" /> Отгружено
+                                </span>
+                              )}
+                              {r.acceptedAt && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                  <Check className="h-3 w-3" /> Принято
+                                </span>
+                              )}
+                              {unread && (
+                                <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                  новая
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-sm font-medium text-slate-900 truncate">{r.title}</p>
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {r.createdByUser.name} · {r._count.items} позиций · {r._count.comments} комм. · {r._count.files} файл.
+                            </p>
                           </div>
-                          <p className="mt-1 text-sm font-medium text-slate-900 truncate">{r.title}</p>
-                          <p className="mt-0.5 text-xs text-slate-500">
-                            {r.createdByUser.name} · {r._count.items} позиций · {r._count.comments} комм. · {r._count.files} файл.
-                          </p>
+                          <div className="text-xs text-slate-400 whitespace-nowrap">{formatDate(r.createdAt as any)}</div>
                         </div>
-                        <div className="text-xs text-slate-400 whitespace-nowrap">{formatDate(r.createdAt as any)}</div>
-                      </div>
-                    </Link>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => deletePortalRequest(r.id)}
+                        disabled={deletingReqId === r.id}
+                        className="absolute right-3 bottom-3 p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
+                        title="Удалить заявку"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -453,21 +480,18 @@ export function CompanyDetail({ company, role }: { company: Company; role: "ADMI
                               <span className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap shrink-0">
                                 {p.unit}
                                 {p.price != null && <> · {formatCurrency(p.price)}</>}
-                                {p.pdfKey && (
-                                  <button
-                                    type="button"
-                                    title={p.pdfName ?? "Открыть PDF"}
-                                    onClick={async () => {
-                                      const res = await fetch(`/api/portal/positions/${p.id}/pdf`);
-                                      if (!res.ok) return;
-                                      const { url } = await res.json();
-                                      window.open(url, "_blank", "noopener,noreferrer");
-                                    }}
-                                    className="text-orange-500 hover:text-orange-700"
+                                {p.files?.map((f) => (
+                                  <a
+                                    key={f.id}
+                                    href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={f.originalName}
+                                    className={f.kind === "DXF" ? "text-violet-500 hover:text-violet-700" : "text-orange-500 hover:text-orange-700"}
                                   >
                                     <FileText className="h-4 w-4" />
-                                  </button>
-                                )}
+                                  </a>
+                                ))}
                                 {/* Кнопки редактирования для ADMIN/MANAGER */}
                                 <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button
