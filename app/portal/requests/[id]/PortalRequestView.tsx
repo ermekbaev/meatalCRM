@@ -15,6 +15,7 @@ import {
 import { ArrowLeft, Check, Factory, FileText, FileSpreadsheet, MessageSquare, Package, Paperclip, Pencil, Trash2, Upload, Download } from "lucide-react";
 import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, PORTAL_PRIORITY_OPTIONS, type PortalPaymentStatus, type PortalPriority } from "@/lib/utils";
 import { PortalItemsEditor } from "./PortalItemsEditor";
+import { RequestSubtasksPanel } from "@/app/(dashboard)/requests/[id]/RequestSubtasksPanel";
 import { uploadViaPresign } from "@/lib/upload-client";
 
 type ProductionKey =
@@ -68,7 +69,8 @@ type Request = {
   subtaskCategories?: {
     id: string;
     name: string;
-    subtasks: { id: string; name: string; done: boolean }[];
+    archivedAt: Date | string | null;
+    subtasks: { id: string; name: string; done: boolean; archivedAt: Date | string | null; order: number }[];
   }[];
 };
 
@@ -502,46 +504,28 @@ export function PortalRequestView({
         </div>
       </section>
 
-      {/* Подзадачи — менеджер ставит, клиент видит прогресс */}
-      {request.subtaskCategories && request.subtaskCategories.length > 0 && (
-        <section>
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Check className="h-4 w-4 text-slate-400" /> Чек-лист
-          </h3>
-          <div className="space-y-2">
-            {request.subtaskCategories.map((cat) => {
-              const done = cat.subtasks.filter((s) => s.done).length;
-              const total = cat.subtasks.length;
-              return (
-                <div key={cat.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
-                    <span className="text-sm font-semibold text-slate-800">{cat.name}</span>
-                    {total > 0 && (
-                      <span className="text-xs text-slate-400">{done}/{total}</span>
-                    )}
-                  </div>
-                  {cat.subtasks.length > 0 ? (
-                    <ul className="px-4 py-2 space-y-1.5">
-                      {cat.subtasks.map((sub) => (
-                        <li key={sub.id} className="flex items-center gap-2.5 py-1">
-                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${sub.done ? "bg-orange-500 border-orange-500" : "border-slate-300 bg-white"}`}>
-                            {sub.done && <Check className="h-2.5 w-2.5 text-white" />}
-                          </span>
-                          <span className={`text-sm ${sub.done ? "line-through text-slate-400" : "text-slate-800"}`}>
-                            {sub.name}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="px-4 py-3 text-xs text-slate-400">Подзадачи не добавлены</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {/* Чек-лист — пользователи ЛК ведут его сами (категории → подзадачи). */}
+      <section>
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Check className="h-4 w-4 text-slate-400" /> Чек-лист
+        </h3>
+        <RequestSubtasksPanel
+          requestId={request.id}
+          apiBase={`/api/portal/requests/${request.id}`}
+          initialCategories={(request.subtaskCategories ?? []).map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+            archivedAt: cat.archivedAt ? String(cat.archivedAt) : null,
+            subtasks: cat.subtasks.map((s) => ({
+              id: s.id,
+              name: s.name,
+              done: s.done,
+              archivedAt: s.archivedAt ? String(s.archivedAt) : null,
+              order: s.order,
+            })),
+          }))}
+        />
+      </section>
 
       <section>
         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
