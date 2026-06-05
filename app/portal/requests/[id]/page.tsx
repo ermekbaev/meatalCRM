@@ -26,6 +26,16 @@ export default async function PortalRequestPage({
         include: { uploadedBy: { select: { id: true, name: true } } },
         orderBy: { createdAt: "asc" },
       },
+      subtaskCategories: {
+        where: { archivedAt: null },
+        orderBy: { order: "asc" },
+        include: {
+          subtasks: {
+            where: { archivedAt: null },
+            orderBy: { order: "asc" },
+          },
+        },
+      },
     },
   });
   if (!request) notFound();
