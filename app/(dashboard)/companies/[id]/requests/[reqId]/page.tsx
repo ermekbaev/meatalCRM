@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Check, Factory, FileText, MessageSquare } from "lucide-react";
+import { ArrowLeft, ArrowRight, Archive, Check, Factory, FileText, MessageSquare } from "lucide-react";
 import { formatDate, formatCurrency, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
 import { PortalStatusPicker } from "./PortalStatusPicker";
 import { PortalPaymentPicker } from "./PortalPaymentPicker";
@@ -17,6 +17,7 @@ import { PortalDescriptionEditor } from "./PortalDescriptionEditor";
 import { PortalFilesTabs } from "./PortalFilesTabs";
 import { PortalTitleEditor } from "./PortalTitleEditor";
 import { PortalDeleteButton } from "./PortalDeleteButton";
+import { RequestSubtasksPanel } from "@/app/(dashboard)/requests/[id]/RequestSubtasksPanel";
 
 export default async function PortalRequestViewPage({
   params,
@@ -54,6 +55,11 @@ export default async function PortalRequestViewPage({
       files: {
         include: { uploadedBy: { select: { id: true, name: true } } },
         orderBy: { createdAt: "asc" },
+      },
+      subtaskCategories: {
+        where: { archivedAt: null },
+        orderBy: { order: "asc" },
+        include: { subtasks: { orderBy: { order: "asc" } } },
       },
     },
   });
@@ -169,6 +175,25 @@ export default async function PortalRequestViewPage({
               );
             })}
           </div>
+        </section>
+
+        {/* Подзадачи по категориям */}
+        <section>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Archive className="h-4 w-4 text-slate-400" /> Подзадачи
+          </h3>
+          <RequestSubtasksPanel
+            requestId={request.id}
+            initialCategories={(request.subtaskCategories ?? []).map((cat: any) => ({
+              ...cat,
+              archivedAt: cat.archivedAt ? cat.archivedAt.toISOString() : null,
+              subtasks: cat.subtasks.map((s: any) => ({
+                ...s,
+                archivedAt: s.archivedAt ? s.archivedAt.toISOString() : null,
+              })),
+            }))}
+            apiBase={`/api/portal/requests/${request.id}`}
+          />
         </section>
 
         {/* Позиции */}

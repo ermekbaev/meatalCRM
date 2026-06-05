@@ -26,11 +26,14 @@ export function RequestSubtasksPanel({
   requestId,
   initialCategories,
   readOnly,
+  apiBase,
 }: {
   requestId: string;
   initialCategories: Category[];
   readOnly?: boolean;
+  apiBase?: string;
 }) {
+  const base = apiBase ?? `/api/requests/${requestId}`;
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [showArchived, setShowArchived] = useState<Record<string, boolean>>({});
   const [newCatName, setNewCatName] = useState("");
@@ -44,7 +47,7 @@ export function RequestSubtasksPanel({
     const name = newCatName.trim();
     if (!name) return;
     setAddingCat(true);
-    const res = await fetch(`/api/requests/${requestId}/subtask-categories`, {
+    const res = await fetch(`${base}/subtask-categories`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -57,7 +60,7 @@ export function RequestSubtasksPanel({
   }
 
   async function archiveCategory(catId: string) {
-    const res = await fetch(`/api/requests/${requestId}/subtask-categories/${catId}`, {
+    const res = await fetch(`${base}/subtask-categories/${catId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archived: true }),
@@ -67,12 +70,12 @@ export function RequestSubtasksPanel({
 
   async function deleteCategory(catId: string) {
     if (!confirm("Удалить категорию и все её подзадачи?")) return;
-    const res = await fetch(`/api/requests/${requestId}/subtask-categories/${catId}`, { method: "DELETE" });
+    const res = await fetch(`${base}/subtask-categories/${catId}`, { method: "DELETE" });
     if (res.ok) setCategories((cur) => cur.filter((c) => c.id !== catId));
   }
 
   async function renameCategory(catId: string, name: string) {
-    const res = await fetch(`/api/requests/${requestId}/subtask-categories/${catId}`, {
+    const res = await fetch(`${base}/subtask-categories/${catId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -92,7 +95,7 @@ export function RequestSubtasksPanel({
     const name = (newSubNames[catId] ?? "").trim();
     if (!name) return;
     setAddingSub(catId);
-    const res = await fetch(`/api/requests/${requestId}/subtask-categories/${catId}/subtasks`, {
+    const res = await fetch(`${base}/subtask-categories/${catId}/subtasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
@@ -108,7 +111,7 @@ export function RequestSubtasksPanel({
   }
 
   async function toggleDone(catId: string, subId: string, done: boolean) {
-    const res = await fetch(`/api/requests/${requestId}/subtask-categories/${catId}/subtasks/${subId}`, {
+    const res = await fetch(`${base}/subtask-categories/${catId}/subtasks/${subId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ done }),
@@ -124,7 +127,7 @@ export function RequestSubtasksPanel({
   }
 
   async function archiveSubtask(catId: string, subId: string) {
-    const res = await fetch(`/api/requests/${requestId}/subtask-categories/${catId}/subtasks/${subId}`, {
+    const res = await fetch(`${base}/subtask-categories/${catId}/subtasks/${subId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archived: true }),
@@ -140,7 +143,7 @@ export function RequestSubtasksPanel({
   }
 
   async function deleteSubtask(catId: string, subId: string) {
-    const res = await fetch(`/api/requests/${requestId}/subtask-categories/${catId}/subtasks/${subId}`, { method: "DELETE" });
+    const res = await fetch(`${base}/subtask-categories/${catId}/subtasks/${subId}`, { method: "DELETE" });
     if (res.ok) {
       setCategories((cur) =>
         cur.map((c) => c.id === catId ? { ...c, subtasks: c.subtasks.filter((s) => s.id !== subId) } : c)

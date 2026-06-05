@@ -643,13 +643,40 @@ model PortalRequest {
   sandblastingStatus String?
   extraWorkStatus    String?
   deliveryStatus     String?
-  company         Client              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdByUser   User                @relation("PortalRequestCreatedBy", fields: [createdByUserId], references: [id])
-  items           PortalRequestItem[]
-  comments        PortalComment[]
-  files           PortalFile[]
+  company           Client                         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser     User                           @relation("PortalRequestCreatedBy", fields: [createdByUserId], references: [id])
+  items             PortalRequestItem[]
+  comments          PortalComment[]
+  files             PortalFile[]
+  subtaskCategories PortalRequestSubtaskCategory[]
 
   @@index([companyId, createdAt])
+}
+
+model PortalRequestSubtaskCategory {
+  id              String                   @id @default(cuid())
+  portalRequestId String
+  name            String
+  order           Int                      @default(0)
+  archivedAt      DateTime?
+  createdAt       DateTime                 @default(now())
+  portalRequest   PortalRequest            @relation(fields: [portalRequestId], references: [id], onDelete: Cascade)
+  subtasks        PortalRequestSubtask[]
+
+  @@index([portalRequestId])
+}
+
+model PortalRequestSubtask {
+  id         String                        @id @default(cuid())
+  categoryId String
+  name       String
+  done       Boolean                       @default(false)
+  order      Int                           @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime                      @default(now())
+  category   PortalRequestSubtaskCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
 }
 
 model PortalRequestItem {
