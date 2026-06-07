@@ -43,3 +43,9 @@ prisma/dev.db
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local dev seed (не нужен на основном сервере)
+seed-analytics.mjs
+
+# claude code local config
+.claude/

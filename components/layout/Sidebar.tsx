@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
+import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 
 type NavItem = { href: string; label: string; icon: any; foreman?: boolean };
 
@@ -172,6 +173,7 @@ export function Sidebar() {
               </p>
             </div>
           </button>
+          <PushSubscribeButton compact />
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="text-white/30 hover:text-white/70 transition-colors"

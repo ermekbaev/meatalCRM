@@ -13,6 +13,7 @@ import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
 import { Avatar } from "@/components/ui/avatar";
 import { AvatarDialog } from "./AvatarDialog";
+import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 
 // insideShell — признак того, что Header рендерится внутри DashboardShell (у админа/
 // менеджера). Под ForemanTopBar (мастер/оператор/подрядчик) провайдера нет, флаг
@@ -189,6 +190,7 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
                 </p>
               </div>
             </button>
+            <PushSubscribeButton compact />
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"

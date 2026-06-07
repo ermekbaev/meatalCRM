@@ -2,7 +2,6 @@
 import { Menu } from "lucide-react";
 import { useSidebar } from "./DashboardShell";
 import { NotificationsBell } from "./NotificationsBell";
-import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 
 interface HeaderProps {
   title: string;
@@ -31,14 +30,9 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       </div>
       <div className="flex items-center gap-3">
         {actions}
-        {/* Push и колокольчик уже есть в ForemanTopBar — здесь показываем только
-            внутри DashboardShell (админ/менеджер), чтобы не дублировать. */}
-        {insideShell && (
-          <>
-            <PushSubscribeButton compact />
-            <NotificationsBell />
-          </>
-        )}
+        {/* Колокольчик уведомлений — внутри DashboardShell (админ/менеджер).
+            Включатель push перенесён в блок пользователя (Sidebar / мобильное меню). */}
+        {insideShell && <NotificationsBell />}
       </div>
     </header>
   );
