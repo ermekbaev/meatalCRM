@@ -218,8 +218,8 @@ function ManagerDrawer({
 
       {/* Панель */}
       <div className="fixed inset-y-0 right-0 z-[70] flex w-full max-w-3xl flex-col bg-white shadow-2xl">
-        {/* Шапка */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
+        {/* Шапка (safe-area-inset-top — чтобы не уходила под статус-бар в iOS PWA) */}
+        <div className="drawer-header-top flex items-center justify-between border-b border-slate-100 px-5 pb-4 shrink-0">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Детализация</p>
             <h2 className="text-base font-semibold text-slate-800 mt-0.5">{managerName}</h2>
@@ -322,8 +322,8 @@ function ManagerDrawer({
               </div>
             </div>
 
-            {/* Список заявок */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Список заявок — overflow-auto: широкая таблица скроллится по горизонтали на телефоне, а не обрезается */}
+            <div className="flex-1 overflow-auto">
               {filtered.length === 0 ? (
                 <div className="flex h-40 items-center justify-center text-sm text-slate-300">
                   Нет заявок по выбранным фильтрам
@@ -332,12 +332,21 @@ function ManagerDrawer({
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-white z-10 border-b border-slate-100">
                     <tr>
-                      {["№", "Заявка", "Контрагент", "Статус", "Приоритет", "Сумма", "Дата"].map((h) => (
+                      {/* «Сумма» выравнивается вправо — под значениями */}
+                      {[
+                        { label: "№", align: "text-left w-12" },
+                        { label: "Заявка", align: "text-left" },
+                        { label: "Контрагент", align: "text-left" },
+                        { label: "Статус", align: "text-left" },
+                        { label: "Приоритет", align: "text-left" },
+                        { label: "Сумма", align: "text-right" },
+                        { label: "Дата", align: "text-left" },
+                      ].map((c) => (
                         <th
-                          key={h}
-                          className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 whitespace-nowrap first:w-12"
+                          key={c.label}
+                          className={cn("px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 whitespace-nowrap", c.align)}
                         >
-                          {h}
+                          {c.label}
                         </th>
                       ))}
                     </tr>
@@ -393,13 +402,275 @@ function ManagerDrawer({
             </div>
 
             {/* Футер */}
-            <div className="border-t border-slate-100 px-5 py-2.5 shrink-0 text-[11px] text-slate-400">
+            <div className="safe-area-inset-bottom border-t border-slate-100 px-5 py-2.5 shrink-0 text-[11px] text-slate-400">
               Показано {filtered.length} из {requests.length} заявок
             </div>
           </div>
         )}
       </div>
     </>
+  );
+}
+
+// ─── Drawer: детализация по позиции (услуга/товар) ──────────────────────────────
+
+type ItemRequest = {
+  id: string;
+  number: number;
+  title: string;
+  status: string;
+  priority: string;
+  amount: number | null;
+  createdAt: string;
+  updatedAt: string;
+  client: { id: string; name: string };
+  itemQuantity: number;
+  itemRevenue: number;
+  itemProfit: number | null;
+};
+
+function ItemDrawer({
+  name,
+  typeLabel,
+  from,
+  to,
+  onClose,
+}: {
+  name: string;
+  typeLabel: string;
+  from: string;
+  to: string;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState<ItemRequest[]>([]);
+  const [totals, setTotals] = useState({ orders: 0, quantity: 0, revenue: 0 });
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ name, from, to });
+    fetch(`/api/analytics/item-requests?${params}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setRequests(data.requests ?? []);
+        setTotals(data.totals ?? { orders: 0, quantity: 0, revenue: 0 });
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [name, from, to]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return requests;
+    const q = search.toLowerCase();
+    return requests.filter((r) => r.title.toLowerCase().includes(q) || r.client.name.toLowerCase().includes(q));
+  }, [requests, search]);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="fixed inset-y-0 right-0 z-[70] flex w-full max-w-3xl flex-col bg-white shadow-2xl">
+        {/* Шапка (safe-area-inset-top — чтобы не уходила под статус-бар в iOS PWA) */}
+        <div className="drawer-header-top flex items-center justify-between border-b border-slate-100 px-5 pb-4 shrink-0">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{typeLabel}</p>
+            <h2 className="text-base font-semibold text-slate-800 mt-0.5 truncate">{name}</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors shrink-0"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Саммари по позиции */}
+            <div className="grid grid-cols-3 gap-3 px-5 py-4 border-b border-slate-100 shrink-0">
+              {[
+                { label: "Заявок", value: totals.orders, cls: "text-slate-800" },
+                { label: "Количество", value: totals.quantity.toLocaleString("ru"), cls: "text-slate-800" },
+                { label: "Выручка", value: fmt(totals.revenue), cls: "text-emerald-600" },
+              ].map((s) => (
+                <div key={s.label} className="rounded-xl bg-slate-50 px-3 py-2.5 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{s.label}</p>
+                  <p className={`text-base font-bold mt-0.5 ${s.cls}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Поиск */}
+            <div className="px-5 py-3 border-b border-slate-100 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Поиск по заявке или контрагенту…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-8 pl-8 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Список заявок */}
+            <div className="flex-1 overflow-auto">
+              {filtered.length === 0 ? (
+                <div className="flex h-40 items-center justify-center text-sm text-slate-300">
+                  Нет заявок по выбранным фильтрам
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-white z-10 border-b border-slate-100">
+                    <tr>
+                      {[
+                        { label: "№", align: "text-left w-12" },
+                        { label: "Заявка", align: "text-left" },
+                        { label: "Контрагент", align: "text-left" },
+                        { label: "Кол-во", align: "text-right" },
+                        { label: "Выручка", align: "text-right" },
+                        { label: "Завершена", align: "text-right" },
+                      ].map((c) => (
+                        <th key={c.label} className={cn("px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 whitespace-nowrap", c.align)}>
+                          {c.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((r) => {
+                      const StatusIcon = STATUS_ICONS[r.status] ?? Clock;
+                      return (
+                        <tr key={r.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/70 transition-colors">
+                          <td className="px-4 py-3 text-[11px] font-semibold text-slate-400 tabular-nums">#{r.number}</td>
+                          <td className="px-4 py-3 max-w-[200px]">
+                            <Link
+                              href={`/requests/${r.id}`}
+                              className="font-medium text-slate-700 hover:text-orange-600 line-clamp-2 leading-snug transition-colors inline-flex items-center gap-1.5"
+                            >
+                              <StatusIcon className="h-3 w-3 shrink-0" style={{ color: STATUS_COLORS[r.status] }} />
+                              {r.title}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 max-w-[140px]">
+                            <span className="truncate block">{r.client.name}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums text-slate-600 whitespace-nowrap">
+                            {r.itemQuantity.toLocaleString("ru")}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums font-semibold text-slate-700 whitespace-nowrap">
+                            {fmt(r.itemRevenue)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-400 text-[11px] whitespace-nowrap tabular-nums">
+                            {new Date(r.updatedAt).toLocaleDateString("ru", { day: "2-digit", month: "short", year: "2-digit" })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Футер */}
+            <div className="safe-area-inset-bottom border-t border-slate-100 px-5 py-2.5 shrink-0 text-[11px] text-slate-400">
+              Показано {filtered.length} из {requests.length} заявок
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Таблица «Выручка по услугам / товарам» ─────────────────────────────────────
+
+function RevenueByItemsCard({
+  title,
+  itemHeader,
+  rows,
+  onSelect,
+}: {
+  title: string;
+  itemHeader: string;
+  rows: any[];
+  onSelect: (name: string) => void;
+}) {
+  if (!rows || rows.length === 0) return null;
+  const maxRevenue = rows[0]?.revenue ?? 1;
+  return (
+    <Card className="border-slate-200">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100">
+                {/* Выравнивание заголовков совпадает с ячейками: № и числовые колонки — вправо, название — влево */}
+                {[
+                  { label: "#", align: "text-right w-8" },
+                  { label: itemHeader, align: "text-left" },
+                  { label: "Кол-во в заявках", align: "text-right" },
+                  { label: "Выручка", align: "text-right" },
+                  { label: "Прибыль", align: "text-right" },
+                  { label: "Маржа", align: "text-right" },
+                  { label: "", align: "w-6" },
+                ].map((c, i) => (
+                  <th key={i} className={cn("py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400 whitespace-nowrap", c.align)}>{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((s: any, i: number) => {
+                const barWidth = maxRevenue > 0 ? (s.revenue / maxRevenue) * 100 : 0;
+                return (
+                  <tr
+                    key={i}
+                    onClick={() => onSelect(s.name)}
+                    className="border-b border-slate-50 last:border-0 hover:bg-orange-50/60 transition-colors cursor-pointer group"
+                  >
+                    <td className="py-2.5 px-4 text-[11px] font-semibold text-slate-300 text-right w-8">{i + 1}</td>
+                    <td className="py-2.5 px-4">
+                      <div className="space-y-1">
+                        <p className="font-medium text-slate-700 leading-tight">{s.name}</p>
+                        <div className="h-1 rounded-full bg-slate-100 overflow-hidden w-full max-w-50">
+                          <div className="h-full rounded-full bg-orange-400 transition-all" style={{ width: `${barWidth}%` }} />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-4 text-right text-slate-500 tabular-nums whitespace-nowrap">{s.orders} <span className="text-slate-300">зак.</span></td>
+                    <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(s.revenue)}</td>
+                    <td className="py-2.5 px-4 text-right tabular-nums whitespace-nowrap">
+                      {s.profit != null
+                        ? <span className={s.profit >= 0 ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold"}>{fmt(s.profit)}</span>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="py-2.5 px-4 text-right tabular-nums whitespace-nowrap">
+                      {s.margin != null
+                        ? <span className={cn("font-semibold", s.margin > 30 ? "text-emerald-600" : s.margin > 10 ? "text-amber-500" : "text-red-500")}>{s.margin.toFixed(1)}%</span>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-orange-400 transition-colors ml-auto" />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-4 py-2.5 text-[11px] text-slate-400 border-t border-slate-100">
+          Прибыль и маржа рассчитываются только по позициям с указанной себестоимостью
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -428,6 +699,7 @@ export default function AnalyticsPage() {
 
   // Drill-down
   const [drawerManager, setDrawerManager] = useState<{ id: string; name: string } | null>(null);
+  const [drawerItem, setDrawerItem] = useState<{ name: string; typeLabel: string } | null>(null);
 
   const savePeriod = (obj: object) =>
     localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
@@ -515,7 +787,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  const { summary, byStatus, byPriority, revenueChart, topClients, managers, topServices, funnel } = data;
+  const { summary, byStatus, byPriority, revenueChart, topClients, managers, topServices, topProducts, funnel } = data;
 
   const statusData = byStatus.map((s: any) => ({
     name: STATUS_LABELS[s.status] ?? s.status,
@@ -758,61 +1030,9 @@ export default function AnalyticsPage() {
           </Card>
         </div>
 
-        {/* Выручка по услугам */}
-        {topServices && topServices.length > 0 && (
-          <Card className="border-slate-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-widest">Выручка по услугам</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      {["#", "Услуга / Позиция", "Кол-во в заявках", "Выручка", "Прибыль", "Маржа"].map((h) => (
-                        <th key={h} className="text-left py-2.5 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400 last:text-right">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topServices.map((s: any, i: number) => {
-                      const maxRevenue = topServices[0]?.revenue ?? 1;
-                      const barWidth = maxRevenue > 0 ? (s.revenue / maxRevenue) * 100 : 0;
-                      return (
-                        <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60 transition-colors">
-                          <td className="py-2.5 px-4 text-[11px] font-semibold text-slate-300 text-right w-8">{i + 1}</td>
-                          <td className="py-2.5 px-4">
-                            <div className="space-y-1">
-                              <p className="font-medium text-slate-700 leading-tight">{s.name}</p>
-                              <div className="h-1 rounded-full bg-slate-100 overflow-hidden w-full max-w-50">
-                                <div className="h-full rounded-full bg-orange-400 transition-all" style={{ width: `${barWidth}%` }} />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-4 text-right text-slate-500 tabular-nums whitespace-nowrap">{s.orders} <span className="text-slate-300">зак.</span></td>
-                          <td className="py-2.5 px-4 text-right font-semibold text-slate-800 tabular-nums whitespace-nowrap">{fmt(s.revenue)}</td>
-                          <td className="py-2.5 px-4 text-right tabular-nums whitespace-nowrap">
-                            {s.profit != null
-                              ? <span className={s.profit >= 0 ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold"}>{fmt(s.profit)}</span>
-                              : <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className="py-2.5 px-4 text-right tabular-nums whitespace-nowrap">
-                            {s.margin != null
-                              ? <span className={cn("font-semibold", s.margin > 30 ? "text-emerald-600" : s.margin > 10 ? "text-amber-500" : "text-red-500")}>{s.margin.toFixed(1)}%</span>
-                              : <span className="text-slate-300">—</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <p className="px-4 py-2.5 text-[11px] text-slate-400 border-t border-slate-100">
-                Прибыль и маржа рассчитываются только по позициям с указанной себестоимостью
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        {/* Выручка по услугам / товарам */}
+        <RevenueByItemsCard title="Выручка по услугам" itemHeader="Услуга" rows={topServices} onSelect={(name) => setDrawerItem({ name, typeLabel: "Услуга" })} />
+        <RevenueByItemsCard title="Выручка по товарам" itemHeader="Товар" rows={topProducts} onSelect={(name) => setDrawerItem({ name, typeLabel: "Товар" })} />
 
         {/* Топ клиентов + Менеджеры */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -856,8 +1076,15 @@ export default function AnalyticsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      {["Имя", "Заявок", "Конверсия", "Выручка", ""].map((h) => (
-                        <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 last:w-6">{h}</th>
+                      {/* Выравнивание заголовков совпадает с ячейками ниже */}
+                      {[
+                        { label: "Имя", align: "text-left" },
+                        { label: "Заявок", align: "text-center" },
+                        { label: "Конверсия", align: "text-center" },
+                        { label: "Выручка", align: "text-right" },
+                        { label: "", align: "w-6" },
+                      ].map((c, i) => (
+                        <th key={i} className={cn("px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400", c.align)}>{c.label}</th>
                       ))}
                     </tr>
                   </thead>
@@ -895,7 +1122,7 @@ export default function AnalyticsPage() {
 
       </div>
 
-      {/* Drawer */}
+      {/* Drawer: менеджер */}
       {drawerManager && (
         <ManagerDrawer
           managerId={drawerManager.id}
@@ -903,6 +1130,17 @@ export default function AnalyticsPage() {
           from={currentFrom}
           to={currentTo}
           onClose={() => setDrawerManager(null)}
+        />
+      )}
+
+      {/* Drawer: позиция (услуга/товар) */}
+      {drawerItem && (
+        <ItemDrawer
+          name={drawerItem.name}
+          typeLabel={drawerItem.typeLabel}
+          from={currentFrom}
+          to={currentTo}
+          onClose={() => setDrawerItem(null)}
         />
       )}
     </div>

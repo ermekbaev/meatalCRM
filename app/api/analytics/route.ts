@@ -29,6 +29,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     byPriority,
     totalOffers,
     acceptedOffersCount,
+    catalogTypes,
   ] = await Promise.all([
     prisma.request.findMany({
       where: { ...where, status: "COMPLETED" },
@@ -50,7 +51,13 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     prisma.request.groupBy({ by: ["priority"], where, _count: { id: true } }),
     prisma.commercialOffer.count({ where }),
     prisma.commercialOffer.count({ where: { ...where, status: "ACCEPTED" } }),
+    // Каталог услуг/товаров — для классификации позиций на услуги и товары.
+    prisma.serviceCatalog.findMany({ select: { name: true, type: true } }),
   ]);
+
+  // Карта «нормализованное имя → тип» из каталога (service/product).
+  const normName = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  const catalogTypeByName = new Map(catalogTypes.map((c) => [normName(c.name), c.type]));
 
   // Общее число заявок — из уже загруженного массива, без доп. запроса.
   const totalRequestsCount = allRequests.length;
@@ -120,12 +127,16 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     .sort((a, b) => b.revenue - a.revenue)
     .map((m) => ({ ...m, conversionRate: m.total > 0 ? (m.completed / m.total) * 100 : 0 }));
 
-  // 5. Выручка по услугам — из completedWithItems.items, без доп. запроса
-  const serviceMap: Record<string, { name: string; revenue: number; quantity: number; cost: number; orders: number }> = {};
+  // 5. Выручка по позициям — из completedWithItems.items, без доп. запроса.
+  //    Тип (услуга/товар) берём из каталога по совпадению названия; не найдено → услуга.
+  const serviceMap: Record<string, { name: string; type: string; revenue: number; quantity: number; cost: number; orders: number }> = {};
   completedWithItems.forEach((r) => {
     r.items.forEach((item) => {
       const key = item.name;
-      if (!serviceMap[key]) serviceMap[key] = { name: key, revenue: 0, quantity: 0, cost: 0, orders: 0 };
+      if (!serviceMap[key]) {
+        const type = catalogTypeByName.get(normName(item.name)) === "product" ? "product" : "service";
+        serviceMap[key] = { name: key, type, revenue: 0, quantity: 0, cost: 0, orders: 0 };
+      }
       serviceMap[key].revenue += item.total ?? 0;
       serviceMap[key].quantity += item.quantity;
       serviceMap[key].orders += 1;
@@ -134,14 +145,14 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
       }
     });
   });
-  const topServices = Object.values(serviceMap)
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 20)
-    .map((s) => ({
-      ...s,
-      profit: s.cost > 0 ? s.revenue - s.cost : null,
-      margin: s.cost > 0 && s.revenue > 0 ? ((s.revenue - s.cost) / s.revenue) * 100 : null,
-    }));
+  const withProfit = (s: { name: string; type: string; revenue: number; quantity: number; cost: number; orders: number }) => ({
+    ...s,
+    profit: s.cost > 0 ? s.revenue - s.cost : null,
+    margin: s.cost > 0 && s.revenue > 0 ? ((s.revenue - s.cost) / s.revenue) * 100 : null,
+  });
+  const allRanked = Object.values(serviceMap).sort((a, b) => b.revenue - a.revenue);
+  const topServices = allRanked.filter((s) => s.type !== "product").slice(0, 20).map(withProfit);
+  const topProducts = allRanked.filter((s) => s.type === "product").slice(0, 20).map(withProfit);
 
   return NextResponse.json({
     summary: { totalRequests: totalRequestsCount, totalRevenue, totalClients, totalOffers, totalProfit, totalCost, margin },
@@ -151,6 +162,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     topClients,
     managers,
     topServices,
+    topProducts,
     funnel: [
       { label: "Заявки", value: totalRequestsCount },
       { label: "КП выставлено", value: totalOffers },

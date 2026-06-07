@@ -46,3 +46,8 @@ input[type="number"] {
   padding-bottom: env(safe-area-inset-bottom);
   box-sizing: content-box;
 }
+/* Шапка выезжающей панели: базовый отступ сверху + safe-area iOS,
+   чтобы заголовок не прилипал к краю экрана (на десктопе env() = 0). */
+.drawer-header-top {
+  padding-top: calc(1rem + env(safe-area-inset-top));
+}
