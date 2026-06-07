@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -65,15 +65,20 @@ function ProductionSummaryCell({ request }: { request: any }) {
   );
 }
 
-export default function RequestsPage() {
+function RequestsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const role = session?.user?.role;
   const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
   const canManageRequests = role === "ADMIN" || role === "MANAGER";
   const [requests, setRequests] = useState<any[]>([]);
   const [search, setSearch] = useState("");
-  const [statuses, setStatuses] = useState<string[]>([]);
+  // Предзаполняем фильтр по статусу из URL (?status=NEW) — например при переходе с карточек дашборда.
+  const [statuses, setStatuses] = useState<string[]>(() => {
+    const s = searchParams.get("status");
+    return s ? s.split(",").filter(Boolean) : [];
+  });
   const [priority, setPriority] = useState("ALL");
   const [paymentStatus, setPaymentStatus] = useState("ALL");
   const [assigneeId, setAssigneeId] = useState("ALL");
@@ -417,5 +422,13 @@ export default function RequestsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RequestsPage() {
+  return (
+    <Suspense>
+      <RequestsPageInner />
+    </Suspense>
   );
 }
