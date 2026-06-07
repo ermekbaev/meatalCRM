@@ -15,13 +15,13 @@ export function DashboardCharts({ statusData, revenueData }: Props) {
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 h-full">
       {/* Выручка по месяцам */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-3.5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Выручка по месяцам
           </p>
         </div>
-        <div className="p-5">
+        <div className="flex flex-1 flex-col justify-center p-5">
           {revenueData.some((d) => d.revenue > 0) ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={revenueData} barSize={28}>
@@ -65,15 +65,16 @@ export function DashboardCharts({ statusData, revenueData }: Props) {
       </div>
 
       {/* Распределение по статусам */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-5 py-3.5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             По статусам
           </p>
         </div>
-        <div className="p-5">
+        <div className="flex flex-1 flex-col justify-center p-5">
           {statusData.some((d) => d.value > 0) ? (
-            <ResponsiveContainer width="100%" height={220}>
+            // выше, чем у гистограммы — кольцо + легенда на 2 строки (много статусов) не влезали в 220
+            <ResponsiveContainer width="100%" height={270}>
               <PieChart>
                 <Pie
                   data={statusData}
