@@ -87,7 +87,7 @@ export const GET = withErrorHandling(async (req: NextRequest) => {
     include: {
       assignees: { select: { id: true, name: true, position: true, role: true, avatarUrl: true } },
       createdBy: { select: { id: true, name: true } },
-      client:    { select: { id: true, name: true } },
+      client:    { select: { id: true, name: true, shortName: true } },
       workshop:  { select: { id: true, name: true, order: true } },
       subtasks:  { select: { id: true, status: true } },
       tags:      true,
