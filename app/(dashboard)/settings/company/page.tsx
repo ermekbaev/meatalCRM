@@ -204,7 +204,8 @@ export default function CompanySettingsPage() {
                 </div>
                 {logoUrl ? (
                   <div className="relative inline-block">
-                    <img src={logoUrl} alt="Логотип" className="h-16 rounded border border-gray-200 object-contain bg-gray-50 p-2" />
+                    <img src={logoUrl} alt="Логотип" className="h-16 rounded border border-gray-200 object-contain bg-gray-50 p-2 blur-[6px] select-none" />
+                    <span className="pointer-events-none absolute inset-0 backdrop-blur-md rounded" aria-hidden />
                     <button type="button" onClick={() => clearImage("logo")} className="absolute -top-2 -right-2 rounded-full bg-red-500 text-white p-0.5 hover:bg-red-600">
                       <X className="h-3 w-3" />
                     </button>

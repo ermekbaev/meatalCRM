@@ -73,14 +73,17 @@ export function Sidebar() {
     <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-[#212121] border-r border-white/10">
       {/* Logo */}
       <div className="flex h-18 items-center px-4 border-b border-white/10">
-        <Image
-          src="/logo_white.svg"
-          alt="ORIENT-LASER"
-          width={200}
-          height={52}
-          className="object-contain"
-          priority
-        />
+        <span className="relative inline-flex">
+          <Image
+            src="/logo_white.svg"
+            alt="ORIENT-LASER"
+            width={200}
+            height={52}
+            className="object-contain blur-[6px] select-none"
+            priority
+          />
+          <span className="pointer-events-none absolute inset-0 backdrop-blur-md" aria-hidden />
+        </span>
       </div>
 
       {/* Nav */}
