@@ -57,17 +57,14 @@ export default function LoginPage() {
           {/* Шапка */}
           <div className="px-8 py-6 text-center border-b border-slate-100">
             <div className="flex justify-center mb-4">
-              <span className="relative inline-flex">
-                <Image
-                  src="/logo.svg"
-                  alt="ORIENT-LASER"
-                  width={220}
-                  height={57}
-                  className="object-contain blur-[7px] select-none"
-                  priority
-                />
-                <span className="pointer-events-none absolute inset-0 backdrop-blur-md" aria-hidden />
-              </span>
+              <Image
+                src="/logo.svg"
+                alt="ORIENT-LASER"
+                width={220}
+                height={57}
+                className="object-contain"
+                priority
+              />
             </div>
             <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-full px-4 py-2">
               <LogIn className="w-4 h-4 text-orange-600" />

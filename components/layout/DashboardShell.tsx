@@ -94,16 +94,13 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
           <div className="flex items-center gap-3" suppressHydrationWarning>
-            <span className="relative inline-flex">
-              <Image
-                src="/logo.svg"
-                alt="ORIENT-LASER"
-                width={180}
-                height={46}
-                className="object-contain blur-[6px] select-none"
-              />
-              <span className="pointer-events-none absolute inset-0 backdrop-blur-md" aria-hidden />
-            </span>
+            <Image
+              src="/logo.svg"
+              alt="ORIENT-LASER"
+              width={180}
+              height={46}
+              className="object-contain"
+            />
           </div>
           <button
             onClick={onClose}

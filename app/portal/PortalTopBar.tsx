@@ -19,17 +19,14 @@ export function PortalTopBar({ userName, companyName }: { userName: string; comp
     <header className="safe-area-inset-top sticky top-0 z-20 bg-[#212121] border-b border-white/10">
       <div className="px-4 py-3 flex items-center gap-3">
         <Link href="/portal" className="shrink-0">
-          <span className="relative inline-flex">
-            <Image
-              src="/logo_white.svg"
-              alt="ORIENT-LASER"
-              width={140}
-              height={36}
-              className="h-9 w-auto object-contain blur-[5px] select-none"
-              priority
-            />
-            <span className="pointer-events-none absolute inset-0 backdrop-blur-md" aria-hidden />
-          </span>
+          <Image
+            src="/logo_white.svg"
+            alt="ORIENT-LASER"
+            width={140}
+            height={36}
+            className="h-9 w-auto object-contain"
+            priority
+          />
         </Link>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-white/50 truncate">Кабинет «{companyName}»</p>

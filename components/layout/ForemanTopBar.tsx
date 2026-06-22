@@ -40,17 +40,14 @@ export function ForemanTopBar({
     <header className="safe-area-inset-top sticky top-0 z-50 bg-white border-b border-slate-200">
       <div className="px-3 py-2 flex items-center gap-2">
         <Link href={nav[0].href} className="shrink-0">
-          <span className="relative inline-flex">
-            <Image
-              src="/logo.svg"
-              alt="ORIENT-LASER"
-              width={140}
-              height={36}
-              className="h-7 w-auto object-contain sm:h-9 blur-[5px] select-none"
-              priority
-            />
-            <span className="pointer-events-none absolute inset-0 backdrop-blur-md" aria-hidden />
-          </span>
+          <Image
+            src="/logo.svg"
+            alt="ORIENT-LASER"
+            width={140}
+            height={36}
+            className="h-7 w-auto object-contain sm:h-9"
+            priority
+          />
         </Link>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] text-slate-400 leading-none truncate">{roleLabel}</p>
