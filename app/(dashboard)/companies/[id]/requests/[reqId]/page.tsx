@@ -17,6 +17,7 @@ import { PortalDescriptionEditor } from "./PortalDescriptionEditor";
 import { PortalFilesTabs } from "./PortalFilesTabs";
 import { PortalTitleEditor } from "./PortalTitleEditor";
 import { PortalDeleteButton } from "./PortalDeleteButton";
+import { MarkViewed } from "./MarkViewed";
 import { RequestSubtasksPanel } from "@/app/(dashboard)/requests/[id]/RequestSubtasksPanel";
 
 export default async function PortalRequestViewPage({
@@ -65,12 +66,18 @@ export default async function PortalRequestViewPage({
   });
   if (!request) notFound();
 
-  // Первое открытие заявки внутренним пользователем — гасит бейдж «новая»
-  // в списке компаний и сайдбаре. updateMany с фильтром на null делает это
-  // транзакционно: если кто-то открыл заявку параллельно, мы просто не запишем.
-  // revalidatePath инвалидирует серверный кэш списка компаний, чтобы при
-  // возврате назад счётчик уже был свежим (сайдбар обновится сам на следующем polling).
-  if (request.firstViewedAt === null) {
+  // Первое открытие заявки внутренним пользователем гасит бейдж «новая» в списке
+  // компаний и сайдбаре. updateMany с фильтром на null делает это транзакционно:
+  // если кто-то открыл заявку параллельно, мы просто не запишем. revalidatePath
+  // инвалидирует серверный кэш списка компаний, чтобы при возврате назад счётчик
+  // был свежим (сайдбар обновится сам на следующем polling).
+  //
+  // ВАЖНО: в Next 16 побочные эффекты (updateMany + revalidatePath) нельзя
+  // выполнять во время рендера серверного компонента — это кидает исключение и
+  // роняет страницу. Поэтому выносим их в server action и вызываем его один раз
+  // после монтирования через клиентский <MarkViewed/>.
+  async function markViewed() {
+    "use server";
     await prisma.portalRequest.updateMany({
       where: { id: reqId, firstViewedAt: null },
       data: { firstViewedAt: new Date() },
@@ -81,6 +88,7 @@ export default async function PortalRequestViewPage({
 
   return (
     <div>
+      {request.firstViewedAt === null && <MarkViewed action={markViewed} />}
       <Header
         title={`Заявка #${request.number}`}
         subtitle={`Кабинет «${company.name}»`}
