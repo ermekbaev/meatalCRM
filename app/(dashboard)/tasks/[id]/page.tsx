@@ -11,8 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TASK_STATUS_LABELS, PRIORITY_LABELS, PRIORITY_COLORS, ROLE_LABELS, TASK_PRODUCTION_FIELDS, CHANGELOG_FIELD_LABELS, formatDate, formatDateTime, hexToBadgeStyle } from "@/lib/utils";
 import {
   ArrowLeft, Send, Loader2, Clock, Paperclip, Trash2,
-  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, ArchiveRestore, File, Printer, Factory, BookOpen, ChevronDown
+  FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, ArchiveRestore, File, Printer, Factory, BookOpen, ChevronDown, Eye
 } from "lucide-react";
+import { FilePreviewModal, canPreviewFile, type PreviewFile } from "@/components/ui/file-preview-modal";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
@@ -49,6 +50,7 @@ export default function TaskDetailPage() {
   // Файлы
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Теги
@@ -928,12 +930,34 @@ export default function TaskDetailPage() {
                     <div key={file.id} className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-2 group hover:bg-gray-50">
                       {getFileIcon(file.mimeType, file.originalName)}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{file.originalName}</p>
+                        {canPreviewFile(file.originalName, file.mimeType) ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile({ key: file.filename, name: file.originalName, mimeType: file.mimeType })}
+                            className="text-sm font-medium text-gray-800 truncate block max-w-full text-left hover:text-orange-600 transition-colors"
+                            title="Предпросмотр"
+                          >
+                            {file.originalName}
+                          </button>
+                        ) : (
+                          <p className="text-sm font-medium text-gray-800 truncate">{file.originalName}</p>
+                        )}
                         <p className="text-xs text-gray-400">
                           {formatFileSize(file.size)} · {file.uploadedBy?.name} · {formatDate(file.createdAt)}
                         </p>
                       </div>
                       <div className="flex items-center gap-1">
+                        {canPreviewFile(file.originalName, file.mimeType) && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            title="Предпросмотр"
+                            onClick={() => setPreviewFile({ key: file.filename, name: file.originalName, mimeType: file.mimeType })}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <a href={`/api/files?key=${encodeURIComponent(file.filename)}&name=${encodeURIComponent(file.originalName)}`}>
                           <Button size="icon" variant="ghost" className="h-7 w-7">
                             <Download className="h-3.5 w-3.5" />
@@ -1333,6 +1357,8 @@ export default function TaskDetailPage() {
           </div>
         </div>
       </div>
+
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </div>
   );
 }

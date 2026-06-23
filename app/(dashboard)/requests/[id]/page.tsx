@@ -46,11 +46,13 @@ import {
   Archive,
   File,
   Factory,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import { AssigneeSearchPicker } from "@/components/AssigneeSearchPicker";
+import { FilePreviewModal, canPreviewFile, type PreviewFile } from "@/components/ui/file-preview-modal";
 import { getFileIcon } from "./_utils";
 import { uploadViaPresign } from "@/lib/upload-client";
 import { RequestSubtasksPanel } from "./RequestSubtasksPanel";
@@ -71,6 +73,7 @@ export default function RequestDetailPage() {
   const [itemsSaving, setItemsSaving] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
 
   const fetchRequest = useCallback(async () => {
@@ -849,14 +852,35 @@ export default function RequestDetailPage() {
                       >
                         {getFileIcon(f.mimeType, f.originalName)}
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-slate-700">
-                            {f.originalName}
-                          </p>
+                          {canPreviewFile(f.originalName, f.mimeType) ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFile({ key: f.filename, name: f.originalName, mimeType: f.mimeType })}
+                              className="truncate text-sm font-medium text-slate-700 hover:text-orange-600 transition-colors block max-w-full text-left"
+                              title="Предпросмотр"
+                            >
+                              {f.originalName}
+                            </button>
+                          ) : (
+                            <p className="truncate text-sm font-medium text-slate-700">
+                              {f.originalName}
+                            </p>
+                          )}
                           <p className="text-xs text-slate-400">
                             {(f.size / 1024).toFixed(0)} КБ ·{" "}
                             {f.uploadedBy?.name}
                           </p>
                         </div>
+                        {canPreviewFile(f.originalName, f.mimeType) && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile({ key: f.filename, name: f.originalName, mimeType: f.mimeType })}
+                            className="text-slate-400 hover:text-orange-600 transition-colors"
+                            title="Предпросмотр"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        )}
                         <a
                           href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
                           className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -1140,6 +1164,8 @@ export default function RequestDetailPage() {
           </div>
         </div>
       </div>
+
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, FileSpreadsheet, Paperclip, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileSpreadsheet, Paperclip, Trash2, Upload } from "lucide-react";
+import { FilePreviewModal, canPreviewFile, type PreviewFile } from "@/components/ui/file-preview-modal";
 import { Button } from "@/components/ui/button";
 import { uploadViaPresign } from "@/lib/upload-client";
 
@@ -113,6 +114,7 @@ function FileList({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -285,15 +287,43 @@ function FileList({
                 onChange={() => toggleOne(f.id)}
                 className="h-3.5 w-3.5"
               />
-              <a
-                href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
-                className="flex-1 truncate text-slate-700 hover:text-orange-600"
-              >
-                {f.originalName}
-              </a>
+              {canPreviewFile(f.originalName) ? (
+                <button
+                  type="button"
+                  onClick={() => setPreviewFile({ key: f.filename, name: f.originalName })}
+                  className="flex-1 truncate text-left text-slate-700 hover:text-orange-600"
+                  title="Предпросмотр"
+                >
+                  {f.originalName}
+                </button>
+              ) : (
+                <a
+                  href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                  className="flex-1 truncate text-slate-700 hover:text-orange-600"
+                >
+                  {f.originalName}
+                </a>
+              )}
               <span className="text-xs text-slate-400 whitespace-nowrap">
                 {(f.size / 1024).toFixed(0)} КБ · {f.uploadedBy.name}
               </span>
+              {canPreviewFile(f.originalName) && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewFile({ key: f.filename, name: f.originalName })}
+                  className="text-slate-400 hover:text-orange-600"
+                  title="Предпросмотр"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+              )}
+              <a
+                href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                className="text-slate-400 hover:text-slate-700"
+                title="Скачать"
+              >
+                <Download className="h-4 w-4" />
+              </a>
             </li>
           ))}
         </ul>
@@ -320,6 +350,8 @@ function FileList({
           </Button>
         </>
       )}
+
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </div>
   );
 }

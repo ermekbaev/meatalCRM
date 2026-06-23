@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Check, Factory, FileText, FileSpreadsheet, Flag, MessageSquare, Package, Paperclip, Pencil, Trash2, Upload, Download } from "lucide-react";
+import { ArrowLeft, Check, Eye, Factory, FileText, FileSpreadsheet, Flag, MessageSquare, Package, Paperclip, Pencil, Trash2, Upload, Download } from "lucide-react";
+import { FilePreviewModal, canPreviewFile, type PreviewFile } from "@/components/ui/file-preview-modal";
 import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, PORTAL_PRIORITY_OPTIONS, type PortalPaymentStatus, type PortalPriority } from "@/lib/utils";
 import { PortalItemsEditor } from "./PortalItemsEditor";
 import { RequestSubtasksPanel } from "@/app/(dashboard)/requests/[id]/RequestSubtasksPanel";
@@ -235,6 +236,7 @@ export function PortalRequestView({
   const [uploading, setUploading] = useState(false);
   // Прогресс пакетной загрузки: сколько файлов уже залито из общего числа.
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Активная вкладка в едином блоке файлов: чертежи или документы.
   const [fileTab, setFileTab] = useState<"drawings" | "documents">("drawings");
@@ -849,14 +851,42 @@ export function PortalRequestView({
                     key={f.id}
                     className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                   >
-                    <a
-                      href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
-                      className="truncate text-slate-700 hover:text-orange-600"
-                    >
-                      {f.originalName}
-                    </a>
+                    {canPreviewFile(f.originalName) ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFile({ key: f.filename, name: f.originalName })}
+                        className="truncate text-left text-slate-700 hover:text-orange-600"
+                        title="Предпросмотр"
+                      >
+                        {f.originalName}
+                      </button>
+                    ) : (
+                      <a
+                        href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                        className="truncate text-slate-700 hover:text-orange-600"
+                      >
+                        {f.originalName}
+                      </a>
+                    )}
                     <div className="flex items-center gap-2 whitespace-nowrap">
                       <span className="text-xs text-slate-400">{(f.size / 1024).toFixed(0)} КБ</span>
+                      {canPreviewFile(f.originalName) && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewFile({ key: f.filename, name: f.originalName })}
+                          className="text-slate-400 hover:text-orange-600"
+                          title="Предпросмотр"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      )}
+                      <a
+                        href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                        className="text-slate-400 hover:text-slate-700"
+                        title="Скачать"
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
                       {f.uploadedById === currentUserId && !isLocked && (
                         <button
                           type="button"
@@ -910,15 +940,43 @@ export function PortalRequestView({
                 key={f.id}
                 className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
               >
-                <a
-                  href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
-                  className="truncate text-slate-700 hover:text-orange-600"
-                >
-                  {f.originalName}
-                </a>
-                <span className="text-xs text-slate-400 whitespace-nowrap">
-                  {(f.size / 1024).toFixed(0)} КБ
-                </span>
+                {canPreviewFile(f.originalName) ? (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFile({ key: f.filename, name: f.originalName })}
+                    className="truncate text-left text-slate-700 hover:text-orange-600"
+                    title="Предпросмотр"
+                  >
+                    {f.originalName}
+                  </button>
+                ) : (
+                  <a
+                    href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                    className="truncate text-slate-700 hover:text-orange-600"
+                  >
+                    {f.originalName}
+                  </a>
+                )}
+                <div className="flex items-center gap-2 whitespace-nowrap">
+                  <span className="text-xs text-slate-400">{(f.size / 1024).toFixed(0)} КБ</span>
+                  {canPreviewFile(f.originalName) && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFile({ key: f.filename, name: f.originalName })}
+                      className="text-slate-400 hover:text-orange-600"
+                      title="Предпросмотр"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  )}
+                  <a
+                    href={`/api/files?key=${encodeURIComponent(f.filename)}&name=${encodeURIComponent(f.originalName)}`}
+                    className="text-slate-400 hover:text-slate-700"
+                    title="Скачать"
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                </div>
               </li>
             ))}
           </ul>
@@ -974,6 +1032,8 @@ export function PortalRequestView({
           </div>
         </section>
       </div>
+
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </div>
   );
 }
