@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import {
   ArrowLeft, Building2, User, Mail, Phone, Hash, Search,
-  Package, Check, FileText, Pencil, Trash2, X, Save,
+  Package, Check, FileText, Pencil, Trash2, X, Save, Flag,
 } from "lucide-react";
 import { formatDate, formatCurrency, cn, PORTAL_PAYMENT_OPTIONS, PORTAL_PRIORITY_OPTIONS, type PortalPaymentStatus, type PortalPriority } from "@/lib/utils";
 import { PortalUsersCard } from "./PortalUsersCard";
@@ -26,6 +26,7 @@ type PortalRequest = {
   paymentStatus: PortalPaymentStatus;
   shippedAt: Date | string | null;
   acceptedAt: Date | string | null;
+  finalizedAt: Date | string | null;
   firstViewedAt: Date | string | null;
   createdAt: Date | string;
   createdByUser: { id: string; name: string };
@@ -352,6 +353,13 @@ export function CompanyDetail({ company, role }: { company: Company; role: "ADMI
                               {r.acceptedAt && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                                   <Check className="h-3 w-3" /> Принято
+                                </span>
+                              )}
+                              {/* Клиент отметил «Готова к работе», а менеджер ещё не
+                                  взял (статус «Новая») — сигнал «можно брать». */}
+                              {r.status === "NEW" && r.finalizedAt && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                  <Flag className="h-3 w-3" /> Готова к работе
                                 </span>
                               )}
                               {unread && (

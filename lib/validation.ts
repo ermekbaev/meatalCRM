@@ -525,7 +525,7 @@ export const portalRequestStatusSchema = z.object({
  *    уже после создания: «забыл отметить покраску».
  */
 export const portalRequestUpdateSchema = z.object({
-  // title — менять может только менеджер/админ (проверка роли в API)
+  // title — менеджер/админ всегда; клиент пока заявка не в работе (проверка в API)
   title: z.string().trim().min(1).max(500).optional(),
   status: z.enum(["NEW", "IN_PROGRESS", "READY"]).optional(),
   priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
@@ -533,6 +533,8 @@ export const portalRequestUpdateSchema = z.object({
   description: z.string().trim().max(5000).nullish(),
   shipped: z.boolean().optional(),
   accepted: z.boolean().optional(),
+  // «Готова к работе» — клиент закончил редактировать (заморозка правок).
+  finalized: z.boolean().optional(),
   ...portalProductionFields,
 });
 

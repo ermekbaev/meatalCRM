@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
 import {
   Select,
@@ -12,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Check, Factory, FileText, FileSpreadsheet, MessageSquare, Package, Paperclip, Pencil, Trash2, Upload, Download } from "lucide-react";
+import { ArrowLeft, Check, Factory, FileText, FileSpreadsheet, Flag, MessageSquare, Package, Paperclip, Pencil, Trash2, Upload, Download } from "lucide-react";
 import { formatDate, PORTAL_PRODUCTION_FIELDS, PORTAL_PAYMENT_OPTIONS, PORTAL_PRIORITY_OPTIONS, type PortalPaymentStatus, type PortalPriority } from "@/lib/utils";
 import { PortalItemsEditor } from "./PortalItemsEditor";
 import { RequestSubtasksPanel } from "@/app/(dashboard)/requests/[id]/RequestSubtasksPanel";
@@ -54,6 +55,7 @@ type Request = {
   paymentStatus: PortalPaymentStatus;
   shippedAt: Date | string | null;
   acceptedAt: Date | string | null;
+  finalizedAt: Date | string | null;
   createdByUserId: string;
   createdAt: Date | string;
   laserStatus: string | null;
@@ -101,8 +103,39 @@ export function PortalRequestView({
 }) {
   const router = useRouter();
 
-  // Блокировка: заявка «В работе» или «Готова» — клиент ничего не редактирует.
-  const isLocked = request.status === "IN_PROGRESS" || request.status === "READY";
+  // Отметка «Готова к работе» — клиент сам её ставит, когда закончил править.
+  const [finalized, setFinalized] = useState<boolean>(request.finalizedAt != null);
+  const [finalizedSaving, setFinalizedSaving] = useState(false);
+
+  // Блокировка: заявка «В работе»/«Готова» (взял менеджер) ИЛИ клиент отметил
+  // «Готова к работе» — в обоих случаях редактирование клиентом заморожено.
+  const isLocked = request.status === "IN_PROGRESS" || request.status === "READY" || finalized;
+
+  // Менеджер взял заявку в работу — клиент уже не может вернуть её в черновик.
+  const finalizeLockedByManager = request.status === "IN_PROGRESS" || request.status === "READY";
+
+  async function toggleFinalized() {
+    const next = !finalized;
+    setFinalizedSaving(true);
+    try {
+      const res = await fetch(`/api/portal/requests/${request.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ finalized: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data?.error ?? `Не удалось сохранить (HTTP ${res.status})`);
+        return;
+      }
+      setFinalized(next);
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Сетевая ошибка");
+    } finally {
+      setFinalizedSaving(false);
+    }
+  }
 
   // ─── Производственные подстатусы ───────────────────────────────────────────
   // Клиент может корректировать их в любой момент: «забыли отметить покраску».
@@ -200,34 +233,46 @@ export function PortalRequestView({
   // ─── Файлы ─────────────────────────────────────────────────────────────────
   const [files, setFiles] = useState(request.files);
   const [uploading, setUploading] = useState(false);
+  // Прогресс пакетной загрузки: сколько файлов уже залито из общего числа.
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Активная вкладка в едином блоке файлов: чертежи или документы.
   const [fileTab, setFileTab] = useState<"drawings" | "documents">("drawings");
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const selected = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (selected.length === 0) return;
     setUploading(true);
+    setUploadProgress({ done: 0, total: selected.length });
     // С клиента грузим только чертежи. Документы (kind=DOCUMENT) — прерогатива
     // менеджера; на сервере для CLIENT этот kind возвращает 400.
-    try {
-      const created = await uploadViaPresign<any>(
-        `/api/portal/requests/${request.id}/files`,
-        file,
-        { kind: "DRAWING" }
-      );
-      setFiles((cur) => [...cur, created]);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Не удалось загрузить файл");
+    // Грузим по очереди, чтобы показывать прогресс и не положить S3 пачкой.
+    const failed: string[] = [];
+    for (let i = 0; i < selected.length; i++) {
+      const file = selected[i];
+      try {
+        const created = await uploadViaPresign<any>(
+          `/api/portal/requests/${request.id}/files`,
+          file,
+          { kind: "DRAWING" }
+        );
+        setFiles((cur) => [...cur, created]);
+      } catch (err) {
+        failed.push(`${file.name}: ${err instanceof Error ? err.message : "ошибка"}`);
+      }
+      setUploadProgress({ done: i + 1, total: selected.length });
     }
     setUploading(false);
-    e.target.value = "";
+    setUploadProgress(null);
+    if (failed.length > 0) {
+      alert(`Не удалось загрузить ${failed.length} из ${selected.length}:\n${failed.join("\n")}`);
+    }
   }
 
   // ─── Описание ──────────────────────────────────────────────────────────────
-  // Менять может только автор заявки. Остальные пользователи компании видят
-  // как read-only (на случай нескольких CLIENT-юзеров в одном кабинете).
-  const canEditDescription = request.createdByUserId === currentUserId && !isLocked;
+  // Менять может любой сотрудник кабинета компании, пока заявка не в работе.
+  const canEditDescription = !isLocked;
   const [description, setDescription] = useState(request.description ?? "");
   const [descEditing, setDescEditing] = useState(false);
   const [descSaving, setDescSaving] = useState(false);
@@ -253,6 +298,42 @@ export function PortalRequestView({
       setDescError(err instanceof Error ? err.message : "Сетевая ошибка");
     } finally {
       setDescSaving(false);
+    }
+  }
+
+  // ─── Название ────────────────────────────────────────────────────────────────
+  // Менять может любой сотрудник кабинета компании, пока заявка не в работе.
+  const canEditTitle = !isLocked;
+  const [title, setTitle] = useState(request.title);
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleSaving, setTitleSaving] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
+
+  async function saveTitle() {
+    const trimmed = title.trim();
+    if (!trimmed) {
+      setTitleError("Название не может быть пустым");
+      return;
+    }
+    setTitleSaving(true);
+    setTitleError(null);
+    try {
+      const res = await fetch(`/api/portal/requests/${request.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setTitleError(data?.error ?? `Не удалось сохранить (HTTP ${res.status})`);
+        return;
+      }
+      setTitleEditing(false);
+      router.refresh();
+    } catch (err) {
+      setTitleError(err instanceof Error ? err.message : "Сетевая ошибка");
+    } finally {
+      setTitleSaving(false);
     }
   }
 
@@ -335,7 +416,31 @@ export function PortalRequestView({
         <ArrowLeft className="h-4 w-4" /> К списку
       </Link>
 
-      {isLocked && (
+      {/* Клиент сам заморозил заявку («Готова к работе», но менеджер ещё не взял) —
+          может вернуть в черновик сам, без обращения к менеджеру. */}
+      {isLocked && !finalizeLockedByManager && finalized && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="flex flex-wrap items-center gap-2">
+            <Flag className="h-4 w-4 shrink-0" />
+            <span className="flex-1 min-w-0">
+              Заявка отмечена как <strong>«Готова к работе»</strong> — редактирование заморожено,
+              менеджер видит, что её можно брать. Чтобы снова внести правки — верните в черновик.
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-100 shrink-0"
+              onClick={toggleFinalized}
+              disabled={finalizedSaving}
+            >
+              {finalizedSaving ? "..." : "Вернуть в черновик"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isLocked && finalizeLockedByManager && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-base">🔒</span>
@@ -395,9 +500,56 @@ export function PortalRequestView({
 
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-xs text-slate-400">Заявка #{request.number} · {formatDate(request.createdAt)}</p>
-            <h1 className="mt-0.5 text-lg font-semibold text-slate-900">{request.title}</h1>
+            {titleEditing ? (
+              <div className="mt-1 space-y-2">
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  maxLength={500}
+                  placeholder="Название заявки"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); saveTitle(); }
+                    if (e.key === "Escape") { setTitle(request.title); setTitleEditing(false); setTitleError(null); }
+                  }}
+                />
+                {titleError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {titleError}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" onClick={saveTitle} disabled={titleSaving}>
+                    {titleSaving ? "Сохранение..." : "Сохранить"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setTitle(request.title); setTitleEditing(false); setTitleError(null); }}
+                    disabled={titleSaving}
+                  >
+                    Отмена
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="group/title mt-0.5 flex items-start gap-1.5">
+                <h1 className="text-lg font-semibold text-slate-900">{request.title}</h1>
+                {canEditTitle && (
+                  <button
+                    type="button"
+                    onClick={() => { setTitle(request.title); setTitleEditing(true); }}
+                    className="mt-1 rounded p-1 text-slate-400 opacity-0 group-hover/title:opacity-100 hover:bg-slate-100 hover:text-slate-700 transition-opacity"
+                    title="Редактировать название"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Оплата — только менеджер выставляет, клиент видит как read-only бейдж */}
@@ -423,6 +575,30 @@ export function PortalRequestView({
               <Package className="h-3 w-3" />
               {shipped ? "Отгружено" : "Не отгружено"}
             </span>
+
+            {/* Готова к работе — клиент сам отмечает, что закончил редактировать.
+                Пока «Черновик» — правит свободно; «Готова к работе» — заморожено.
+                Снять отметку нельзя, если менеджер уже взял заявку в работу. */}
+            <button
+              type="button"
+              onClick={toggleFinalized}
+              disabled={finalizedSaving || finalizeLockedByManager}
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                finalized
+                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                  : "bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100"
+              } disabled:opacity-60`}
+              title={
+                finalizeLockedByManager
+                  ? "Заявка уже в работе у менеджера"
+                  : finalized
+                    ? "Готова к работе. Нажмите, чтобы вернуть в черновик и отредактировать."
+                    : "Нажмите, когда закончите редактировать — менеджер увидит, что заявку можно брать."
+              }
+            >
+              <Flag className="h-3 w-3" />
+              {finalized ? "Готова к работе" : "Черновик"}
+            </button>
 
             {/* Принято — ставит ответственный в кабинете клиента (toggle). */}
             <button
@@ -579,10 +755,11 @@ export function PortalRequestView({
         </div>
       </section>
 
-      {/* Чек-лист — пользователи ЛК ведут его сами (категории → подзадачи). */}
+      {/* Подзадачи — пользователи ЛК ведут их сами (категории → подзадачи).
+          В админ-виде блок называется так же, чтобы не путать клиента и менеджера. */}
       <section>
         <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <Check className="h-4 w-4 text-slate-400" /> Чек-лист
+          <Check className="h-4 w-4 text-slate-400" /> Подзадачи
         </h3>
         <RequestSubtasksPanel
           requestId={request.id}
@@ -701,6 +878,7 @@ export function PortalRequestView({
                 <input
                   ref={fileInputRef}
                   type="file"
+                  multiple
                   className="hidden"
                   onChange={handleUpload}
                 />
@@ -711,7 +889,12 @@ export function PortalRequestView({
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
                 >
-                  <Upload className="mr-1 h-4 w-4" /> {uploading ? "Загрузка..." : "Прикрепить чертёж"}
+                  <Upload className="mr-1 h-4 w-4" />{" "}
+                  {uploading
+                    ? uploadProgress
+                      ? `Загрузка ${uploadProgress.done} из ${uploadProgress.total}...`
+                      : "Загрузка..."
+                    : "Прикрепить чертежи"}
                 </Button>
               </>
             )}

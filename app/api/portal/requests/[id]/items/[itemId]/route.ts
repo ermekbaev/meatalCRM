@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling, parseBody, unauthorized, forbidden, notFound } from "@/lib/api-handler";
-import { getPortalRequestAccess } from "@/lib/acl";
+import { getPortalRequestAccess, isPortalRequestLockedForClient } from "@/lib/acl";
 import { portalRequestItemUpdateSchema } from "@/lib/validation";
 
 async function loadItem(requestId: string, itemId: string) {
@@ -16,9 +16,7 @@ async function loadItem(requestId: string, itemId: string) {
 }
 
 async function checkClientLock(requestId: string, role: string) {
-  if (role !== "CLIENT") return;
-  const req = await prisma.portalRequest.findUnique({ where: { id: requestId }, select: { status: true } });
-  if (req?.status === "IN_PROGRESS" || req?.status === "READY") {
+  if (await isPortalRequestLockedForClient(requestId, role)) {
     throw forbidden("Заявка в работе — редактирование недоступно");
   }
 }

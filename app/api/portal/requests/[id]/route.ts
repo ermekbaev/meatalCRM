@@ -45,7 +45,11 @@ export const GET = withErrorHandling(async (_req: NextRequest, { params }) => {
  *   - paymentStatus — могут все (клиент тоже): фактическая оплата ведётся на стороне клиента.
  *   - shipped       — только ADMIN/MANAGER (отгрузку фиксирует менеджер).
  *   - accepted      — только CLIENT (ответственный в кабинете подтверждает приёмку).
+ *   - finalized     — отметка «Готова к работе»: ставит клиент, когда закончил
+ *                     редактировать; замораживает его правки (можно снять и вернуться).
  *   - production    — клиент и менеджер.
+ *   - title/description — клиент и менеджер, но только пока заявка не в работе
+ *                     (общий `isLocked`-чек выше замораживает их при IN_PROGRESS/READY).
  */
 export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const session = await getServerSession(authOptions);
@@ -58,16 +62,21 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   const data = await parseBody(req, portalRequestUpdateSchema);
   const isClient = session.user.role === "CLIENT";
 
-  // Блокировка клиента: при статусе IN_PROGRESS или READY клиент не может
-  // ничего редактировать, кроме отметки «Принято» (acceptedAt).
+  // Блокировка клиента: при статусе IN_PROGRESS/READY или после собственной
+  // отметки «Готова к работе» (finalizedAt) клиент не может ничего редактировать,
+  // кроме отметки «Принято» (acceptedAt) и переключения «Готова к работе»
+  // (finalized) — последнее нужно, чтобы вернуться к черновику и снова править.
   if (isClient) {
     const current = await prisma.portalRequest.findUnique({
       where: { id },
-      select: { status: true },
+      select: { status: true, finalizedAt: true },
     });
-    const locked = current?.status === "IN_PROGRESS" || current?.status === "READY";
-    const onlyAccepted = Object.keys(data).every((k) => k === "accepted");
-    if (locked && !onlyAccepted) {
+    const locked =
+      current?.status === "IN_PROGRESS" ||
+      current?.status === "READY" ||
+      current?.finalizedAt != null;
+    const onlyToggles = Object.keys(data).every((k) => k === "accepted" || k === "finalized");
+    if (locked && !onlyToggles) {
       throw forbidden("Заявка в работе — редактирование недоступно");
     }
   }
@@ -81,9 +90,6 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   if (data.accepted !== undefined && !isClient) {
     throw forbidden("Отметку «принято» ставит ответственный в кабинете клиента");
   }
-  if (data.title !== undefined && isClient) {
-    throw forbidden("Изменить название может только менеджер");
-  }
 
   // Собираем только присланные поля — не затираем то, чего нет в теле.
   const patch: Record<string, unknown> = {};
@@ -93,6 +99,7 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   if (data.paymentStatus !== undefined) patch.paymentStatus = data.paymentStatus;
   if (data.shipped !== undefined) patch.shippedAt = data.shipped ? new Date() : null;
   if (data.accepted !== undefined) patch.acceptedAt = data.accepted ? new Date() : null;
+  if (data.finalized !== undefined) patch.finalizedAt = data.finalized ? new Date() : null;
   if (data.description !== undefined) {
     const trimmed = typeof data.description === "string" ? data.description.trim() : null;
     patch.description = trimmed ? trimmed : null;
@@ -120,6 +127,7 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
       paymentStatus: true,
       shippedAt: true,
       acceptedAt: true,
+      finalizedAt: true,
       description: true,
       updatedAt: true,
       laserStatus: true,

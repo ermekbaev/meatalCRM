@@ -48,6 +48,7 @@ export default function TaskDetailPage() {
 
   // Файлы
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Теги
@@ -144,15 +145,26 @@ export default function TaskDetailPage() {
   };
 
   // --- Файлы ---
-  const uploadFile = async (file: File) => {
+  const uploadFiles = async (selected: File[]) => {
+    if (selected.length === 0) return;
     setUploadingFile(true);
-    try {
-      const record = await uploadViaPresign<any>(`/api/tasks/${params.id}/files`, file);
-      setTask((prev: any) => ({ ...prev, files: [...(prev.files ?? []), record] }));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Не удалось загрузить файл");
+    setUploadProgress({ done: 0, total: selected.length });
+    const failed: string[] = [];
+    for (let i = 0; i < selected.length; i++) {
+      const file = selected[i];
+      try {
+        const record = await uploadViaPresign<any>(`/api/tasks/${params.id}/files`, file);
+        setTask((prev: any) => ({ ...prev, files: [...(prev.files ?? []), record] }));
+      } catch (err) {
+        failed.push(`${file.name}: ${err instanceof Error ? err.message : "ошибка"}`);
+      }
+      setUploadProgress({ done: i + 1, total: selected.length });
     }
     setUploadingFile(false);
+    setUploadProgress(null);
+    if (failed.length > 0) {
+      alert(`Не удалось загрузить ${failed.length} из ${selected.length}:\n${failed.join("\n")}`);
+    }
   };
 
   const deleteFile = async (fileId: string) => {
@@ -894,15 +906,16 @@ export default function TaskDetailPage() {
                       className="h-8"
                     >
                       {uploadingFile ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
-                      Загрузить
+                      {uploadingFile && uploadProgress ? `Загрузка ${uploadProgress.done} из ${uploadProgress.total}` : "Загрузить"}
                     </Button>
                   )}
                   <input
                     ref={fileInputRef}
                     type="file"
+                    multiple
                     className="hidden"
                     accept="image/*,.pdf,.dxf,.rar,.zip,.doc,.docx,.xls,.xlsx"
-                    onChange={(e) => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ""; }}
+                    onChange={(e) => { uploadFiles(Array.from(e.target.files ?? [])); e.target.value = ""; }}
                   />
                 </div>
               </CardHeader>

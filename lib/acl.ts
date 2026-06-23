@@ -59,9 +59,11 @@ export async function getPortalRequestAccess(
 }
 
 /**
- * Для CLIENT: заявка в статусе «В работе» / «Готова» блокирует любое редактирование
- * (включая чек-листы). Менеджеры/админы не ограничены. Возвращает true, если
- * клиенту нужно запретить изменение.
+ * Для CLIENT: редактирование заявки замораживается, если
+ *  - статус «В работе» / «Готова» (менеджер взял заявку), ИЛИ
+ *  - клиент сам отметил «Готова к работе» (finalizedAt проставлен).
+ * В обоих случаях любое изменение (включая подзадачи, позиции, файлы) запрещено.
+ * Менеджеры/админы не ограничены. Возвращает true, если клиенту нужно запретить.
  */
 export async function isPortalRequestLockedForClient(
   requestId: string,
@@ -70,9 +72,9 @@ export async function isPortalRequestLockedForClient(
   if (role !== "CLIENT") return false;
   const r = await prisma.portalRequest.findUnique({
     where: { id: requestId },
-    select: { status: true },
+    select: { status: true, finalizedAt: true },
   });
-  return r?.status === "IN_PROGRESS" || r?.status === "READY";
+  return r?.status === "IN_PROGRESS" || r?.status === "READY" || r?.finalizedAt != null;
 }
 // Видит только задачи, где он среди исполнителей. CONTRACTOR — только read-only.
 export const isAssigneeRole = (role: Role) =>

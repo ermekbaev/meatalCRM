@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Archive, Check, Factory, FileText, MessageSquare } from "lucide-react";
+import { ArrowLeft, ArrowRight, Archive, Check, Factory, FileText, Flag, MessageSquare } from "lucide-react";
 import { formatDate, formatCurrency, PORTAL_PRODUCTION_FIELDS } from "@/lib/utils";
 import { PortalStatusPicker } from "./PortalStatusPicker";
 import { PortalPaymentPicker } from "./PortalPaymentPicker";
@@ -110,6 +110,23 @@ export default async function PortalRequestViewPage({
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {/* Сигнал готовности от клиента: пока «Черновик» — клиент ещё правит
+                  заявку, брать в работу рано; «Готова к работе» — можно брать. */}
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  request.finalizedAt
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                }`}
+                title={
+                  request.finalizedAt
+                    ? `Клиент отметил «Готова к работе» ${formatDate(request.finalizedAt)} — можно брать`
+                    : "Клиент ещё редактирует заявку (черновик)"
+                }
+              >
+                <Flag className="h-3 w-3" />
+                {request.finalizedAt ? "Готова к работе" : "Черновик у клиента"}
+              </span>
               <PortalPaymentPicker requestId={request.id} initial={request.paymentStatus} />
               <PortalShippedToggle requestId={request.id} initial={request.shippedAt != null} />
               <span
