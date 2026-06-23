@@ -920,7 +920,7 @@ export default function TaskDetailPage() {
                           {formatFileSize(file.size)} · {file.uploadedBy?.name} · {formatDate(file.createdAt)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1">
                         <a href={`/api/files?key=${encodeURIComponent(file.filename)}&name=${encodeURIComponent(file.originalName)}`}>
                           <Button size="icon" variant="ghost" className="h-7 w-7">
                             <Download className="h-3.5 w-3.5" />
