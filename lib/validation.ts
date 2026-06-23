@@ -93,7 +93,10 @@ export const clientCreateSchema = z.object({
   bankBik: optStr,
   bankCorAccount: optStr,
 });
-export const clientUpdateSchema = clientCreateSchema.partial();
+export const clientUpdateSchema = clientCreateSchema.partial().extend({
+  // Статус отношений (воронка обзвона) — меняется из карточки контрагента.
+  relationStatus: z.enum(["NEW", "IN_WORK", "THINKING", "WON", "LOST"]).optional(),
+});
 
 // ─── Request items ────────────────────────────────────────────────────────────
 export const requestItemSchema = z.object({
@@ -559,4 +562,24 @@ export const clientPositionFolderSchema = z.object({
 export const pushSubscribeSchema = z.object({
   endpoint: z.string().url(),
   keys: z.object({ p256dh: z.string().min(1), auth: z.string().min(1) }),
+});
+
+// ─── Напоминания/обзвон (FollowUp) ────────────────────────────────────────────
+const followUpResultEnum = z.enum(["REACHED", "NO_ANSWER", "CALL_BACK", "REFUSED", "AGREED"]);
+
+export const followUpCreateSchema = z.object({
+  clientId: z.string().min(1, "Не указан контрагент"),
+  requestId: z.string().nullish(),
+  assigneeId: z.string().nullish(),
+  // ISO-строка даты/времени (из <input type="date"> или datetime).
+  dueDate: z.string().min(1, "Укажите дату"),
+  note: z.string().trim().max(2000).nullish(),
+});
+
+export const followUpUpdateSchema = z.object({
+  status: z.enum(["PENDING", "DONE", "CANCELLED"]).optional(),
+  result: followUpResultEnum.nullish(),
+  note: z.string().trim().max(2000).nullish(),
+  dueDate: z.string().min(1).optional(),
+  assigneeId: z.string().nullish(),
 });

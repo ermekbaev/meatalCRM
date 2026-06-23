@@ -8,7 +8,7 @@ import { AvatarDialog } from "./AvatarDialog";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, LogOut, Factory, BookOpen, ChevronRight, Calculator,
-  Layers, Scissors, Box, BarChart2, Receipt, Warehouse, Building2,
+  Layers, Scissors, Box, BarChart2, Receipt, Warehouse, Building2, PhoneCall,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { href: "/requests",   label: "Заявки",       icon: ClipboardList },
   { href: "/tasks",      label: "Задачи",        icon: CheckSquare, foreman: true },
   { href: "/clients",    label: "Контрагенты",  icon: Users },
+  { href: "/followups",  label: "Обзвон",        icon: PhoneCall },
   { href: "/offers",     label: "КП",            icon: FileText },
   { href: "/invoices",   label: "Счета",         icon: Receipt },
   { href: "/analytics",  label: "Аналитика",    icon: BarChart2 },
@@ -47,27 +48,34 @@ export function Sidebar() {
   const { data: session } = useSession();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [newPortalCount, setNewPortalCount] = useState(0);
+  const [followupCount, setFollowupCount] = useState(0);
   const role = session?.user?.role;
   const isAdmin = role === "ADMIN";
   const isManager = role === "MANAGER";
   const isForeman = role === "FOREMAN";
   const visibleNav = isForeman ? navItems.filter((i) => i.foreman) : navItems;
 
-  const fetchNewCount = useCallback(async () => {
+  const fetchCounts = useCallback(async () => {
     if (!isAdmin && !isManager) return;
     try {
-      const res = await fetch("/api/portal/new-count");
-      if (!res.ok) return;
-      const data = await res.json();
-      setNewPortalCount(data.count ?? 0);
+      const [portalRes, followRes] = await Promise.all([
+        fetch("/api/portal/new-count"),
+        // Заодно триггерит ленивую рассылку напоминаний «пора звонить».
+        fetch("/api/followups/count"),
+      ]);
+      if (portalRes.ok) setNewPortalCount((await portalRes.json()).count ?? 0);
+      if (followRes.ok) {
+        const d = await followRes.json();
+        setFollowupCount((d.overdue ?? 0) + (d.today ?? 0));
+      }
     } catch {}
   }, [isAdmin, isManager]);
 
   useEffect(() => {
-    fetchNewCount();
-    const t = setInterval(fetchNewCount, NEW_POLL_MS);
+    fetchCounts();
+    const t = setInterval(fetchCounts, NEW_POLL_MS);
     return () => clearInterval(t);
-  }, [fetchNewCount, pathname]);
+  }, [fetchCounts, pathname]);
 
   return (
     <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-[#212121] border-r border-white/10">
@@ -115,7 +123,18 @@ export function Sidebar() {
                   {newPortalCount}
                 </span>
               )}
-              {active && item.href !== "/companies" && (
+              {item.href === "/followups" && followupCount > 0 && (
+                <span
+                  className={cn(
+                    "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                    active ? "bg-white text-orange-600" : "bg-rose-500 text-white"
+                  )}
+                  title="Звонки на сегодня и просроченные"
+                >
+                  {followupCount}
+                </span>
+              )}
+              {active && item.href !== "/companies" && item.href !== "/followups" && (
                 <ChevronRight className="ml-auto h-3 w-3 text-white/40" />
               )}
             </Link>

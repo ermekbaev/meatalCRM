@@ -133,6 +133,34 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
               link: `/requests/${id}`,
             });
           }
+
+          // Автоматизация обзвона: заявку отменили → чтобы не забыть клиента,
+          // ставим напоминание «перезвонить через 3 дня» и помечаем контрагента
+          // как «думает» (если он ещё не в финальном статусе WON/LOST).
+          if (newVal === "CANCELLED" && oldVal !== "CANCELLED") {
+            try {
+              const dueDate = new Date();
+              dueDate.setDate(dueDate.getDate() + 3);
+              await prisma.followUp.create({
+                data: {
+                  clientId: updated.clientId,
+                  requestId: id,
+                  assigneeId: updated.assigneeId ?? old.createdById ?? userId,
+                  createdById: userId,
+                  dueDate,
+                  note: `Заявка #${updated.number} отменена — перезвонить клиенту`,
+                },
+              });
+              if (updated.client.relationStatus === "NEW" || updated.client.relationStatus === "IN_WORK") {
+                await prisma.client.update({
+                  where: { id: updated.clientId },
+                  data: { relationStatus: "THINKING" },
+                });
+              }
+            } catch {
+              // Автоматизация не должна ронять основной сценарий обновления.
+            }
+          }
         }
         if (field === "assigneeId" && newVal && newVal !== userId) {
           await createNotification({

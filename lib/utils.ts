@@ -98,6 +98,37 @@ export const CLIENT_TYPE_LABELS: Record<string, string> = {
   COMPANY: "Юр. лицо",
 };
 
+// ─── Воронка обзвона (ClientRelationStatus) и итоги звонка (FollowUpResult) ───
+export const CLIENT_RELATION_STATUS_LABELS: Record<string, string> = {
+  NEW:      "Новый",
+  IN_WORK:  "В работе",
+  THINKING: "Думает",
+  WON:      "Согласился",
+  LOST:     "Отказался",
+};
+export const CLIENT_RELATION_STATUS_COLORS: Record<string, string> = {
+  NEW:      "bg-blue-100 text-blue-700",
+  IN_WORK:  "bg-amber-100 text-amber-700",
+  THINKING: "bg-violet-100 text-violet-700",
+  WON:      "bg-emerald-100 text-emerald-700",
+  LOST:     "bg-slate-200 text-slate-600",
+};
+
+export const FOLLOWUP_RESULT_LABELS: Record<string, string> = {
+  REACHED:   "Дозвонились",
+  NO_ANSWER: "Не берёт трубку",
+  CALL_BACK: "Просил перезвонить",
+  REFUSED:   "Отказался",
+  AGREED:    "Согласился",
+};
+export const FOLLOWUP_RESULT_COLORS: Record<string, string> = {
+  REACHED:   "bg-sky-100 text-sky-700",
+  NO_ANSWER: "bg-slate-100 text-slate-600",
+  CALL_BACK: "bg-amber-100 text-amber-700",
+  REFUSED:   "bg-rose-100 text-rose-700",
+  AGREED:    "bg-emerald-100 text-emerald-700",
+};
+
 // Используется для подзадач (enum TaskStatus). Статусы задач теперь динамические — см. TaskColumn.
 export const TASK_STATUS_LABELS: Record<string, string> = {
   TODO:             "К выполнению",

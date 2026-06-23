@@ -44,6 +44,8 @@ model User {
   portalRequests        PortalRequest[]    @relation("PortalRequestCreatedBy")
   portalComments        PortalComment[]
   portalFiles           PortalFile[]
+  followUpsAssigned     FollowUp[]         @relation("FollowUpAssignee")
+  followUpsCreated      FollowUp[]         @relation("FollowUpCreatedBy")
 }
 
 model Client {
@@ -75,10 +77,13 @@ model Client {
   managerId       String?
   manager         User?             @relation("ClientManager", fields: [managerId], references: [id], onDelete: SetNull)
   isPortalEnabled Boolean           @default(false)
+  // Статус отношений (воронка обзвона). По умолчанию NEW.
+  relationStatus  ClientRelationStatus @default(NEW)
   portalUsers     User[]            @relation("CompanyUsers")
   portalRequests        PortalRequest[]
   clientPositions       ClientPosition[]
   clientPositionFolders ClientPositionFolder[]
+  followUps             FollowUp[]
 }
 
 model Request {
@@ -118,6 +123,7 @@ model Request {
   files              RequestFile[]
   items              RequestItem[]
   subtaskCategories  RequestSubtaskCategory[]
+  followUps          FollowUp[]
 }
 
 model RequestSubtaskCategory {
@@ -558,6 +564,31 @@ enum NotificationType {
   REQUEST_ASSIGNED
   PORTAL_REQUEST_CREATED
   PORTAL_CHANGE_REQUEST
+  FOLLOWUP_DUE
+}
+
+// Статус отношений с контрагентом — лёгкая воронка для обзвона.
+enum ClientRelationStatus {
+  NEW       // новый, ещё не в работе
+  IN_WORK   // ведём, активная работа
+  THINKING  // думает / отложил решение (напр. после отмены заявки)
+  WON       // согласился / заказ состоялся
+  LOST      // отказался окончательно
+}
+
+enum FollowUpStatus {
+  PENDING   // запланировано
+  DONE      // выполнено (позвонили)
+  CANCELLED // отменено
+}
+
+// Итог звонка/контакта.
+enum FollowUpResult {
+  REACHED    // дозвонились
+  NO_ANSWER  // не берёт трубку
+  CALL_BACK  // просил перезвонить
+  REFUSED    // отказался
+  AGREED     // согласился
 }
 
 enum PortalRequestStatus {
@@ -766,4 +797,32 @@ model ClientPositionFolder {
   positions ClientPosition[]
 
   @@index([companyId])
+}
+
+// Напоминание/звонок по контрагенту — для системы обзвона.
+// Менеджер планирует звонок (dueDate), потом отмечает результат (result) и
+// закрывает (status=DONE). История звонков по клиенту — это его FollowUp'ы.
+model FollowUp {
+  id          String          @id @default(cuid())
+  clientId    String
+  requestId   String?         // опционально — звонок по конкретной заявке
+  assigneeId  String?         // ответственный за звонок (ADMIN/MANAGER)
+  createdById String?
+  dueDate     DateTime        // когда напомнить/позвонить
+  status      FollowUpStatus  @default(PENDING)
+  result      FollowUpResult? // итог звонка (заполняется при закрытии)
+  note        String?         // пометка: о чём звонить / что обсудили
+  completedAt DateTime?
+  // Когда отправили пуш «пора звонить» — для идемпотентности рассылки.
+  notifiedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  client      Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  request     Request?        @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  assignee    User?           @relation("FollowUpAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy   User?           @relation("FollowUpCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([assigneeId, status, dueDate])
+  @@index([clientId, createdAt])
+  @@index([status, dueDate, notifiedAt])
 }

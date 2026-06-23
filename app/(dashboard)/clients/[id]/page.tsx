@@ -1,13 +1,16 @@
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CLIENT_TYPE_LABELS, formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { ArrowLeft, Building2, User, Phone, Mail, MapPin, Hash, MessageSquare, Globe, Landmark } from "lucide-react";
+import { ArrowLeft, Building2, User, Phone, Mail, MapPin, Hash, MessageSquare, Globe, Landmark, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClientRequestsList } from "./ClientRequestsList";
+import { ClientFollowUps } from "./ClientFollowUps";
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
@@ -21,26 +24,43 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = await prisma.client.findUnique({
-    where: { id },
-    include: {
-      requests: {
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          number: true,
-          title: true,
-          status: true,
-          priority: true,
-          paymentStatus: true,
-          amount: true,
-          lockedAt: true,
-          createdAt: true,
-          assignee: { select: { id: true, name: true } },
+  const session = await getServerSession(authOptions);
+  const [client, followUps, users] = await Promise.all([
+    prisma.client.findUnique({
+      where: { id },
+      include: {
+        requests: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            status: true,
+            priority: true,
+            paymentStatus: true,
+            amount: true,
+            lockedAt: true,
+            createdAt: true,
+            assignee: { select: { id: true, name: true } },
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.followUp.findMany({
+      where: { clientId: id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        assignee: { select: { id: true, name: true } },
+        request: { select: { id: true, number: true, title: true } },
+      },
+    }),
+    // Кандидаты в ответственные за звонок — внутренние роли.
+    prisma.user.findMany({
+      where: { isBlocked: false, role: { in: ["ADMIN", "MANAGER"] } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   if (!client) notFound();
 
@@ -155,8 +175,35 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             )}
           </div>
 
-          {/* Правая колонка — заявки */}
+          {/* Правая колонка — обзвон и заявки */}
           <div className="lg:col-span-2 space-y-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <PhoneCall className="h-3.5 w-3.5" /> Обзвон и напоминания
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ClientFollowUps
+                  clientId={client.id}
+                  initialRelationStatus={client.relationStatus}
+                  currentUserId={session?.user?.id ?? ""}
+                  users={users}
+                  initialFollowUps={followUps.map((f) => ({
+                    id: f.id,
+                    dueDate: f.dueDate.toISOString(),
+                    status: f.status,
+                    result: f.result,
+                    note: f.note,
+                    completedAt: f.completedAt ? f.completedAt.toISOString() : null,
+                    createdAt: f.createdAt.toISOString(),
+                    assignee: f.assignee,
+                    request: f.request,
+                  }))}
+                />
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-semibold text-slate-500 uppercase tracking-widest">
