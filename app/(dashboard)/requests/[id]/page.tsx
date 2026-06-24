@@ -65,6 +65,7 @@ export default function RequestDetailPage() {
   const [saving, setSaving] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
+  const [invoice1cValue, setInvoice1cValue] = useState("");
   const [comment, setComment] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
@@ -85,6 +86,7 @@ export default function RequestDetailPage() {
     const data = await res.json();
     setRequest(data);
     setItems(data.items ?? []);
+    setInvoice1cValue(data.invoiceNumber1c ?? "");
     setLoading(false);
   }, [params.id]);
 
@@ -1076,6 +1078,25 @@ export default function RequestDetailPage() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Номер счёта 1С */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-500">
+                    Номер счёта 1С
+                  </p>
+                  <Input
+                    value={invoice1cValue}
+                    onChange={(e) => setInvoice1cValue(e.target.value)}
+                    onBlur={() => {
+                      const next = invoice1cValue.trim();
+                      if (next !== (request.invoiceNumber1c ?? "")) {
+                        updateField("invoiceNumber1c", next || null);
+                      }
+                    }}
+                    placeholder="напр. СЧ-0001"
+                    disabled={isEmployee}
+                  />
                 </div>
 
                 {subtotal > 0 && (

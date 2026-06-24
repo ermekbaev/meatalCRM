@@ -68,6 +68,7 @@ export default function NewRequestPage() {
       priority: "MEDIUM",
       clientId: clientId ?? "",
       assigneeId: "",
+      invoiceNumber1c: "",
       items: [] as any[],
       // Производственные подстатусы (как в просмотре заявки). null = «не указано».
       hasMetal: null as string | null,
@@ -190,6 +191,7 @@ export default function NewRequestPage() {
       assigneeId: data.assigneeId || null,
       amount: amount || null,
       vatIncluded,
+      invoiceNumber1c: data.invoiceNumber1c?.trim() || null,
       hasMetal: data.hasMetal,
       metalOwner: data.metalOwner,
       laserStatus: data.laserStatus,
@@ -627,6 +629,13 @@ export default function NewRequestPage() {
                     users={users}
                     value={watch("assigneeId") || null}
                     onChange={(id) => setValue("assigneeId", id ?? "", { shouldDirty: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Номер счёта 1С</Label>
+                  <Input
+                    {...register("invoiceNumber1c")}
+                    placeholder="напр. СЧ-0001"
                   />
                 </div>
                 {/* НДС */}

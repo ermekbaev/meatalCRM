@@ -101,6 +101,7 @@ model Request {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   vatIncluded        Boolean           @default(false)
+  invoiceNumber1c    String?
   paymentMethod      String?
   paymentStatus      PaymentStatus     @default(NONE)
   hasMetal           String?
