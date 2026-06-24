@@ -18,9 +18,9 @@ async function loadImageBase64(key: string): Promise<string | null> {
   }
 }
 
-import type { OfferForPdf, OfferItemForPdf, CompanyForPdf } from "./pdf-types";
+import type { OfferForPdf, OfferItemForPdf, CompanyForPdf, PdfOutput } from "./pdf-types";
 
-export async function generateOfferPDF(offer: OfferForPdf, company?: CompanyForPdf) {
+export async function generateOfferPDF(offer: OfferForPdf, company?: CompanyForPdf, mode: PdfOutput = "save"): Promise<string | void> {
   const subtotal = offer.items.reduce((s: number, i: OfferItemForPdf) => s + i.total, 0);
   const afterDiscount =
     offer.discount > 0 ? subtotal * (1 - offer.discount / 100) : subtotal;
@@ -246,6 +246,7 @@ export async function generateOfferPDF(offer: OfferForPdf, company?: CompanyForP
       }
     }
 
+    if (mode === "bloburl") return pdf.output("bloburl") as unknown as string;
     pdf.save(`KP-${offer.numberOverride ?? offer.number}.pdf`);
   } finally {
     document.body.removeChild(container);

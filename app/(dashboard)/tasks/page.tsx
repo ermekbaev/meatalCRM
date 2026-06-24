@@ -14,6 +14,7 @@ import { StatusMultiSelect } from "@/components/ui/status-multi-select";
 import { PRIORITY_LABELS, PRIORITY_COLORS, TASK_PRODUCTION_FIELDS, formatDate, hexToBadgeStyle } from "@/lib/utils";
 import { Building2, Check, Factory, Loader2, Plus, Printer, Search, Settings, Trash2, Eye, Users, GripVertical, X, Columns3, Pencil, Archive, ArchiveRestore, ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { FilePreviewModal, type PreviewFile } from "@/components/ui/file-preview-modal";
 import { Avatar } from "@/components/ui/avatar";
 import {
   DndContext,
@@ -99,6 +100,8 @@ export default function TasksPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printingBulk, setPrintingBulk] = useState(false);
+  const [previewingBulk, setPreviewingBulk] = useState(false);
+  const [bulkPreview, setBulkPreview] = useState<PreviewFile | null>(null);
   // Бейджи «новых» задач на табах цехов. Per-tab timestamp последнего просмотра.
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({});
   const [seenLoaded, setSeenLoaded] = useState(false);
@@ -390,22 +393,40 @@ export default function TasksPage() {
     setSelectedIds(new Set());
   };
 
+  const buildBulkPdf = async (mode: "save" | "bloburl") => {
+    const ids = Array.from(selectedIds);
+    const [company, ...fullTasks] = await Promise.all([
+      fetch("/api/settings/company").then((r) => r.ok ? r.json() : null).catch(() => null),
+      ...ids.map((id) => fetch(`/api/tasks/${id}`).then((r) => r.ok ? r.json() : null).catch(() => null)),
+    ]);
+    const tasksToPrint = fullTasks.filter(Boolean);
+    if (tasksToPrint.length === 0) return undefined;
+    const { generateProductionBulkPDF } = await import("@/lib/production-pdf");
+    return generateProductionBulkPDF(tasksToPrint, company, mode);
+  };
+
   const printSelected = async () => {
     if (selectedIds.size === 0) return;
     setPrintingBulk(true);
     try {
-      const ids = Array.from(selectedIds);
-      const [company, ...fullTasks] = await Promise.all([
-        fetch("/api/settings/company").then((r) => r.ok ? r.json() : null).catch(() => null),
-        ...ids.map((id) => fetch(`/api/tasks/${id}`).then((r) => r.ok ? r.json() : null).catch(() => null)),
-      ]);
-      const tasksToPrint = fullTasks.filter(Boolean);
-      if (tasksToPrint.length === 0) return;
-      const { generateProductionBulkPDF } = await import("@/lib/production-pdf");
-      await generateProductionBulkPDF(tasksToPrint, company);
+      await buildBulkPdf("save");
       exitSelectMode();
     } finally {
       setPrintingBulk(false);
+    }
+  };
+
+  const previewSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setPreviewingBulk(true);
+    try {
+      const url = await buildBulkPdf("bloburl");
+      if (typeof url === "string") {
+        const dateStr = new Date().toISOString().slice(0, 10);
+        setBulkPreview({ name: `Задания-${selectedIds.size}шт-${dateStr}.pdf`, url, mimeType: "application/pdf" });
+      }
+    } finally {
+      setPreviewingBulk(false);
     }
   };
 
@@ -674,8 +695,20 @@ export default function TasksPage() {
                 <Button
                   variant="outline"
                   className="flex-1 sm:flex-none"
+                  onClick={previewSelected}
+                  disabled={previewingBulk || printingBulk || selectedIds.size === 0}
+                >
+                  {previewingBulk
+                    ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    : <Eye className="mr-2 h-4 w-4" />
+                  }
+                  Просмотр
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 sm:flex-none"
                   onClick={printSelected}
-                  disabled={printingBulk || selectedIds.size === 0}
+                  disabled={printingBulk || previewingBulk || selectedIds.size === 0}
                 >
                   {printingBulk
                     ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1142,6 +1175,7 @@ export default function TasksPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <FilePreviewModal file={bulkPreview} onClose={() => setBulkPreview(null)} />
     </div>
   );
 }

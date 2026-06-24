@@ -2,7 +2,9 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Download, ExternalLink, FileQuestion } from "lucide-react";
 
-export type PreviewFile = { key: string; name: string; mimeType?: string | null };
+// `key` — файл в хранилище (тянется через /api/files). Либо `url` — готовая
+// ссылка (напр. blob-URL сгенерированного PDF), тогда хранилище не задействуется.
+export type PreviewFile = { key?: string; name: string; mimeType?: string | null; url?: string };
 
 const IMAGE_EXT = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"];
 
@@ -41,9 +43,11 @@ export function FilePreviewModal({
   onClose: () => void;
 }) {
   const open = file != null;
-  const viewUrl = file ? `/api/files?key=${encodeURIComponent(file.key)}&view=1` : "";
+  const viewUrl = file
+    ? file.url ?? `/api/files?key=${encodeURIComponent(file.key ?? "")}&view=1`
+    : "";
   const downloadUrl = file
-    ? `/api/files?key=${encodeURIComponent(file.key)}&name=${encodeURIComponent(file.name)}`
+    ? file.url ?? `/api/files?key=${encodeURIComponent(file.key ?? "")}&name=${encodeURIComponent(file.name)}`
     : "";
   const kind = file ? previewKind(file.name, file.mimeType) : null;
 
@@ -66,6 +70,7 @@ export function FilePreviewModal({
             </a>
             <a
               href={downloadUrl}
+              download={file?.name}
               title="Скачать"
               className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >

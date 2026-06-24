@@ -151,9 +151,9 @@ function fmtDate(d: string | Date): string {
   });
 }
 
-import type { InvoiceForPdf, InvoiceItemForPdf, CompanyForPdf } from "./pdf-types";
+import type { InvoiceForPdf, InvoiceItemForPdf, CompanyForPdf, PdfOutput } from "./pdf-types";
 
-export async function generateInvoicePDF(invoice: InvoiceForPdf, company: CompanyForPdf | null | undefined) {
+export async function generateInvoicePDF(invoice: InvoiceForPdf, company: CompanyForPdf | null | undefined, mode: PdfOutput = "save"): Promise<string | void> {
   const subtotal = invoice.items.reduce((s: number, i: InvoiceItemForPdf) => s + i.total, 0);
   const vatRate = invoice.vatRate ?? 0;
   const vatAmount = vatRate > 0 ? subtotal * (vatRate / 100) : 0;
@@ -444,6 +444,7 @@ export async function generateInvoicePDF(invoice: InvoiceForPdf, company: Compan
       }
     }
 
+    if (mode === "bloburl") return pdf.output("bloburl") as unknown as string;
     pdf.save(`Счёт-${invoice.numberOverride ?? invoice.number}.pdf`);
   } finally {
     document.body.removeChild(container);

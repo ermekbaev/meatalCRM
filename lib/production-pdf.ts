@@ -1,5 +1,5 @@
 import { PRIORITY_LABELS } from "./utils";
-import type { TaskForPdf, SubtaskForPdf, CompanyForPdf } from "./pdf-types";
+import type { TaskForPdf, SubtaskForPdf, CompanyForPdf, PdfOutput } from "./pdf-types";
 
 type TaskColumn = { key: string; name: string };
 
@@ -207,15 +207,16 @@ async function renderTaskToPdf(pdf: JsPdfInstance, html: string, isFirstPage: bo
   }
 }
 
-export async function generateProductionPDF(task: TaskForPdf, company: CompanyForPdf | null | undefined) {
+export async function generateProductionPDF(task: TaskForPdf, company: CompanyForPdf | null | undefined, mode: PdfOutput = "save"): Promise<string | void> {
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "mm", "a4");
   const statusLabels = await fetchColumnLabels();
   await renderTaskToPdf(pdf, buildTaskHtml(task, company, statusLabels), true);
+  if (mode === "bloburl") return pdf.output("bloburl") as unknown as string;
   pdf.save(`Задание-${task.title?.slice(0, 40) ?? task.id}.pdf`);
 }
 
-export async function generateProductionBulkPDF(tasks: TaskForPdf[], company: CompanyForPdf | null | undefined) {
+export async function generateProductionBulkPDF(tasks: TaskForPdf[], company: CompanyForPdf | null | undefined, mode: PdfOutput = "save"): Promise<string | void> {
   if (tasks.length === 0) return;
   const { default: jsPDF } = await import("jspdf");
   const pdf = new jsPDF("p", "mm", "a4");
@@ -224,5 +225,6 @@ export async function generateProductionBulkPDF(tasks: TaskForPdf[], company: Co
     await renderTaskToPdf(pdf, buildTaskHtml(tasks[i], company, statusLabels), i === 0);
   }
   const dateStr = new Date().toISOString().slice(0, 10);
+  if (mode === "bloburl") return pdf.output("bloburl") as unknown as string;
   pdf.save(`Задания-${tasks.length}шт-${dateStr}.pdf`);
 }

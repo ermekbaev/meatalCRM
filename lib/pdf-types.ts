@@ -7,6 +7,13 @@
  * только то, что PDF фактически читает (минимизирует связность).
  */
 
+/**
+ * Режим вывода генераторов PDF:
+ *  - "save"    — скачать файл (поведение по умолчанию);
+ *  - "bloburl" — не скачивать, вернуть blob-URL для предпросмотра в модалке.
+ */
+export type PdfOutput = "save" | "bloburl";
+
 export type CompanyForPdf = {
   name?: string | null;
   shortName?: string | null;

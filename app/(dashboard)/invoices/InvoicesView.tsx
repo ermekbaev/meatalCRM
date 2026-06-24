@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, FileText, Download, Search, Loader2 } from "lucide-react";
+import { Plus, FileText, Download, Search, Loader2, Eye } from "lucide-react";
+import { FilePreviewModal, type PreviewFile } from "@/components/ui/file-preview-modal";
 import Link from "next/link";
 import { formatDate, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,6 +33,8 @@ export function InvoicesView({
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
   const [company, setCompany] = useState<any>(null);
 
   // Сброс на первую страницу при изменении поиска.
@@ -78,6 +81,21 @@ export function InvoicesView({
       await generateInvoicePDF(fullInv, company);
     } finally {
       setExportingId(null);
+    }
+  };
+
+  const handlePreview = async (e: React.MouseEvent, inv: any) => {
+    e.preventDefault();
+    setPreviewingId(inv.id);
+    try {
+      const { generateInvoicePDF } = await import("@/lib/invoice-pdf");
+      const fullInv = await fetch(`/api/invoices/${inv.id}`).then((r) => r.json());
+      const url = await generateInvoicePDF(fullInv, company, "bloburl");
+      if (typeof url === "string") {
+        setPreviewFile({ name: `Счёт-${inv.numberOverride ?? inv.number}.pdf`, url, mimeType: "application/pdf" });
+      }
+    } finally {
+      setPreviewingId(null);
     }
   };
 
@@ -149,7 +167,19 @@ export function InvoicesView({
                       {PAYMENT_STATUS_LABELS[inv.paymentStatus ?? "WAITING"]}
                     </span>
                   </div>
-                  <div className="mt-2 flex justify-end">
+                  <div className="mt-2 flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      onClick={(e) => handlePreview(e, inv)}
+                      disabled={previewingId === inv.id}
+                    >
+                      {previewingId === inv.id
+                        ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        : <Eye className="mr-1.5 h-3.5 w-3.5" />}
+                      Просмотр
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -230,17 +260,32 @@ export function InvoicesView({
                         {fmt(total)} ₽
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-gray-500 hover:text-orange-600"
-                          onClick={(e) => handleExport(e, inv)}
-                          disabled={exportingId === inv.id}
-                        >
-                          {exportingId === inv.id
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <Download className="h-3.5 w-3.5" />}
-                        </Button>
+                        <div className="flex items-center justify-center gap-0.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-gray-500 hover:text-orange-600"
+                            onClick={(e) => handlePreview(e, inv)}
+                            disabled={previewingId === inv.id}
+                            title="Просмотр PDF"
+                          >
+                            {previewingId === inv.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Eye className="h-3.5 w-3.5" />}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-gray-500 hover:text-orange-600"
+                            onClick={(e) => handleExport(e, inv)}
+                            disabled={exportingId === inv.id}
+                            title="Скачать PDF"
+                          >
+                            {exportingId === inv.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Download className="h-3.5 w-3.5" />}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -258,6 +303,7 @@ export function InvoicesView({
           </>
         )}
       </div>
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
     </div>
   );
 }

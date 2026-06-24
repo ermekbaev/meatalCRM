@@ -12,7 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Plus, Trash2, Loader2, Building2, ClipboardCheck, X, BookOpen, Search, FileDown } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2, Building2, ClipboardCheck, X, BookOpen, Search } from "lucide-react";
+import { PdfDocButtons } from "@/components/PdfDocButtons";
 import Link from "next/link";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 
@@ -32,7 +33,6 @@ export default function NewOfferPage() {
   const [selectedManagerId, setSelectedManagerId] = useState<string>("");
   const [managerCustom, setManagerCustom] = useState("");
   const [company, setCompany] = useState<any>(null);
-  const [previewingPDF, setPreviewingPDF] = useState(false);
 
   // Прямой поиск контрагента
   const [clientQuery, setClientQuery] = useState("");
@@ -178,8 +178,7 @@ export default function NewOfferPage() {
     setValue(`items.${index}.total`, t);
   };
 
-  const handlePreviewPDF = async () => {
-    setPreviewingPDF(true);
+  const generatePreviewPDF = async (mode: "save" | "bloburl") => {
     const data = watch();
     const mockOffer = {
       number: 0,
@@ -204,8 +203,7 @@ export default function NewOfferPage() {
       })),
     };
     const { generateOfferPDF } = await import("@/lib/pdf");
-    await generateOfferPDF(mockOffer, company);
-    setPreviewingPDF(false);
+    return generateOfferPDF(mockOffer, company, mode);
   };
 
   async function onSubmit(data: any) {
@@ -246,10 +244,13 @@ export default function NewOfferPage() {
           <Link href="/offers">
             <Button variant="ghost" size="sm"><ArrowLeft className="mr-2 h-4 w-4" /> Назад</Button>
           </Link>
-          <Button type="button" variant="outline" size="sm" onClick={handlePreviewPDF} disabled={previewingPDF}>
-            {previewingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-            Предпросмотр PDF
-          </Button>
+          <PdfDocButtons
+            filename={`KP-${watch("numberOverride") || "черновик"}.pdf`}
+            generate={generatePreviewPDF}
+            size="sm"
+            download={false}
+            previewLabel="Предпросмотр PDF"
+          />
         </div>
 
         {importedRequest && (

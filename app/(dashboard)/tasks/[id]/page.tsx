@@ -14,6 +14,7 @@ import {
   FileText, Download, Plus, CheckSquare, Tag, X, Check, Archive, ArchiveRestore, File, Printer, Factory, BookOpen, ChevronDown, Eye
 } from "lucide-react";
 import { FilePreviewModal, canPreviewFile, type PreviewFile } from "@/components/ui/file-preview-modal";
+import { PdfDocButtons } from "@/components/PdfDocButtons";
 import { CatalogPickerDialog } from "@/components/CatalogPickerDialog";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
@@ -334,16 +335,10 @@ export default function TaskDetailPage() {
     }
   };
 
-  const [printing, setPrinting] = useState(false);
-  const printProductionTask = async () => {
-    setPrinting(true);
-    try {
-      const company = await fetch("/api/settings/company").then((r) => r.ok ? r.json() : null).catch(() => null);
-      const { generateProductionPDF } = await import("@/lib/production-pdf");
-      await generateProductionPDF(task, company);
-    } finally {
-      setPrinting(false);
-    }
+  const generateTaskPDF = async (mode: "save" | "bloburl") => {
+    const company = await fetch("/api/settings/company").then((r) => r.ok ? r.json() : null).catch(() => null);
+    const { generateProductionPDF } = await import("@/lib/production-pdf");
+    return generateProductionPDF(task, company, mode);
   };
 
   // --- Упоминания ---
@@ -427,16 +422,13 @@ export default function TaskDetailPage() {
                 {task.archivedAt ? "Из архива" : "В архив"}
               </Button>
             )}
-            <Button
-              variant="outline"
+            <PdfDocButtons
+              filename={`Задание-${task.title?.slice(0, 40) ?? task.id}.pdf`}
+              generate={generateTaskPDF}
               size="sm"
-              onClick={printProductionTask}
-              disabled={printing}
-              title="Распечатать производственное задание"
-            >
-              {printing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
-              Печать задания
-            </Button>
+              downloadLabel="Печать задания"
+              downloadIcon={<Printer className="mr-2 h-4 w-4" />}
+            />
           </div>
         </div>
 

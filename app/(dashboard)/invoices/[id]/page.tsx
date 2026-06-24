@@ -5,12 +5,13 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Download, Loader2, Trash2, Plus, Pencil, Check, X, Clipboard, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, Loader2, Trash2, Plus, Pencil, Check, X, Clipboard, ClipboardCheck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDate, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from "@/lib/utils";
+import { PdfDocButtons } from "@/components/PdfDocButtons";
 
 function fmt(n: number) {
   return n.toLocaleString("ru", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,7 +23,6 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [exportingPDF, setExportingPDF] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [items, setItems] = useState<any[]>([]);
@@ -42,14 +42,9 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => { fetchInvoice(); }, [fetchInvoice]);
 
-  const handleExportPDF = async () => {
-    setExportingPDF(true);
-    try {
-      const { generateInvoicePDF } = await import("@/lib/invoice-pdf");
-      await generateInvoicePDF(invoice, company);
-    } finally {
-      setExportingPDF(false);
-    }
+  const generatePDF = async (mode: "save" | "bloburl") => {
+    const { generateInvoicePDF } = await import("@/lib/invoice-pdf");
+    return generateInvoicePDF(invoice, company, mode);
   };
 
   const handleCopyText = () => {
@@ -149,10 +144,10 @@ export default function InvoiceDetailPage() {
               {copied ? <ClipboardCheck className="mr-2 h-4 w-4 text-green-500" /> : <Clipboard className="mr-2 h-4 w-4" />}
               {copied ? "Скопировано!" : "Скопировать текст"}
             </Button>
-            <Button onClick={handleExportPDF} disabled={exportingPDF} variant="outline">
-              {exportingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              Скачать PDF
-            </Button>
+            <PdfDocButtons
+              filename={`Счёт-${invoice.numberOverride ?? invoice.number}.pdf`}
+              generate={generatePDF}
+            />
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600">

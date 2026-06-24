@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OFFER_STATUS_LABELS, OFFER_STATUS_COLORS, formatDate, formatCurrency } from "@/lib/utils";
-import { ArrowLeft, FileDown, Loader2, Building2, Clipboard, ClipboardCheck, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, Building2, Clipboard, ClipboardCheck, Pencil } from "lucide-react";
 import Link from "next/link";
+import { PdfDocButtons } from "@/components/PdfDocButtons";
 
 export default function OfferDetailPage() {
   const params = useParams();
@@ -35,7 +36,6 @@ export default function OfferDetailPage() {
     setSaving(false);
   };
 
-  const [exportingPDF, setExportingPDF] = useState(false);
   const [copied, setCopied] = useState(false);
   const [company, setCompany] = useState<any>(null);
 
@@ -43,12 +43,9 @@ export default function OfferDetailPage() {
     fetch("/api/settings/company").then((r) => r.json()).then(setCompany).catch(() => {});
   }, []);
 
-  const handleExportPDF = async () => {
-    if (!offer) return;
-    setExportingPDF(true);
+  const generatePDF = async (mode: "save" | "bloburl") => {
     const { generateOfferPDF } = await import("@/lib/pdf");
-    await generateOfferPDF(offer, company);
-    setExportingPDF(false);
+    return generateOfferPDF(offer, company, mode);
   };
 
   const handleCopyText = () => {
@@ -110,10 +107,10 @@ export default function OfferDetailPage() {
               {copied ? <ClipboardCheck className="mr-2 h-4 w-4 text-green-500" /> : <Clipboard className="mr-2 h-4 w-4" />}
               {copied ? "Скопировано!" : "Скопировать текст"}
             </Button>
-            <Button variant="outline" onClick={handleExportPDF} disabled={exportingPDF}>
-              {exportingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-              Скачать PDF
-            </Button>
+            <PdfDocButtons
+              filename={`KP-${offer.numberOverride ?? offer.number}.pdf`}
+              generate={generatePDF}
+            />
             <Link href={`/offers/${params.id}/edit`}>
               <Button><Pencil className="mr-2 h-4 w-4" /> Редактировать</Button>
             </Link>
