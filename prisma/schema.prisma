@@ -390,6 +390,11 @@ model ServiceCatalog {
   type            String           @default("service")
   categoryId      String?
   purchasePrice   Float?
+  // Расчёт цены металла по весу: вес единицы (кг) и цены за тонну.
+  // Себестоимость = weightKg/1000 × purchasePerTon, цена = weightKg/1000 × retailPerTon.
+  weightKg        Float?
+  purchasePerTon  Float?
+  retailPerTon    Float?
   catalogCategory CatalogCategory? @relation(fields: [categoryId], references: [id])
 }
 

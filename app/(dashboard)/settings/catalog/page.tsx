@@ -101,7 +101,19 @@ export default function CatalogPage() {
   // Диалог позиции
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const { register, handleSubmit, reset, control, formState: { isSubmitting } } = useForm();
+  const { register, handleSubmit, reset, control, setValue, getValues, formState: { isSubmitting } } = useForm();
+
+  // Расчёт цены металла по весу: вес единицы (кг) × цена за тонну / 1000.
+  // Заполняет существующие поля «Цена продажи» и «Себестоимость».
+  const recalcMetalPrice = () => {
+    const w = parseFloat(getValues("weightKg")) || 0;
+    if (w <= 0) return;
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const purchasePerTon = parseFloat(getValues("purchasePerTon")) || 0;
+    const retailPerTon = parseFloat(getValues("retailPerTon")) || 0;
+    if (purchasePerTon > 0) setValue("purchasePrice", String(round2((w / 1000) * purchasePerTon)));
+    if (retailPerTon > 0) setValue("price", String(round2((w / 1000) * retailPerTon)));
+  };
 
   // Диалог категории
   const [catDialogOpen, setCatDialogOpen] = useState(false);
@@ -262,13 +274,13 @@ export default function CatalogPage() {
 
   const openCreate = () => {
     setEditItem(null);
-    reset({ name: "", description: "", unit: "шт", price: "", purchasePrice: "", categoryId: selectedCatId ?? "" });
+    reset({ name: "", description: "", unit: "шт", price: "", purchasePrice: "", categoryId: selectedCatId ?? "", weightKg: "", purchasePerTon: "", retailPerTon: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (item: any) => {
     setEditItem(item);
-    reset({ ...item, price: item.price ?? "", purchasePrice: item.purchasePrice ?? "", categoryId: item.categoryId ?? "" });
+    reset({ ...item, price: item.price ?? "", purchasePrice: item.purchasePrice ?? "", categoryId: item.categoryId ?? "", weightKg: item.weightKg ?? "", purchasePerTon: item.purchasePerTon ?? "", retailPerTon: item.retailPerTon ?? "" });
     setDialogOpen(true);
   };
 
@@ -279,6 +291,9 @@ export default function CatalogPage() {
       unit: data.unit,
       price: data.price ? parseFloat(data.price) : null,
       purchasePrice: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
+      weightKg: data.weightKg ? parseFloat(data.weightKg) : null,
+      purchasePerTon: data.purchasePerTon ? parseFloat(data.purchasePerTon) : null,
+      retailPerTon: data.retailPerTon ? parseFloat(data.retailPerTon) : null,
       categoryId: data.categoryId || null,
       type: editItem ? editItem.type : tab,
     };
@@ -473,6 +488,39 @@ export default function CatalogPage() {
                 <Input {...register("unit")} placeholder="шт, м², кг" />
               </div>
             </div>
+            {(editItem ? editItem.type === "product" : tab === "product") && (
+              <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-medium text-slate-500">
+                  Расчёт по весу (металл)
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">Вес, кг</Label>
+                    <Input
+                      {...register("weightKg", { onChange: recalcMetalPrice })}
+                      type="number" min="0" step="0.001" placeholder="100"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">Закупка, ₽/т</Label>
+                    <Input
+                      {...register("purchasePerTon", { onChange: recalcMetalPrice })}
+                      type="number" min="0" step="0.01" placeholder="65000"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-500">Розница, ₽/т</Label>
+                    <Input
+                      {...register("retailPerTon", { onChange: recalcMetalPrice })}
+                      type="number" min="0" step="0.01" placeholder="67000"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Цена продажи и себестоимость считаются автоматически: вес ÷ 1000 × цена за тонну.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Цена продажи (₽)</Label>

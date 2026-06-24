@@ -41,6 +41,9 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
       categoryId: data.categoryId ?? null,
       ...(data.isActive !== undefined && { isActive: data.isActive }),
       purchasePrice: data.purchasePrice ?? null,
+      weightKg: data.weightKg ?? null,
+      purchasePerTon: data.purchasePerTon ?? null,
+      retailPerTon: data.retailPerTon ?? null,
     },
   });
   return NextResponse.json(item, { status: 201 });

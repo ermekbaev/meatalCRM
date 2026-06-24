@@ -325,6 +325,9 @@ export const serviceCatalogCreateSchema = z.object({
   categoryId: cuid.nullish(),
   isActive: z.boolean().optional(),
   purchasePrice: money.nullish(),
+  weightKg: money.nullish(),
+  purchasePerTon: money.nullish(),
+  retailPerTon: money.nullish(),
 });
 export const serviceCatalogUpdateSchema = serviceCatalogCreateSchema.partial();
 

@@ -25,6 +25,9 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
   if (data.isActive !== undefined) updateData.isActive = data.isActive;
   if (data.price !== undefined) updateData.price = data.price ?? null;
   if (data.purchasePrice !== undefined) updateData.purchasePrice = data.purchasePrice ?? null;
+  if (data.weightKg !== undefined) updateData.weightKg = data.weightKg ?? null;
+  if (data.purchasePerTon !== undefined) updateData.purchasePerTon = data.purchasePerTon ?? null;
+  if (data.retailPerTon !== undefined) updateData.retailPerTon = data.retailPerTon ?? null;
   if (data.categoryId !== undefined) {
     updateData.catalogCategory = data.categoryId
       ? { connect: { id: data.categoryId } }
