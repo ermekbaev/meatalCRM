@@ -53,7 +53,7 @@ export function FilePreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-4xl w-[calc(100%-1rem)] p-0 gap-0 overflow-hidden">
+      <DialogContent className="w-[96vw] max-w-350 max-h-[95vh] p-0 gap-0 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 pr-12">
           <DialogTitle className="text-sm font-medium text-gray-800 truncate">
             {file?.name}
@@ -78,20 +78,20 @@ export function FilePreviewModal({
             </a>
           </div>
         </div>
-        <div className="flex min-h-[60vh] max-h-[80vh] items-center justify-center overflow-auto bg-slate-50 p-3">
+        <div className="flex min-h-[82vh] max-h-[88vh] items-center justify-center overflow-auto bg-slate-50 p-3">
           {kind === "image" && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={viewUrl}
               alt={file?.name}
-              className="max-h-[78vh] max-w-full rounded object-contain"
+              className="max-h-[86vh] max-w-full rounded object-contain"
             />
           )}
           {kind === "pdf" && (
             <iframe
               src={viewUrl}
               title={file?.name}
-              className="h-[78vh] w-full rounded bg-white"
+              className="h-[86vh] w-full rounded bg-white"
             />
           )}
           {kind === null && (
