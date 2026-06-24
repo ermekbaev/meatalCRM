@@ -777,9 +777,10 @@ export default function TasksPage() {
             {/* Desktop: Kanban with DnD */}
             <div className="hidden md:block">
               <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <div className="-mx-1 overflow-x-auto px-1 pb-2">
                 <div
                   className="grid gap-6"
-                  style={{ gridTemplateColumns: `repeat(${Math.max(statusGroups.length, 1)}, minmax(0, 1fr))` }}
+                  style={{ gridTemplateColumns: `repeat(${Math.max(statusGroups.length, 1)}, minmax(260px, 1fr))` }}
                 >
                   {statusGroups.map(({ column, items, archived }) => (
                     <KanbanColumn key={column.id} column={column} count={items.length}>
@@ -823,6 +824,7 @@ export default function TasksPage() {
                       </ArchiveBlock>
                     </KanbanColumn>
                   ))}
+                </div>
                 </div>
                 <DragOverlay>
                   {activeDragTask ? (
