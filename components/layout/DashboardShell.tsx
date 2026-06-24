@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
   FileText, Factory, BookOpen, X, LogOut, Calculator,
-  Layers, Scissors, Box, Receipt, BarChart2, Warehouse, Building2,
+  Layers, Scissors, Box, Receipt, BarChart2, Warehouse, Building2, PhoneCall,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
   { href: "/requests",   label: "Заявки",       mobileLabel: "Заявки",   icon: ClipboardList },
   { href: "/tasks",      label: "Задачи",        mobileLabel: "Задачи",   icon: CheckSquare, foreman: true },
   { href: "/clients",    label: "Контрагенты",  mobileLabel: "Клиенты",  icon: Users },
+  { href: "/followups",  label: "Обзвон",        mobileLabel: "Обзвон",   icon: PhoneCall },
   { href: "/offers",     label: "КП",            mobileLabel: "КП",       icon: FileText },
   { href: "/invoices",   label: "Счета",         mobileLabel: "Счета",    icon: Receipt },
   { href: "/analytics",  label: "Аналитика",    mobileLabel: "Аналит.",  icon: BarChart2 },
