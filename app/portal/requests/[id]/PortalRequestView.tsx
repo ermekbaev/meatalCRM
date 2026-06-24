@@ -976,6 +976,16 @@ export function PortalRequestView({
                   >
                     <Download className="h-4 w-4" />
                   </a>
+                  {f.uploadedById === currentUserId && !isLocked && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFile(f.id)}
+                      className="text-red-500 hover:text-red-600"
+                      title="Удалить"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </li>
             ))}

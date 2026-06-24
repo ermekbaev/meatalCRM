@@ -192,6 +192,32 @@ function FileList({
     }
   }
 
+  async function deleteOne(id: string) {
+    if (!confirm("Удалить файл?")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/portal/requests/${requestId}/files/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? `Не удалось удалить (HTTP ${res.status})`);
+      }
+      onChange(files.filter((f) => f.id !== id));
+      setSelected((cur) => {
+        const next = new Set(cur);
+        next.delete(id);
+        return next;
+      });
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Сетевая ошибка");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -324,6 +350,15 @@ function FileList({
               >
                 <Download className="h-4 w-4" />
               </a>
+              <button
+                type="button"
+                onClick={() => deleteOne(f.id)}
+                disabled={busy}
+                className="text-slate-400 hover:text-red-600 disabled:opacity-40"
+                title="Удалить"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </li>
           ))}
         </ul>
