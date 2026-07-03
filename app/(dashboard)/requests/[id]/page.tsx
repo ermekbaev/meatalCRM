@@ -713,37 +713,6 @@ export default function RequestDetailPage() {
                       </div>
                     )}
 
-                    {/* Инлайн комментарий */}
-                    <div className="border-t border-slate-100 px-4 py-3">
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Комментарий"
-                        rows={3}
-                        className="w-full resize-none bg-transparent text-sm text-slate-700 placeholder:text-slate-300 outline-none"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && (e.ctrlKey || e.metaKey))
-                            sendComment();
-                        }}
-                      />
-                      {comment.trim() && (
-                        <div className="flex justify-end mt-1">
-                          <Button
-                            size="sm"
-                            onClick={sendComment}
-                            disabled={sendingComment}
-                          >
-                            {sendingComment ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : (
-                              <Send className="mr-1 h-3 w-3" />
-                            )}
-                            Отправить
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-
                     {/* Итог */}
                     <div className="border-t border-slate-100 px-3 sm:px-6 py-3 space-y-1.5">
                       <div className="flex justify-end gap-8 text-sm text-slate-500">
@@ -774,6 +743,37 @@ export default function RequestDetailPage() {
                     </div>
                   </>
                 )}
+
+                {/* Инлайн комментарий — доступен всегда, даже если позиций нет */}
+                <div className="border-t border-slate-100 px-4 py-3">
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Комментарий"
+                    rows={3}
+                    className="w-full resize-none bg-transparent text-sm text-slate-700 placeholder:text-slate-300 outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey))
+                        sendComment();
+                    }}
+                  />
+                  {comment.trim() && (
+                    <div className="flex justify-end mt-1">
+                      <Button
+                        size="sm"
+                        onClick={sendComment}
+                        disabled={sendingComment}
+                      >
+                        {sendingComment ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Send className="mr-1 h-3 w-3" />
+                        )}
+                        Отправить
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

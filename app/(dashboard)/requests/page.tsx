@@ -320,15 +320,16 @@ function RequestsPageInner() {
                 <TableHead className="whitespace-nowrap">Производство</TableHead>
                 <TableHead>Ответственный</TableHead>
                 <TableHead>Автор</TableHead>
+                <TableHead className="whitespace-nowrap">Счёт 1С</TableHead>
                 <TableHead>Дата</TableHead>
                 <TableHead className="w-24">Действия</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
               ) : requests.length === 0 ? (
-                <TableRow><TableCell colSpan={12} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
               ) : (
                 requests.map((r) => (
                   <TableRow key={r.id}>
@@ -387,6 +388,7 @@ function RequestsPageInner() {
                     </TableCell>
                     <TableCell className="text-gray-600">{r.assignee?.name ?? "—"}</TableCell>
                     <TableCell className="text-gray-500 text-xs">{r.createdBy?.name ?? "—"}</TableCell>
+                    <TableCell className="text-gray-600 text-xs whitespace-nowrap">{r.invoiceNumber1c || "—"}</TableCell>
                     <TableCell className="text-gray-500">{formatDate(r.createdAt)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
