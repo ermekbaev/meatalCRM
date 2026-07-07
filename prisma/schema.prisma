@@ -102,6 +102,10 @@ model Request {
   updatedAt          DateTime          @updatedAt
   vatIncluded        Boolean           @default(false)
   invoiceNumber1c    String?
+  // Быстрые отметки в списке заявок (менеджер кликом): отгрузка и выставление
+  // счёта. null = не отмечено, иначе — момент проставления флага.
+  shippedAt          DateTime?
+  invoiceIssuedAt    DateTime?
   paymentMethod      String?
   paymentStatus      PaymentStatus     @default(NONE)
   hasMetal           String?

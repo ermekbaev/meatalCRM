@@ -151,6 +151,9 @@ export const requestUpdateSchema = z.object({
   assigneeId: cuid.nullish(),
   vatIncluded: z.boolean().optional(),
   invoiceNumber1c: optStr,
+  // Быстрые отметки-переключатели из списка заявок.
+  shipped: z.boolean().optional(),
+  invoiceIssued: z.boolean().optional(),
   paymentMethod: optStr,
   paymentStatus: paymentStatusEnum.optional(),
   ...requestStatusFields,

@@ -91,6 +91,15 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
     ? Object.fromEntries(Object.entries(data).filter(([k]) => PRODUCTION_FIELDS.has(k)))
     : { ...data };
 
+  // Быстрые отметки-переключатели: булев флаг из UI → таймстамп в БД.
+  // (сами поля shipped/invoiceIssued не существуют в модели — убираем их).
+  delete (allowedData as any).shipped;
+  delete (allowedData as any).invoiceIssued;
+  if (!isAssigneeRole) {
+    if (data.shipped !== undefined) allowedData.shippedAt = data.shipped ? new Date() : null;
+    if (data.invoiceIssued !== undefined) allowedData.invoiceIssuedAt = data.invoiceIssued ? new Date() : null;
+  }
+
   // Авто-блокировка: переход в IN_PROGRESS → lockedAt = now().
   // Снятие блокировки: ADMIN меняет статус обратно → lockedAt = null.
   if ("status" in allowedData) {

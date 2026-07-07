@@ -1099,6 +1099,37 @@ export default function RequestDetailPage() {
                   />
                 </div>
 
+                {/* Быстрые отметки: отгрузка и выставление счёта */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-gray-500">Отметки</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={isEmployee}
+                      onClick={() => updateField("shipped", !request.shippedAt)}
+                      className={`inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium transition-colors disabled:opacity-50 ${
+                        request.shippedAt
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      {request.shippedAt ? "✓ Отгружено" : "Не отгружено"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isEmployee}
+                      onClick={() => updateField("invoiceIssued", !request.invoiceIssuedAt)}
+                      className={`inline-flex h-8 items-center gap-1 rounded-full px-3 text-xs font-medium transition-colors disabled:opacity-50 ${
+                        request.invoiceIssuedAt
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      {request.invoiceIssuedAt ? "✓ Счёт выставлен" : "Счёт не выставлен"}
+                    </button>
+                  </div>
+                </div>
+
                 {subtotal > 0 && (
                   <div className="rounded-lg bg-slate-50 p-3 space-y-1.5">
                     <p className="text-xs text-slate-500">

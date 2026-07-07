@@ -11,9 +11,41 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { StatusMultiSelect } from "@/components/ui/status-multi-select";
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, PRODUCTION_FIELDS, formatDate, formatCurrency } from "@/lib/utils";
-import { Plus, Search, Trash2, Eye, Download, Loader2, Factory } from "lucide-react";
+import { Plus, Search, Trash2, Eye, Download, Loader2, Factory, Check } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
+
+// Кликабельная плашка-переключатель для быстрых отметок в списке (отгрузка, счёт).
+function FlagToggle({
+  active, onLabel, offLabel, updating, onToggle,
+}: {
+  active: boolean;
+  onLabel: string;
+  offLabel: string;
+  updating: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(!active)}
+      disabled={updating}
+      className={`inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+        active
+          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+      }`}
+      title={active ? "Нажмите, чтобы снять отметку" : "Нажмите, чтобы отметить"}
+    >
+      {updating ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : active ? (
+        <Check className="h-3 w-3" />
+      ) : null}
+      {active ? onLabel : offLabel}
+    </button>
+  );
+}
 
 // Свёрнутая ячейка «Производство»: иконка с N/total, popover со всеми статусами заявки
 function ProductionSummaryCell({ request }: { request: any }) {
@@ -86,6 +118,7 @@ function RequestsPageInner() {
   const [loading, setLoading] = useState(true);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [updatingFlag, setUpdatingFlag] = useState<string | null>(null);
 
   // Загрузить список менеджеров/сотрудников для фильтра один раз при монтировании.
   const managersLoaded = useRef(false);
@@ -143,6 +176,18 @@ function RequestsPageInner() {
     setUpdatingStatus(null);
   };
 
+  // Быстрые отметки «Отгружено» / «Счёт выставлен» кликом в списке.
+  const handleFlagToggle = async (id: string, flag: "shipped" | "invoiceIssued", next: boolean) => {
+    setUpdatingFlag(`${id}:${flag}`);
+    await fetch(`/api/requests/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [flag]: next }),
+    });
+    const field = flag === "shipped" ? "shippedAt" : "invoiceIssuedAt";
+    setRequests((prev) => prev.map((r) => r.id === id ? { ...r, [field]: next ? new Date().toISOString() : null } : r));
+    setUpdatingFlag(null);
+  };
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/requests/${id}`, { method: "DELETE" });
@@ -265,6 +310,20 @@ function RequestsPageInner() {
                     {PAYMENT_STATUS_LABELS[r.paymentStatus]}
                   </span>
                 )}
+                <FlagToggle
+                  active={!!r.shippedAt}
+                  onLabel="Отгружено"
+                  offLabel="Не отгружено"
+                  updating={updatingFlag === `${r.id}:shipped`}
+                  onToggle={(next) => handleFlagToggle(r.id, "shipped", next)}
+                />
+                <FlagToggle
+                  active={!!r.invoiceIssuedAt}
+                  onLabel="Счёт выставлен"
+                  offLabel="Счёт не выставлен"
+                  updating={updatingFlag === `${r.id}:invoiceIssued`}
+                  onToggle={(next) => handleFlagToggle(r.id, "invoiceIssued", next)}
+                />
               </div>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs text-gray-500 min-w-0 flex-1 truncate">
@@ -315,6 +374,8 @@ function RequestsPageInner() {
                 <TableHead>Клиент</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead>Оплата</TableHead>
+                <TableHead className="whitespace-nowrap">Отгрузка</TableHead>
+                <TableHead className="whitespace-nowrap">Счёт</TableHead>
                 <TableHead>Приоритет</TableHead>
                 <TableHead>Сумма</TableHead>
                 <TableHead className="whitespace-nowrap">Производство</TableHead>
@@ -327,9 +388,9 @@ function RequestsPageInner() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={13} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
               ) : requests.length === 0 ? (
-                <TableRow><TableCell colSpan={13} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
+                <TableRow><TableCell colSpan={15} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
               ) : (
                 requests.map((r) => (
                   <TableRow key={r.id}>
@@ -376,6 +437,24 @@ function RequestsPageInner() {
                           </SelectContent>
                         </Select>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <FlagToggle
+                        active={!!r.shippedAt}
+                        onLabel="Отгружено"
+                        offLabel="Не отгружено"
+                        updating={updatingFlag === `${r.id}:shipped`}
+                        onToggle={(next) => handleFlagToggle(r.id, "shipped", next)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <FlagToggle
+                        active={!!r.invoiceIssuedAt}
+                        onLabel="Выставлен"
+                        offLabel="Не выставлен"
+                        updating={updatingFlag === `${r.id}:invoiceIssued`}
+                        onToggle={(next) => handleFlagToggle(r.id, "invoiceIssued", next)}
+                      />
                     </TableCell>
                     <TableCell>
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_COLORS[r.priority]}`}>
