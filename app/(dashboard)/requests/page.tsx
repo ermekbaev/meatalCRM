@@ -30,7 +30,7 @@ function FlagToggle({
       type="button"
       onClick={() => onToggle(!active)}
       disabled={updating}
-      className={`inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+      className={`inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-medium transition-colors disabled:opacity-50 ${
         active
           ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
           : "bg-slate-100 text-slate-500 hover:bg-slate-200"
