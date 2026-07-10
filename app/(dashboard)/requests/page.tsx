@@ -47,6 +47,61 @@ function FlagToggle({
   );
 }
 
+// Обёртка для широкой таблицы: нативную полосу прокрутки скрываем и рисуем свою,
+// прилипающую к нижнему краю экрана, — она видна, пока таблица в поле зрения,
+// а не только когда страница домотана до конца списка.
+function HorizontalScrollArea({ children }: { children: React.ReactNode }) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [scrollable, setScrollable] = useState(false);
+
+  useEffect(() => {
+    // Table из shadcn сам оборачивает <table> в div с overflow-auto — прокручивается именно он.
+    const scroller = wrapRef.current?.firstElementChild as HTMLElement | undefined;
+    const bar = barRef.current;
+    if (!scroller || !bar) return;
+    scroller.classList.add("hscroll-hidden");
+
+    const measure = () => {
+      setContentWidth(scroller.scrollWidth);
+      setScrollable(scroller.scrollWidth > scroller.clientWidth + 1);
+    };
+    measure();
+
+    const onScroller = () => { bar.scrollLeft = scroller.scrollLeft; };
+    const onBar = () => { scroller.scrollLeft = bar.scrollLeft; };
+    scroller.addEventListener("scroll", onScroller);
+    bar.addEventListener("scroll", onBar);
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(scroller);
+    if (scroller.firstElementChild) ro.observe(scroller.firstElementChild);
+
+    return () => {
+      scroller.removeEventListener("scroll", onScroller);
+      bar.removeEventListener("scroll", onBar);
+      ro.disconnect();
+    };
+  }, [children]);
+
+  return (
+    <div className="hidden md:block">
+      <div ref={wrapRef} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        {children}
+      </div>
+      <div
+        ref={barRef}
+        className={`hscroll-visible sticky bottom-0 z-20 h-[18px] overflow-x-auto overflow-y-hidden border-t border-gray-200 bg-white pt-1 shadow-[0_-2px_6px_rgba(15,23,42,0.06)] ${
+          scrollable ? "block" : "hidden"
+        }`}
+      >
+        <div style={{ width: contentWidth, height: 1 }} />
+      </div>
+    </div>
+  );
+}
+
 // Свёрнутая ячейка «Производство»: иконка с N/total, popover со всеми статусами заявки
 function ProductionSummaryCell({ request }: { request: any }) {
   const filled = PRODUCTION_FIELDS.filter((f) => Boolean(request?.[f.key])).length;
@@ -105,6 +160,10 @@ function RequestsPageInner() {
   const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
   const canManageRequests = role === "ADMIN" || role === "MANAGER";
   const [requests, setRequests] = useState<any[]>([]);
+  // Вкладки: активные заявки vs заявки на согласовании (просчёт/переговоры).
+  // Как только статус на согласовании меняется на другой (напр. «В работе») —
+  // заявка автоматически уходит из вкладки «Согласование» в «Заявки».
+  const [tab, setTab] = useState<"active" | "approval">("active");
   const [search, setSearch] = useState("");
   // Предзаполняем фильтр по статусу из URL (?status=NEW) — например при переходе с карточек дашборда.
   const [statuses, setStatuses] = useState<string[]>(() => {
@@ -195,7 +254,7 @@ function RequestsPageInner() {
   };
 
   const handleExport = () => {
-    const rows = requests.map((r) => ({
+    const rows = visibleRequests.map((r) => ({
       "№": r.number,
       "Название": r.title,
       "Клиент": (r.client?.shortName || r.client?.name) ?? "",
@@ -211,6 +270,14 @@ function RequestsPageInner() {
     XLSX.utils.book_append_sheet(wb, ws, "Заявки");
     XLSX.writeFile(wb, "requests.xlsx");
   };
+
+  // Разделение по вкладкам: «Согласование» = статус PENDING_APPROVAL,
+  // «Заявки» = все остальные. Автоперенос происходит сам при смене статуса.
+  const approvalCount = requests.filter((r) => r.status === "PENDING_APPROVAL").length;
+  const activeCount = requests.length - approvalCount;
+  const visibleRequests = requests.filter((r) =>
+    tab === "approval" ? r.status === "PENDING_APPROVAL" : r.status !== "PENDING_APPROVAL"
+  );
 
   return (
     <div>
@@ -281,13 +348,45 @@ function RequestsPageInner() {
           </div>
         </div>
 
+        {/* Вкладки: активные заявки / на согласовании */}
+        <div className="flex gap-1 border-b border-slate-200">
+          {([
+            { key: "active", label: "Заявки", count: activeCount },
+            { key: "approval", label: "Согласование", count: approvalCount },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                tab === t.key
+                  ? "border-orange-500 text-orange-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span
+                  className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                    t.key === "approval"
+                      ? "bg-violet-100 text-violet-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         {/* Mobile cards */}
         <div className="md:hidden space-y-2">
           {loading ? (
             <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Загрузка...</div>
-          ) : requests.length === 0 ? (
+          ) : visibleRequests.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400">Заявки не найдены</div>
-          ) : requests.map((r) => (
+          ) : visibleRequests.map((r) => (
             <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-3">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="min-w-0 flex-1">
@@ -365,7 +464,7 @@ function RequestsPageInner() {
         </div>
 
         {/* Desktop table */}
-        <div className="hidden md:block rounded-xl border border-gray-200 bg-white overflow-x-auto">
+        <HorizontalScrollArea>
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
@@ -389,10 +488,10 @@ function RequestsPageInner() {
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={15} className="text-center py-8 text-gray-400">Загрузка...</TableCell></TableRow>
-              ) : requests.length === 0 ? (
+              ) : visibleRequests.length === 0 ? (
                 <TableRow><TableCell colSpan={15} className="text-center py-8 text-gray-400">Заявки не найдены</TableCell></TableRow>
               ) : (
-                requests.map((r) => (
+                visibleRequests.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-gray-500">#{r.number}</TableCell>
                     <TableCell>
@@ -500,7 +599,7 @@ function RequestsPageInner() {
               )}
             </TableBody>
           </Table>
-        </div>
+        </HorizontalScrollArea>
       </div>
     </div>
   );

@@ -36,6 +36,17 @@ input[type="number"] {
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+/* Прячем нативную полосу там, где рисуем свою прилипающую */
+.hscroll-hidden { scrollbar-width: none; -ms-overflow-style: none; }
+.hscroll-hidden::-webkit-scrollbar { height: 0; width: 0; }
+
+/* Хорошо заметная горизонтальная полоса прокрутки для широких таблиц */
+.hscroll-visible { scrollbar-width: thin; scrollbar-color: #94a3b8 #e2e8f0; }
+.hscroll-visible::-webkit-scrollbar { height: 10px; }
+.hscroll-visible::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 99px; }
+.hscroll-visible::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 99px; }
+.hscroll-visible::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
 /* iOS PWA: учитываем safe-area под статус-баром и хоум-индикатором.
    box-sizing: content-box нужен, чтобы padding не «съедал» зафиксированную высоту (h-14 и т.п.) */
 .safe-area-inset-top {
