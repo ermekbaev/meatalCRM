@@ -128,9 +128,28 @@ export const PUT = withErrorHandling(async (req: NextRequest, { params }) => {
       }),
     };
   } else if (role === "FOREMAN" || role === "ENGINEER" || role === "EMPLOYEE") {
-    // Мастер/инженер/оператор могут менять статус и статусы производства
-    // только в задачах, где они отмечены исполнителем.
-    if (!oldAssigneeIds.includes(currentUserId)) throw forbidden();
+    // Мастер/инженер меняют статус и статусы производства только в задачах,
+    // где они отмечены исполнителем. Оператор (EMPLOYEE) дополнительно управляет
+    // доской своего цеха, поэтому ему разрешаем менять статус любой задачи цеха,
+    // участником которого он состоит, — как и в листинге GET /api/tasks.
+    let allowed = oldAssigneeIds.includes(currentUserId);
+    if (!allowed && role === "EMPLOYEE") {
+      if (old.workshopId) {
+        const member = await prisma.workshop.findFirst({
+          where: { id: old.workshopId, members: { some: { id: currentUserId } } },
+          select: { id: true },
+        });
+        allowed = !!member;
+      } else {
+        // Задача без цеха видна/управляема оператору виртуального цеха «Без цеха».
+        const virtual = await prisma.workshop.findFirst({
+          where: { isVirtual: true, members: { some: { id: currentUserId } } },
+          select: { id: true },
+        });
+        allowed = !!virtual;
+      }
+    }
+    if (!allowed) throw forbidden();
     const productionPatch: any = {};
     for (const f of TASK_PRODUCTION_FIELDS) {
       if (data[f.key] !== undefined) productionPatch[f.key] = data[f.key] || null;

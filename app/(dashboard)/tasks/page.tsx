@@ -1284,7 +1284,7 @@ function DraggableTaskCard({ task, onDelete, selectMode, selected, onToggleSelec
           type="button"
           {...listeners}
           {...attributes}
-          className="absolute left-1 top-1 z-10 cursor-grab active:cursor-grabbing rounded p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-500 transition-colors"
+          className="absolute left-1 top-1 z-10 touch-none cursor-grab active:cursor-grabbing rounded p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-500 transition-colors"
           title="Перетащить"
           aria-label="Перетащить задачу"
         >
