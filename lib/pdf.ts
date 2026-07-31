@@ -1,4 +1,4 @@
-import { formatDate } from "./utils";
+import { formatDate, shortenLegalName } from "./utils";
 
 async function loadImageBase64(key: string): Promise<string | null> {
   if (!key) return null;
@@ -69,10 +69,10 @@ export async function generateOfferPDF(offer: OfferForPdf, company?: CompanyForP
         <h1 style="font-size:22px;font-weight:700;margin:0 0 8px 0;color:#0f172a;">
           Коммерческое предложение №${offer.numberOverride ?? offer.number}
         </h1>
-        ${company?.name ? `<p style="margin:2px 0;font-size:12px;color:#475569;">От: <strong>${company.name}</strong></p>` : ""}
+        ${company?.name ? `<p style="margin:2px 0;font-size:12px;color:#475569;">От: <strong>${shortenLegalName(company.name)}</strong></p>` : ""}
         ${(() => {
           const c = offer.client ?? offer.request?.client;
-          return c ? `<p style="margin:4px 0 0 0;font-size:13px;color:#475569;">Клиент: <strong>${c.name}</strong></p>` : "";
+          return c ? `<p style="margin:4px 0 0 0;font-size:13px;color:#475569;">Клиент: <strong>${shortenLegalName(c.name)}</strong></p>` : "";
         })()}
       </div>
       <div style="text-align:right;color:#64748b;font-size:12px;min-width:200px;line-height:1.4;">

@@ -129,6 +129,22 @@ export const FOLLOWUP_RESULT_COLORS: Record<string, string> = {
   AGREED:    "bg-emerald-100 text-emerald-700",
 };
 
+// Сокращает организационно-правовую форму в названии контрагента для КП/счетов:
+// «ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "Ромашка"» → «ООО "Ромашка"».
+// Длинные формы (ПАО/ЗАО/ОАО) проверяем до общего «АКЦИОНЕРНОЕ ОБЩЕСТВО» → «АО».
+export function shortenLegalName(name?: string | null): string {
+  if (!name) return "";
+  return name
+    .replace(/ПУБЛИЧНОЕ\s+АКЦИОНЕРНОЕ\s+ОБЩЕСТВО/gi, "ПАО")
+    .replace(/ЗАКРЫТОЕ\s+АКЦИОНЕРНОЕ\s+ОБЩЕСТВО/gi, "ЗАО")
+    .replace(/ОТКРЫТОЕ\s+АКЦИОНЕРНОЕ\s+ОБЩЕСТВО/gi, "ОАО")
+    .replace(/АКЦИОНЕРНОЕ\s+ОБЩЕСТВО/gi, "АО")
+    .replace(/ОБЩЕСТВО\s+С\s+ОГРАНИЧЕННОЙ\s+ОТВЕТСТВЕННОСТЬЮ/gi, "ООО")
+    .replace(/ИНДИВИДУАЛЬНЫЙ\s+ПРЕДПРИНИМАТЕЛЬ/gi, "ИП")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 // Используется для подзадач (enum TaskStatus). Статусы задач теперь динамические — см. TaskColumn.
 export const TASK_STATUS_LABELS: Record<string, string> = {
   TODO:             "К выполнению",
