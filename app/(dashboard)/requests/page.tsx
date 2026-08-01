@@ -9,11 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { StatusMultiSelect } from "@/components/ui/status-multi-select";
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, PRODUCTION_FIELDS, formatDate, formatCurrency } from "@/lib/utils";
 import { Plus, Search, Trash2, Eye, Download, Loader2, Factory, Check } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
+
+// Статус-табы над списком заявок: «Все», по каждому статусу и отдельно «Не оплачено».
+// «Согласование» = PENDING_APPROVAL; порядок соответствует жизненному циклу заявки.
+const STATUS_TAB_KEYS = ["NEW", "PENDING_APPROVAL", "IN_PROGRESS", "READY", "COMPLETED", "CANCELLED"] as const;
+type RequestTab = "ALL" | (typeof STATUS_TAB_KEYS)[number] | "UNPAID";
+
+// Соответствует ли заявка выбранному табу. «Не оплачено» = всё, кроме «Оплачено».
+function matchesTab(r: any, tab: RequestTab): boolean {
+  if (tab === "ALL") return true;
+  if (tab === "UNPAID") return r.paymentStatus !== "PAID";
+  return r.status === tab;
+}
 
 // Кликабельная плашка-переключатель для быстрых отметок в списке (отгрузка, счёт).
 function FlagToggle({
@@ -160,16 +171,14 @@ function RequestsPageInner() {
   const isAssigneeRole = role === "FOREMAN" || role === "ENGINEER";
   const canManageRequests = role === "ADMIN" || role === "MANAGER";
   const [requests, setRequests] = useState<any[]>([]);
-  // Вкладки: активные заявки vs заявки на согласовании (просчёт/переговоры).
-  // Как только статус на согласовании меняется на другой (напр. «В работе») —
-  // заявка автоматически уходит из вкладки «Согласование» в «Заявки».
-  const [tab, setTab] = useState<"active" | "approval">("active");
-  const [search, setSearch] = useState("");
-  // Предзаполняем фильтр по статусу из URL (?status=NEW) — например при переходе с карточек дашборда.
-  const [statuses, setStatuses] = useState<string[]>(() => {
+  // Активный статус-таб. Предзаполняем из URL (?status=NEW — переход с дашборда):
+  // если пришёл ровно один известный статус, открываем соответствующий таб.
+  const [tab, setTab] = useState<RequestTab>(() => {
     const s = searchParams.get("status");
-    return s ? s.split(",").filter(Boolean) : [];
+    if (s && (STATUS_TAB_KEYS as readonly string[]).includes(s)) return s as RequestTab;
+    return "ALL";
   });
+  const [search, setSearch] = useState("");
   const [priority, setPriority] = useState("ALL");
   const [paymentStatus, setPaymentStatus] = useState("ALL");
   const [assigneeId, setAssigneeId] = useState("ALL");
@@ -201,7 +210,6 @@ function RequestsPageInner() {
     setLoading(true);
     const params = new URLSearchParams();
     if (search) params.set("search", search);
-    if (statuses.length) params.set("status", statuses.join(","));
     if (priority && priority !== "ALL") params.set("priority", priority);
     if (paymentStatus && paymentStatus !== "ALL") params.set("paymentStatus", paymentStatus);
     if (assigneeId && assigneeId !== "ALL") params.set("assigneeId", assigneeId);
@@ -209,7 +217,7 @@ function RequestsPageInner() {
     const data = await res.json();
     setRequests(data);
     setLoading(false);
-  }, [search, statuses, priority, paymentStatus, assigneeId]);
+  }, [search, priority, paymentStatus, assigneeId]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
@@ -271,13 +279,9 @@ function RequestsPageInner() {
     XLSX.writeFile(wb, "requests.xlsx");
   };
 
-  // Разделение по вкладкам: «Согласование» = статус PENDING_APPROVAL,
-  // «Заявки» = все остальные. Автоперенос происходит сам при смене статуса.
-  const approvalCount = requests.filter((r) => r.status === "PENDING_APPROVAL").length;
-  const activeCount = requests.length - approvalCount;
-  const visibleRequests = requests.filter((r) =>
-    tab === "approval" ? r.status === "PENDING_APPROVAL" : r.status !== "PENDING_APPROVAL"
-  );
+  // Список под активный статус-таб + счётчики для бейджей на вкладках.
+  const visibleRequests = requests.filter((r) => matchesTab(r, tab));
+  const tabCount = (t: RequestTab) => requests.filter((r) => matchesTab(r, t)).length;
 
   return (
     <div>
@@ -294,11 +298,6 @@ function RequestsPageInner() {
               className="pl-9"
             />
           </div>
-          <StatusMultiSelect
-            value={statuses}
-            onChange={setStatuses}
-            options={Object.entries(REQUEST_STATUS_LABELS).map(([key, label]) => ({ key, label }))}
-          />
           <Select value={priority} onValueChange={setPriority}>
             <SelectTrigger className="flex-1 sm:flex-none sm:w-40 min-w-0">
               <SelectValue placeholder="Приоритет" />
@@ -348,36 +347,43 @@ function RequestsPageInner() {
           </div>
         </div>
 
-        {/* Вкладки: активные заявки / на согласовании */}
-        <div className="flex gap-1 border-b border-slate-200">
+        {/* Статус-табы: Все + по каждому статусу + «Не оплачено». Скроллятся по горизонтали. */}
+        <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
           {([
-            { key: "active", label: "Заявки", count: activeCount },
-            { key: "approval", label: "Согласование", count: approvalCount },
-          ] as const).map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.key
-                  ? "border-orange-500 text-orange-600"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              {t.label}
-              {t.count > 0 && (
-                <span
-                  className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                    t.key === "approval"
-                      ? "bg-violet-100 text-violet-700"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {t.count}
-                </span>
-              )}
-            </button>
-          ))}
+            { key: "ALL", label: "Все" },
+            ...STATUS_TAB_KEYS.map((k) => ({ key: k, label: REQUEST_STATUS_LABELS[k] })),
+            { key: "UNPAID", label: "Не оплачено" },
+          ] as { key: RequestTab; label: string }[]).map((t) => {
+            const count = tabCount(t.key);
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`shrink-0 whitespace-nowrap border-b-2 px-3.5 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? "border-orange-500 text-orange-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {t.label}
+                {count > 0 && (
+                  <span
+                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                      active
+                        ? "bg-orange-100 text-orange-700"
+                        : t.key === "UNPAID"
+                          ? "bg-rose-100 text-rose-700"
+                          : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Mobile cards */}
