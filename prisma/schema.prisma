@@ -541,6 +541,7 @@ enum RequestStatus {
 enum PaymentStatus {
   NONE
   WAITING
+  PREPAID
   PAID
 }
 

@@ -27,21 +27,21 @@ export function formatCurrency(value: number | null | undefined): string {
 }
 
 export const REQUEST_STATUS_LABELS: Record<string, string> = {
-  NEW:              "Новая",
+  NEW: "Новая",
   PENDING_APPROVAL: "На согласовании",
-  IN_PROGRESS:      "В работе",
-  READY:            "Готово",
-  COMPLETED:        "Завершена",
-  CANCELLED:        "Отменена",
+  IN_PROGRESS: "В работе",
+  READY: "Готово",
+  COMPLETED: "Завершена",
+  CANCELLED: "Отменена",
 };
 
 export const REQUEST_STATUS_COLORS: Record<string, string> = {
-  NEW:              "bg-blue-50    text-blue-700    ring-1 ring-blue-200",
+  NEW: "bg-blue-50    text-blue-700    ring-1 ring-blue-200",
   PENDING_APPROVAL: "bg-purple-50  text-purple-700  ring-1 ring-purple-200",
-  IN_PROGRESS:      "bg-amber-50   text-amber-700   ring-1 ring-amber-200",
-  READY:            "bg-teal-50    text-teal-700    ring-1 ring-teal-200",
-  COMPLETED:        "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-  CANCELLED:        "bg-red-50     text-red-600     ring-1 ring-red-200",
+  IN_PROGRESS: "bg-amber-50   text-amber-700   ring-1 ring-amber-200",
+  READY: "bg-teal-50    text-teal-700    ring-1 ring-teal-200",
+  COMPLETED: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  CANCELLED: "bg-red-50     text-red-600     ring-1 ring-red-200",
 };
 
 export const PRIORITY_LABELS: Record<string, string> = {
@@ -52,22 +52,24 @@ export const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export const PRIORITY_COLORS: Record<string, string> = {
-  LOW:    "bg-slate-100 text-slate-500 ring-1 ring-slate-200",
+  LOW: "bg-slate-100 text-slate-500 ring-1 ring-slate-200",
   MEDIUM: "bg-slate-200 text-slate-600 ring-1 ring-slate-300",
-  HIGH:   "bg-orange-50 text-orange-700 ring-1 ring-orange-200",
+  HIGH: "bg-orange-50 text-orange-700 ring-1 ring-orange-200",
   URGENT: "bg-red-50    text-red-600   ring-1 ring-red-200",
 };
 
 export const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  NONE:    "Без оплаты",
+  NONE: "Без оплаты",
   WAITING: "Ждём оплату",
-  PAID:    "Оплачено",
+  PREPAID: "Предоплата",
+  PAID: "Оплачено",
 };
 
 export const PAYMENT_STATUS_COLORS: Record<string, string> = {
-  NONE:    "",
+  NONE: "",
   WAITING: "bg-amber-50  text-amber-700  ring-1 ring-amber-200",
-  PAID:    "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  PREPAID: "bg-sky-50    text-sky-700    ring-1 ring-sky-200",
+  PAID: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
 };
 
 export const OFFER_STATUS_LABELS: Record<string, string> = {
@@ -78,8 +80,8 @@ export const OFFER_STATUS_LABELS: Record<string, string> = {
 };
 
 export const OFFER_STATUS_COLORS: Record<string, string> = {
-  DRAFT:    "bg-slate-100  text-slate-600  ring-1 ring-slate-200",
-  SENT:     "bg-blue-50    text-blue-700   ring-1 ring-blue-200",
+  DRAFT: "bg-slate-100  text-slate-600  ring-1 ring-slate-200",
+  SENT: "bg-blue-50    text-blue-700   ring-1 ring-blue-200",
   ACCEPTED: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
   REJECTED: "bg-red-50     text-red-600    ring-1 ring-red-200",
 };
@@ -100,33 +102,33 @@ export const CLIENT_TYPE_LABELS: Record<string, string> = {
 
 // ─── Воронка обзвона (ClientRelationStatus) и итоги звонка (FollowUpResult) ───
 export const CLIENT_RELATION_STATUS_LABELS: Record<string, string> = {
-  NEW:      "Новый",
-  IN_WORK:  "В работе",
+  NEW: "Новый",
+  IN_WORK: "В работе",
   THINKING: "Думает",
-  WON:      "Согласился",
-  LOST:     "Отказался",
+  WON: "Согласился",
+  LOST: "Отказался",
 };
 export const CLIENT_RELATION_STATUS_COLORS: Record<string, string> = {
-  NEW:      "bg-blue-100 text-blue-700",
-  IN_WORK:  "bg-amber-100 text-amber-700",
+  NEW: "bg-blue-100 text-blue-700",
+  IN_WORK: "bg-amber-100 text-amber-700",
   THINKING: "bg-violet-100 text-violet-700",
-  WON:      "bg-emerald-100 text-emerald-700",
-  LOST:     "bg-slate-200 text-slate-600",
+  WON: "bg-emerald-100 text-emerald-700",
+  LOST: "bg-slate-200 text-slate-600",
 };
 
 export const FOLLOWUP_RESULT_LABELS: Record<string, string> = {
-  REACHED:   "Дозвонились",
+  REACHED: "Дозвонились",
   NO_ANSWER: "Не берёт трубку",
   CALL_BACK: "Просил перезвонить",
-  REFUSED:   "Отказался",
-  AGREED:    "Согласился",
+  REFUSED: "Отказался",
+  AGREED: "Согласился",
 };
 export const FOLLOWUP_RESULT_COLORS: Record<string, string> = {
-  REACHED:   "bg-sky-100 text-sky-700",
+  REACHED: "bg-sky-100 text-sky-700",
   NO_ANSWER: "bg-slate-100 text-slate-600",
   CALL_BACK: "bg-amber-100 text-amber-700",
-  REFUSED:   "bg-rose-100 text-rose-700",
-  AGREED:    "bg-emerald-100 text-emerald-700",
+  REFUSED: "bg-rose-100 text-rose-700",
+  AGREED: "bg-emerald-100 text-emerald-700",
 };
 
 // Сокращает организационно-правовую форму в названии контрагента для КП/счетов:
@@ -147,27 +149,35 @@ export function shortenLegalName(name?: string | null): string {
 
 // Используется для подзадач (enum TaskStatus). Статусы задач теперь динамические — см. TaskColumn.
 export const TASK_STATUS_LABELS: Record<string, string> = {
-  TODO:             "К выполнению",
+  TODO: "К выполнению",
   PENDING_APPROVAL: "На согласовании",
-  IN_PROGRESS:      "В работе",
-  DONE:             "Выполнено",
-  CANCELLED:        "Отменено",
+  IN_PROGRESS: "В работе",
+  DONE: "Выполнено",
+  CANCELLED: "Отменено",
 };
 
 export const TASK_STATUS_COLORS: Record<string, string> = {
-  TODO:             "bg-slate-100  text-slate-600  ring-1 ring-slate-200",
+  TODO: "bg-slate-100  text-slate-600  ring-1 ring-slate-200",
   PENDING_APPROVAL: "bg-purple-50  text-purple-700 ring-1 ring-purple-200",
-  IN_PROGRESS:      "bg-amber-50   text-amber-700  ring-1 ring-amber-200",
-  DONE:             "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-  CANCELLED:        "bg-red-50     text-red-600    ring-1 ring-red-200",
+  IN_PROGRESS: "bg-amber-50   text-amber-700  ring-1 ring-amber-200",
+  DONE: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  CANCELLED: "bg-red-50     text-red-600    ring-1 ring-red-200",
 };
 
 // Превращает HEX-цвет колонки задач в стили для бейджа (бледный фон + цветной текст + рамка)
-export function hexToBadgeStyle(hex: string): { backgroundColor: string; color: string; boxShadow: string } {
+export function hexToBadgeStyle(hex: string): {
+  backgroundColor: string;
+  color: string;
+  boxShadow: string;
+} {
   const clean = (hex || "#94a3b8").replace("#", "");
-  const normalized = clean.length === 3
-    ? clean.split("").map((c) => c + c).join("")
-    : clean.padEnd(6, "0").slice(0, 6);
+  const normalized =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean.padEnd(6, "0").slice(0, 6);
   return {
     backgroundColor: `#${normalized}1f`,
     color: `#${normalized}`,
@@ -198,8 +208,16 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Металл",
     short: "М",
     options: [
-      { value: "ЕСТЬ", label: "ЕСТЬ", className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      {
+        value: "ЕСТЬ",
+        label: "ЕСТЬ",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "НЕТ",
+        label: "НЕТ",
+        className: "bg-red-100     text-red-700     ring-1 ring-red-200",
+      },
     ],
   },
   {
@@ -207,8 +225,16 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Чей металл",
     short: "Ч",
     options: [
-      { value: "НАШ", label: "НАШ", className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "ЗАК", label: "ЗАК", className: "bg-amber-100   text-amber-700   ring-1 ring-amber-200" },
+      {
+        value: "НАШ",
+        label: "НАШ",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "ЗАК",
+        label: "ЗАК",
+        className: "bg-amber-100   text-amber-700   ring-1 ring-amber-200",
+      },
     ],
   },
   {
@@ -216,8 +242,16 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Лазер",
     short: "Л",
     options: [
-      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      {
+        value: "ДА",
+        label: "ДА",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "НЕТ",
+        label: "НЕТ",
+        className: "bg-red-100     text-red-700     ring-1 ring-red-200",
+      },
     ],
   },
   {
@@ -225,8 +259,16 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Гибка",
     short: "Г",
     options: [
-      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      {
+        value: "ДА",
+        label: "ДА",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "НЕТ",
+        label: "НЕТ",
+        className: "bg-red-100     text-red-700     ring-1 ring-red-200",
+      },
     ],
   },
   {
@@ -234,8 +276,16 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Сварка",
     short: "С",
     options: [
-      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      {
+        value: "ДА",
+        label: "ДА",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "НЕТ",
+        label: "НЕТ",
+        className: "bg-red-100     text-red-700     ring-1 ring-red-200",
+      },
     ],
   },
   {
@@ -243,8 +293,16 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Покраска",
     short: "П",
     options: [
-      { value: "ДА",  label: "ДА",  className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "НЕТ", label: "НЕТ", className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      {
+        value: "ДА",
+        label: "ДА",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "НЕТ",
+        label: "НЕТ",
+        className: "bg-red-100     text-red-700     ring-1 ring-red-200",
+      },
     ],
   },
   {
@@ -252,8 +310,16 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Пескоструй",
     short: "ПС",
     options: [
-      { value: "ДА",  label: "ДА",  className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "НЕТ", label: "НЕТ", className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
+      {
+        value: "ДА",
+        label: "ДА",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "НЕТ",
+        label: "НЕТ",
+        className: "bg-red-100     text-red-700     ring-1 ring-red-200",
+      },
     ],
   },
   {
@@ -261,9 +327,21 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Доп. работы",
     short: "Д",
     options: [
-      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
-      { value: "ВЫСТ", label: "ВЫСТ", className: "bg-orange-100  text-orange-700  ring-1 ring-orange-200" },
+      {
+        value: "ДА",
+        label: "ДА",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "НЕТ",
+        label: "НЕТ",
+        className: "bg-red-100     text-red-700     ring-1 ring-red-200",
+      },
+      {
+        value: "ВЫСТ",
+        label: "ВЫСТ",
+        className: "bg-orange-100  text-orange-700  ring-1 ring-orange-200",
+      },
     ],
   },
   {
@@ -271,9 +349,21 @@ export const PRODUCTION_FIELDS: Array<{
     label: "Доставка",
     short: "🚚",
     options: [
-      { value: "ДА",   label: "ДА",   className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" },
-      { value: "НЕТ",  label: "НЕТ",  className: "bg-red-100     text-red-700     ring-1 ring-red-200" },
-      { value: "ВЫСТ", label: "ВЫСТ", className: "bg-orange-100  text-orange-700  ring-1 ring-orange-200" },
+      {
+        value: "ДА",
+        label: "ДА",
+        className: "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200",
+      },
+      {
+        value: "НЕТ",
+        label: "НЕТ",
+        className: "bg-red-100     text-red-700     ring-1 ring-red-200",
+      },
+      {
+        value: "ВЫСТ",
+        label: "ВЫСТ",
+        className: "bg-orange-100  text-orange-700  ring-1 ring-orange-200",
+      },
     ],
   },
 ];
@@ -284,67 +374,93 @@ export const TASK_PRODUCTION_FIELDS = PRODUCTION_FIELDS;
 // Поднабор для портала: клиент сам отмечает, какие операции ему нужны.
 // Поля «материалы» (hasMetal, metalOwner) исключены — это внутренняя кухня.
 export const PORTAL_PRODUCTION_FIELDS = PRODUCTION_FIELDS.filter(
-  (f) => f.key !== "hasMetal" && f.key !== "metalOwner"
+  (f) => f.key !== "hasMetal" && f.key !== "metalOwner",
 );
 
 // Платёжный подстатус портальной заявки — управляет только менеджер,
 // клиент видит как read-only бейдж.
 export type PortalPaymentStatus = "NONE" | "AWAITING" | "PAID";
-export const PORTAL_PAYMENT_OPTIONS: { value: PortalPaymentStatus; label: string; className: string }[] = [
-  { value: "NONE", label: "Без оплаты", className: "bg-slate-100 text-slate-600 ring-1 ring-slate-200" },
-  { value: "AWAITING", label: "Ждём оплату", className: "bg-amber-100 text-amber-700" },
-  { value: "PAID", label: "Оплачено", className: "bg-emerald-100 text-emerald-700" },
+export const PORTAL_PAYMENT_OPTIONS: {
+  value: PortalPaymentStatus;
+  label: string;
+  className: string;
+}[] = [
+  {
+    value: "NONE",
+    label: "Без оплаты",
+    className: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+  },
+  {
+    value: "AWAITING",
+    label: "Ждём оплату",
+    className: "bg-amber-100 text-amber-700",
+  },
+  {
+    value: "PAID",
+    label: "Оплачено",
+    className: "bg-emerald-100 text-emerald-700",
+  },
 ];
-export const PORTAL_PAYMENT_LABELS: Record<PortalPaymentStatus, string> = Object.fromEntries(
-  PORTAL_PAYMENT_OPTIONS.map((o) => [o.value, o.label])
-) as Record<PortalPaymentStatus, string>;
+export const PORTAL_PAYMENT_LABELS: Record<PortalPaymentStatus, string> =
+  Object.fromEntries(
+    PORTAL_PAYMENT_OPTIONS.map((o) => [o.value, o.label]),
+  ) as Record<PortalPaymentStatus, string>;
 
 export type PortalPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
-export const PORTAL_PRIORITY_OPTIONS: { value: PortalPriority; label: string; className: string }[] = [
-  { value: "LOW",    label: "Низкий",   className: "bg-slate-100 text-slate-600 ring-1 ring-slate-200" },
-  { value: "NORMAL", label: "Обычный",  className: "bg-blue-100 text-blue-700" },
-  { value: "HIGH",   label: "Высокий",  className: "bg-amber-100 text-amber-700" },
-  { value: "URGENT", label: "Срочный",  className: "bg-red-100 text-red-700" },
+export const PORTAL_PRIORITY_OPTIONS: {
+  value: PortalPriority;
+  label: string;
+  className: string;
+}[] = [
+  {
+    value: "LOW",
+    label: "Низкий",
+    className: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+  },
+  { value: "NORMAL", label: "Обычный", className: "bg-blue-100 text-blue-700" },
+  { value: "HIGH", label: "Высокий", className: "bg-amber-100 text-amber-700" },
+  { value: "URGENT", label: "Срочный", className: "bg-red-100 text-red-700" },
 ];
-export const PORTAL_PRIORITY_LABELS: Record<PortalPriority, string> = Object.fromEntries(
-  PORTAL_PRIORITY_OPTIONS.map((o) => [o.value, o.label])
-) as Record<PortalPriority, string>;
+export const PORTAL_PRIORITY_LABELS: Record<PortalPriority, string> =
+  Object.fromEntries(
+    PORTAL_PRIORITY_OPTIONS.map((o) => [o.value, o.label]),
+  ) as Record<PortalPriority, string>;
 
 export const CHANGELOG_FIELD_LABELS: Record<string, string> = {
-  status:     "Статус",
-  priority:   "Приоритет",
-  title:      "Название",
+  status: "Статус",
+  priority: "Приоритет",
+  title: "Название",
   assigneeId: "Ответственный",
-  amount:     "Сумма",
+  amount: "Сумма",
   // Поля задач
-  assignee:           "Исполнитель",
-  dueDate:            "Срок",
-  workshop:           "Цех",
-  hasMetal:           "Металл",
-  metalOwner:         "Чей металл",
-  laserStatus:        "Лазер",
-  bendingStatus:      "Гибка",
-  weldingStatus:      "Сварка",
-  paintingStatus:     "Покраска",
+  assignee: "Исполнитель",
+  dueDate: "Срок",
+  workshop: "Цех",
+  hasMetal: "Металл",
+  metalOwner: "Чей металл",
+  laserStatus: "Лазер",
+  bendingStatus: "Гибка",
+  weldingStatus: "Сварка",
+  paintingStatus: "Покраска",
   sandblastingStatus: "Пескоструй",
-  extraWorkStatus:    "Доп. работы",
-  deliveryStatus:     "Доставка",
+  extraWorkStatus: "Доп. работы",
+  deliveryStatus: "Доставка",
 };
 
 export const CHANGELOG_VALUE_LABELS: Record<string, string> = {
   // Статусы заявок
-  NEW:              "Новая",
+  NEW: "Новая",
   PENDING_APPROVAL: "На согласовании",
-  IN_PROGRESS:      "В работе",
-  READY:            "Готово",
-  COMPLETED:        "Завершена",
-  CANCELLED:        "Отменена",
+  IN_PROGRESS: "В работе",
+  READY: "Готово",
+  COMPLETED: "Завершена",
+  CANCELLED: "Отменена",
   // Приоритеты
-  LOW:    "Низкий",
+  LOW: "Низкий",
   MEDIUM: "Средний",
-  HIGH:   "Высокий",
+  HIGH: "Высокий",
   URGENT: "Срочный",
   // Статусы задач
-  TODO:                  "К выполнению",
-  DONE:                  "Выполнено",
+  TODO: "К выполнению",
+  DONE: "Выполнено",
 };

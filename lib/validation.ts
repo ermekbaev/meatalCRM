@@ -33,7 +33,7 @@ export const requestStatusEnum = z.enum([
   "COMPLETED",
   "CANCELLED",
 ]);
-export const paymentStatusEnum = z.enum(["NONE", "WAITING", "PAID"]);
+export const paymentStatusEnum = z.enum(["NONE", "WAITING", "PREPAID", "PAID"]);
 export const priorityEnum = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]);
 export const offerStatusEnum = z.enum(["DRAFT", "SENT", "ACCEPTED", "REJECTED"]);
 export const taskStatusEnum = z.enum([
