@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { REQUEST_STATUS_LABELS, REQUEST_STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, PRODUCTION_FIELDS, formatDate, formatCurrency } from "@/lib/utils";
-import { Plus, Search, Trash2, Eye, Download, Loader2, Factory, Check } from "lucide-react";
+import { Plus, Search, Trash2, Eye, Download, Loader2, Factory, Check, X } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 
@@ -182,6 +182,9 @@ function RequestsPageInner() {
   const [priority, setPriority] = useState("ALL");
   const [paymentStatus, setPaymentStatus] = useState("ALL");
   const [assigneeId, setAssigneeId] = useState("ALL");
+  // Фильтр по дате создания заявки (диапазон «с/по»). Пусто = без ограничения.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingPayment, setUpdatingPayment] = useState<string | null>(null);
@@ -279,9 +282,20 @@ function RequestsPageInner() {
     XLSX.writeFile(wb, "requests.xlsx");
   };
 
+  // Фильтр по дате создания применяем до разбивки по табам — чтобы и список,
+  // и счётчики на вкладках отражали выбранный период.
+  const inDateRange = (r: any) => {
+    if (!dateFrom && !dateTo) return true;
+    const t = new Date(r.createdAt).getTime();
+    if (dateFrom && t < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
+    if (dateTo && t > new Date(`${dateTo}T23:59:59.999`).getTime()) return false;
+    return true;
+  };
+  const datedRequests = requests.filter(inDateRange);
+
   // Список под активный статус-таб + счётчики для бейджей на вкладках.
-  const visibleRequests = requests.filter((r) => matchesTab(r, tab));
-  const tabCount = (t: RequestTab) => requests.filter((r) => matchesTab(r, t)).length;
+  const visibleRequests = datedRequests.filter((r) => matchesTab(r, tab));
+  const tabCount = (t: RequestTab) => datedRequests.filter((r) => matchesTab(r, t)).length;
 
   return (
     <div>
@@ -333,6 +347,34 @@ function RequestsPageInner() {
               </SelectContent>
             </Select>
           )}
+          {/* Фильтр по дате создания заявки (с / по) */}
+          <div className="flex items-center gap-1.5" title="Дата создания заявки">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9 w-full min-w-0 sm:w-40"
+              aria-label="Дата с"
+            />
+            <span className="text-slate-400">—</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9 w-full min-w-0 sm:w-40"
+              aria-label="Дата по"
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                title="Сбросить даты"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <div className="flex w-full sm:w-auto sm:ml-auto gap-2">
             {!isAssigneeRole && (
               <Button variant="outline" className="flex-1 sm:flex-none" onClick={handleExport}>
