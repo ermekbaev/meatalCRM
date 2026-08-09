@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "db:push": "prisma db push",
     "db:seed": "tsx lib/seed.ts",
+    "db:seed:demo": "tsx lib/seed-demo.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
