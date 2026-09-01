@@ -7,36 +7,43 @@ import { useCallback, useEffect, useState } from "react";
 import { AvatarDialog } from "./AvatarDialog";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
-  FileText, LogOut, Factory, BookOpen, ChevronRight, Calculator,
-  Layers, Scissors, Box, BarChart2, Receipt, Warehouse, Building2, PhoneCall,
+  FileText, LogOut, Calculator, Settings, ChevronRight,
+  BarChart2, Receipt, Warehouse, Building2, PhoneCall,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 
 type NavItem = { href: string; label: string; icon: any; foreman?: boolean };
+type NavGroup = { title: string; items: NavItem[] };
 
-const navItems: NavItem[] = [
-  { href: "/dashboard",  label: "Главная",     icon: LayoutDashboard },
-  { href: "/requests",   label: "Заявки",       icon: ClipboardList },
-  { href: "/tasks",      label: "Задачи",        icon: CheckSquare, foreman: true },
-  { href: "/clients",    label: "Контрагенты",  icon: Users },
-  { href: "/followups",  label: "Обзвон",        icon: PhoneCall },
-  { href: "/offers",     label: "КП",            icon: FileText },
-  { href: "/invoices",   label: "Счета",         icon: Receipt },
-  { href: "/analytics",  label: "Аналитика",    icon: BarChart2 },
-  { href: "/calculator", label: "Калькулятор",  icon: Calculator },
-  { href: "/warehouse",  label: "Склад",         icon: Warehouse, foreman: true },
-  { href: "/companies",  label: "Компании",     icon: Building2 },
-];
-
-const settingsItems = [
-  { href: "/settings/users",           label: "Пользователи",    icon: Users },
-  { href: "/settings/catalog",         label: "Услуги/Товары",   icon: BookOpen },
-  { href: "/settings/catalog/metals",  label: "Металлы",         icon: Layers },
-  { href: "/settings/catalog/bending", label: "Гибка",           icon: Box },
-  { href: "/settings/catalog/cutting", label: "Резка",           icon: Scissors },
-  { href: "/settings/company",         label: "Реквизиты",       icon: Factory },
+const navGroups: NavGroup[] = [
+  {
+    title: "Работа",
+    items: [
+      { href: "/dashboard", label: "Главная", icon: LayoutDashboard },
+      { href: "/requests",  label: "Заявки",   icon: ClipboardList },
+      { href: "/tasks",     label: "Задачи",    icon: CheckSquare, foreman: true },
+      { href: "/warehouse", label: "Склад",     icon: Warehouse, foreman: true },
+    ],
+  },
+  {
+    title: "Продажи",
+    items: [
+      { href: "/clients",   label: "Контрагенты", icon: Users },
+      { href: "/followups", label: "Обзвон",       icon: PhoneCall },
+      { href: "/offers",    label: "КП",           icon: FileText },
+      { href: "/invoices",  label: "Счета",        icon: Receipt },
+      { href: "/companies", label: "Компании",    icon: Building2 },
+    ],
+  },
+  {
+    title: "Инструменты",
+    items: [
+      { href: "/analytics",  label: "Аналитика",   icon: BarChart2 },
+      { href: "/calculator", label: "Калькулятор", icon: Calculator },
+    ],
+  },
 ];
 
 // Опрос счётчика новых портальных заявок. Не SWR, чтобы не тащить лишнюю
@@ -53,7 +60,9 @@ export function Sidebar() {
   const isAdmin = role === "ADMIN";
   const isManager = role === "MANAGER";
   const isForeman = role === "FOREMAN";
-  const visibleNav = isForeman ? navItems.filter((i) => i.foreman) : navItems;
+  const visibleGroups = navGroups
+    .map((g) => ({ ...g, items: isForeman ? g.items.filter((i) => i.foreman) : g.items }))
+    .filter((g) => g.items.length > 0);
 
   const fetchCounts = useCallback(async () => {
     if (!isAdmin && !isManager) return;
@@ -78,7 +87,7 @@ export function Sidebar() {
   }, [fetchCounts, pathname]);
 
   return (
-    <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col bg-[#212121] border-r border-white/10">
+    <aside className="hidden lg:flex fixed inset-y-0 left-0 z-50 w-60 flex-col border-r border-white/10 bg-linear-to-b from-[#262626] to-[#1a1a1a]">
       {/* Logo */}
       <div className="flex h-18 items-center px-4 border-b border-white/10">
         <Image
@@ -92,87 +101,83 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        {visibleNav.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
-                active
-                  ? "bg-orange-600 text-white"
-                  : "text-white/60 hover:bg-white/10 hover:text-white"
-              )}
-            >
-              <Icon className={cn(
-                "h-4 w-4 shrink-0 transition-colors",
-                active ? "text-orange-100" : "text-white/40 group-hover:text-white/80"
-              )} />
-              <span className="flex-1 truncate">{item.label}</span>
-              {item.href === "/companies" && newPortalCount > 0 && (
-                <span
-                  className={cn(
-                    "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
-                    active ? "bg-white text-orange-600" : "bg-orange-500 text-white"
-                  )}
-                  title="Новых заявок"
-                >
-                  {newPortalCount}
-                </span>
-              )}
-              {item.href === "/followups" && followupCount > 0 && (
-                <span
-                  className={cn(
-                    "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
-                    active ? "bg-white text-orange-600" : "bg-rose-500 text-white"
-                  )}
-                  title="Звонки на сегодня и просроченные"
-                >
-                  {followupCount}
-                </span>
-              )}
-              {active && item.href !== "/companies" && item.href !== "/followups" && (
-                <ChevronRight className="ml-auto h-3 w-3 text-white/40" />
-              )}
-            </Link>
-          );
-        })}
-
-        {isAdmin && (
-          <div className="pt-4">
-            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">
-              Настройки
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {visibleGroups.map((group) => (
+          <div key={group.title} className="mb-5 last:mb-0">
+            <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/25">
+              {group.title}
             </p>
             <div className="space-y-0.5">
-              {settingsItems.map((item) => {
+              {group.items.map((item) => {
                 const Icon = item.icon;
-                const active = pathname === item.href;
+                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const badge =
+                  item.href === "/companies" ? newPortalCount
+                  : item.href === "/followups" ? followupCount
+                  : 0;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors duration-150",
                       active
-                        ? "bg-orange-600 text-white"
-                        : "text-white/60 hover:bg-white/10 hover:text-white"
+                        ? "bg-orange-600 text-white shadow-sm shadow-black/30"
+                        : "text-white/60 hover:bg-white/[0.07] hover:text-white"
                     )}
                   >
                     <Icon className={cn(
-                      "h-4 w-4 shrink-0",
-                      active ? "text-orange-100" : "text-white/40 group-hover:text-white/80"
+                      "h-4 w-4 shrink-0 transition-colors",
+                      active ? "text-white" : "text-white/40 group-hover:text-white/80"
                     )} />
-                    {item.label}
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {badge > 0 && (
+                      <span
+                        className={cn(
+                          "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                          active
+                            ? "bg-white text-orange-600"
+                            : item.href === "/followups"
+                              ? "bg-rose-500 text-white"
+                              : "bg-orange-500 text-white"
+                        )}
+                        title={item.href === "/followups" ? "Звонки на сегодня и просроченные" : "Новых заявок"}
+                      >
+                        {badge}
+                      </span>
+                    )}
+                    {active && badge === 0 && (
+                      <ChevronRight className="ml-auto h-3 w-3 text-white/50" />
+                    )}
                   </Link>
                 );
               })}
             </div>
           </div>
-        )}
+        ))}
       </nav>
+
+      {/* Настройки — отдельный раздел со своим сайдбаром */}
+      {isAdmin && (
+        <div className="px-3 pb-2">
+          <Link
+            href="/settings"
+            className={cn(
+              "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors duration-150",
+              pathname.startsWith("/settings")
+                ? "bg-white/10 text-white"
+                : "text-white/60 hover:bg-white/[0.07] hover:text-white"
+            )}
+          >
+            <Settings className={cn(
+              "h-4 w-4 shrink-0 transition-colors",
+              pathname.startsWith("/settings") ? "text-orange-500" : "text-white/40 group-hover:text-white/80"
+            )} />
+            <span className="flex-1 truncate">Настройки</span>
+            <ChevronRight className="h-3 w-3 text-white/30" />
+          </Link>
+        </div>
+      )}
 
       {/* User */}
       <div className="border-t border-white/10 p-3">

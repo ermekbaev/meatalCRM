@@ -13,7 +13,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
   const { toggle, insideShell } = useSidebar();
 
   return (
-    <header className="safe-area-inset-top sticky top-0 z-40 flex h-14 lg:h-18 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
+    <header className="safe-area-inset-top sticky top-0 z-40 flex h-14 lg:h-18 items-center justify-between border-b border-slate-200 bg-white/85 px-4 backdrop-blur-md lg:px-6 supports-[backdrop-filter]:bg-white/75">
       <div className="flex items-center gap-3">
         {insideShell && (
           <button
@@ -24,8 +24,8 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
           </button>
         )}
         <div>
-          <h1 className="text-[15px] font-semibold text-slate-800 leading-tight">{title}</h1>
-          {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+          <h1 className="text-[15px] lg:text-base font-semibold tracking-tight text-slate-800 leading-tight">{title}</h1>
+          {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
         </div>
       </div>
       <div className="flex items-center gap-3">

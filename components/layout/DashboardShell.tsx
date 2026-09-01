@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard, ClipboardList, Users, CheckSquare,
-  FileText, Factory, BookOpen, X, LogOut, Calculator,
-  Layers, Scissors, Box, Receipt, BarChart2, Warehouse, Building2, PhoneCall,
+  FileText, X, LogOut, Calculator, Settings, ChevronRight,
+  Receipt, BarChart2, Warehouse, Building2, PhoneCall,
 } from "lucide-react";
 import { cn, ROLE_LABELS } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
@@ -41,15 +41,6 @@ navItems.push({ href: "/warehouse", label: "Склад", mobileLabel: "Скла�
 navItems.push({ href: "/companies", label: "Компании", mobileLabel: "Кабинеты", icon: Building2 });
 
 const bottomTabItems = navItems.slice(0, 4);
-
-const settingsItems = [
-  { href: "/settings/users",           label: "Пользователи",  icon: Users },
-  { href: "/settings/catalog",         label: "Услуги/Товары", icon: BookOpen },
-  { href: "/settings/catalog/metals",  label: "Металлы",       icon: Layers },
-  { href: "/settings/catalog/bending", label: "Гибка",         icon: Box },
-  { href: "/settings/catalog/cutting", label: "Резка",         icon: Scissors },
-  { href: "/settings/company",         label: "Реквизиты",     icon: Factory },
-];
 
 // Тот же эндпоинт, что в десктопном Sidebar — счётчик NEW портальных заявок.
 const NEW_POLL_MS = 60_000;
@@ -146,29 +137,26 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
 
           {isAdmin && (
             <div className="pt-3 mt-2 border-t border-slate-200">
-              <p className="mb-2 px-4 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-                Настройки
-              </p>
-              {settingsItems.map((item) => {
-                const Icon = item.icon;
-                const active = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center gap-4 rounded-xl px-4 py-3.5 text-[15px] font-medium transition-all",
-                      active
-                        ? "bg-orange-600 text-white"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    )}
-                  >
-                    <Icon className={cn("h-5 w-5 shrink-0", active ? "text-orange-100" : "text-slate-400")} />
-                    {item.label}
-                  </Link>
-                );
-              })}
+              <Link
+                href="/settings"
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-4 rounded-xl px-4 py-3.5 text-[15px] font-medium transition-all",
+                  pathname.startsWith("/settings")
+                    ? "bg-orange-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <Settings className={cn(
+                  "h-5 w-5 shrink-0",
+                  pathname.startsWith("/settings") ? "text-orange-100" : "text-slate-400"
+                )} />
+                <span className="flex-1">Настройки</span>
+                <ChevronRight className={cn(
+                  "h-4 w-4",
+                  pathname.startsWith("/settings") ? "text-orange-100" : "text-slate-300"
+                )} />
+              </Link>
             </div>
           )}
         </nav>
