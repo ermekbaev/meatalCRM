@@ -26,7 +26,7 @@ const SOFT2 = "#ffcdbb";
 
 export default function LaserArt({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="130 120 400 290" className={className} aria-hidden="true">
+    <svg viewBox="110 60 440 350" className={className} aria-hidden="true">
       <defs>
         <filter id="la-blur" x="-20%" y="-20%" width="140%" height="160%">
           <feGaussianBlur stdDeviation="12" />
