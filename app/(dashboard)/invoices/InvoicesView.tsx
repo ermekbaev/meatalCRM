@@ -9,6 +9,7 @@ import Link from "next/link";
 import { formatDate, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
+import EmptyState from "@/components/ui/empty-state";
 
 export const PAGE_SIZE = 50;
 
@@ -133,8 +134,7 @@ export function InvoicesView({
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-200 text-gray-400">
-            <FileText className="h-10 w-10" />
-            <p className="text-sm">{search ? "Ничего не найдено" : "Счётов ещё нет"}</p>
+            <EmptyState kind="invoices" compact title={search ? "Ничего не найдено" : "Счетов ещё нет"} />
             {!search && (
               <Link href="/invoices/new">
                 <Button size="sm" variant="outline">Создать первый счёт</Button>

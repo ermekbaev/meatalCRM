@@ -11,6 +11,8 @@ import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import LaserArt from "@/components/ui/laser-art";
+import EmptyState from "@/components/ui/empty-state";
 
 const MONTH_NAMES = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
 
@@ -112,6 +114,16 @@ export default async function DashboardPage({
       <Header title="Главная" />
       <div className="p-4 lg:p-6 space-y-5">
 
+        {/* Шапка с рисунком лазерного стола (22.11): цвет бренда, на телефоне рисунка нет */}
+        <div className="relative overflow-hidden rounded-xl border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-white px-5 py-5 sm:px-7 sm:py-6 md:min-h-[150px] md:pr-[17rem]">
+          <div className="pointer-events-none absolute bottom-2 right-6 top-2 hidden md:block">
+            <LaserArt className="h-full w-auto" />
+          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-600">Рабочее пространство</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-800 sm:text-2xl">От точной идеи до готового результата</h2>
+          <p className="mt-1 max-w-md text-sm text-slate-500">Заявки, расчёты, склад металла и производство в одной системе.</p>
+        </div>
+
         {/* Period filter */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-400">
@@ -159,7 +171,7 @@ export default async function DashboardPage({
                 </Link>
               ))}
               {recentRequests.length === 0 && (
-                <p className="px-5 py-8 text-center text-[13px] text-slate-400">Нет заявок</p>
+                <EmptyState kind="requests" compact title="Заявок пока нет" hint="Первая заявка появится здесь" />
               )}
             </div>
           </div>

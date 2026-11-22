@@ -34,6 +34,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import EmptyState from "@/components/ui/empty-state";
 
 type Workshop = {
   id: string;
@@ -743,7 +744,7 @@ export default function TasksPage() {
           <div className="flex h-40 items-center justify-center text-slate-400 text-sm">Загрузка...</div>
         ) : displayTasks.length === 0 && displayArchived.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-3 text-slate-400">
-            <p className="text-sm">Задач пока нет</p>
+            <EmptyState kind="tasks" compact title="Задач пока нет" />
             {canManageTasks && (
               <Button variant="outline" size="sm" onClick={() => router.push("/tasks/new")}>
                 <Plus className="mr-1 h-4 w-4" /> Создать первую задачу
